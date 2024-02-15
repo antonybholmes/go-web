@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid/v5"
+	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -154,4 +155,8 @@ func (userdb *UserDb) CreateUser(user *LoginUser) (*AuthUser, error) {
 	}
 
 	return authUser, nil
+}
+
+func AuthCode() string {
+	return randomstring.CookieFriendlyString(32)
 }
