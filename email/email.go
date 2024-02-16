@@ -1,10 +1,26 @@
 package email
 
 import (
+	"os"
+
 	"github.com/antonybholmes/go-auth"
+	"github.com/antonybholmes/go-env"
 )
 
-var emailer = auth.NewSMTPEmail()
+var emailer = auth.NewSMTPEmailer()
+
+func init() {
+	// force loading of enviromental variables if not done so
+	env.Load()
+
+	// Attempt to initialize by scanning enviromental variables.
+	// If user has set them, magic, otherwise user will have to manually
+	// specify
+	emailer.SetName(os.Getenv("NAME")).
+		SetUser(env.GetStr("SMTP_USER", ""), env.GetStr("SMTP_PASSWORD", "")).
+		SetHost(env.GetStr("SMTP_HOST", ""), env.GetUint32("SMTP_PORT", 587)).
+		SetFrom(env.GetStr("SMTP_FROM", ""))
+}
 
 func SetName(name string) *auth.SMTPEmailer {
 	return emailer.SetName(name)

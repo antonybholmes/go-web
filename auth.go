@@ -50,6 +50,10 @@ type AuthUser struct {
 	HashedPassword []byte `json:"hashed_password"`
 }
 
+func init() {
+	randomstring.Seed()
+}
+
 func NewAuthUser(id int, userId string, hashedPassword string, user *LoginUser) *AuthUser {
 	return &AuthUser{User: User{Name: user.Name, Email: user.Email}, Id: id, UserId: userId, HashedPassword: []byte(hashedPassword)}
 }

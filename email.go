@@ -7,6 +7,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type ISMTPEmailer interface {
+	SetName(name string) *SMTPEmailer
+
+	SetUser(user string, password string) *SMTPEmailer
+
+	SetHost(host string, port uint) *SMTPEmailer
+
+	From() string
+
+	SetFrom(from string) *SMTPEmailer
+
+	SendEmail(to string, message string) error
+
+	Compose(to string, subject string, body string) error
+}
+
 type SMTPEmailer struct {
 	name     string
 	user     string
@@ -17,7 +33,7 @@ type SMTPEmailer struct {
 	from     string
 }
 
-func NewSMTPEmail() *SMTPEmailer {
+func NewSMTPEmailer() *SMTPEmailer {
 	host := ""
 	port := uint(587)
 	addr := fmt.Sprintf("%s:%d", host, port)
