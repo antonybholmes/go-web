@@ -75,7 +75,7 @@ func (emailer *SMTPEmailer) SetFrom(from string) *SMTPEmailer {
 	return emailer
 }
 
-func (emailer *SMTPEmailer) SendEmail(to string, message string) error {
+func (emailer *SMTPEmailer) SendEmail(to string, body []byte) error {
 
 	//from := os.Getenv("EMAIL")
 
@@ -99,8 +99,6 @@ func (emailer *SMTPEmailer) SendEmail(to string, message string) error {
 	// 	fmt.Sprintf("Subject: %s OTP code\r\n", os.Getenv("NAME")) +
 	// 	"\r\n" +
 	// 	fmt.Sprintf("Your one time code is: %s\r\n", code))
-
-	body := []byte(message)
 
 	// Authentication.
 	auth := smtp.PlainAuth("", emailer.user, emailer.password, emailer.host)
@@ -129,5 +127,5 @@ func (emailer *SMTPEmailer) Compose(to string, subject string, body string) erro
 
 	log.Debug().Msg(message)
 
-	return emailer.SendEmail(to, message)
+	return emailer.SendEmail(to, []byte(message))
 }

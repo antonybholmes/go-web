@@ -16,8 +16,19 @@ import (
 
 const JWT_TOKEN_EXPIRES_HOURS time.Duration = 24
 const INVALID_JWT_MESSAGE string = "Invalid JWT"
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, user_id, password FROM users WHERE users.email = ?`
-const CREATE_USER_SQL = `INSERT INTO users (user_id, email, password) VALUES(?, ?, ?)`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, user_id, password, is_verified, otp FROM users WHERE users.user_id = ?`
+const CREATE_USER_SQL = `INSERT INTO users (user_id, email, password, otp) VALUES(?, ?, ?, ?)`
+
+type UrlReq struct {
+	Url string `json:"url"`
+}
+
+type LoginReq struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Url      string `json:"url"`
+}
 
 type User struct {
 	Name  string `json:"name"`
@@ -29,8 +40,12 @@ type LoginUser struct {
 	Password []byte `json:"password"`
 }
 
-func NewLoginUser(email string, password string) *LoginUser {
-	return &LoginUser{User: User{Email: email}, Password: []byte(password)}
+func NewLoginUser(name string, email string, password string) *LoginUser {
+	return &LoginUser{User: User{Name: name, Email: email}, Password: []byte(password)}
+}
+
+func LoginUserFromReq(req *LoginReq) *LoginUser {
+	return NewLoginUser(req.Name, req.Email, req.Password)
 }
 
 func (user *LoginUser) HashPassword() ([]byte, error) {
@@ -121,7 +136,7 @@ func (userdb *UserDb) FindUserByEmail(user *LoginUser) (*AuthUser, error) {
 	return authUser, nil
 }
 
-func (userdb *UserDb) CreateUser(user *LoginUser) (*AuthUser, error) {
+func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error) {
 
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
@@ -145,7 +160,7 @@ func (userdb *UserDb) CreateUser(user *LoginUser) (*AuthUser, error) {
 		return nil, err
 	}
 
-	_, err = userdb.createUserStmt.Exec(u1, user.Email, hash)
+	_, err = userdb.createUserStmt.Exec(u1, user.Name, user.Email, hash, otp)
 
 	if err != nil {
 		return nil, err

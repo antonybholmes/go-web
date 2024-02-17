@@ -42,8 +42,8 @@ func SetFrom(from string) *auth.SMTPEmailer {
 	return emailer.SetFrom(from)
 }
 
-func SendEmail(to string, message string) {
-	emailer.SendEmail(to, message)
+func SendEmail(to string, body []byte) error {
+	return emailer.SendEmail(to, body)
 }
 
 func Compose(to string, subject string, body string) error {
