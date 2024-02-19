@@ -36,13 +36,6 @@ type UrlCallbackReq struct {
 	Url string `json:"url"`
 }
 
-type LoginReq struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	UrlCallbackReq
-}
-
 type User struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
@@ -51,37 +44,6 @@ type User struct {
 type PublicUser struct {
 	UserId string `json:"user_id"`
 	User
-}
-
-type LoginUser struct {
-	User
-	Password []byte `json:"password"`
-}
-
-func (user *LoginUser) String() string {
-	return fmt.Sprintf("%s:%s:%s", user.Name, user.Email, user.Password)
-}
-
-func NewLoginUser(name string, email string, password string) *LoginUser {
-	return &LoginUser{User: User{Name: name, Email: email}, Password: []byte(password)}
-}
-
-func LoginUserFromReq(req *LoginReq) *LoginUser {
-	return NewLoginUser(req.Name, req.Email, req.Password)
-}
-
-func (user *LoginUser) HashPassword() ([]byte, error) {
-	bytes, err := bcrypt.GenerateFromPassword(user.Password, bcrypt.DefaultCost)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes, nil
-}
-
-func (user *LoginUser) Mailbox() *mailer.Mailbox {
-	return mailer.NewMailbox(user.Name, user.Email)
 }
 
 type AuthUser struct {
@@ -103,15 +65,6 @@ func init() {
 func NewAuthUser(id int, userId string, name string, email string, hashedPassword string, isVerified bool, otp string) *AuthUser {
 	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: name, Email: email}},
 		Id:             id,
-		HashedPassword: []byte(hashedPassword),
-		IsVerified:     isVerified,
-		OTP:            otp}
-}
-
-func NewAuthUserFromLogin(id int, userId string, hashedPassword string, isVerified bool, otp string, user *LoginUser) *AuthUser {
-	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: user.Name, Email: user.Email}},
-		Id: id,
-
 		HashedPassword: []byte(hashedPassword),
 		IsVerified:     isVerified,
 		OTP:            otp}
@@ -181,22 +134,21 @@ func (userdb *UserDb) Close() {
 	userdb.db.Close()
 }
 
-func (userdb *UserDb) FindUserByEmail(user *LoginUser) (*AuthUser, error) {
+func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 	var id int
 	var userId string
 	var name string
-	var email string
 	var hashedPassword string
 	var isVerified bool
 	var otp string
 
-	err := userdb.findUserByEmailStmt.QueryRow(user.Email).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
+	err := userdb.findUserByEmailStmt.QueryRow(email).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUserFromLogin(id, userId, hashedPassword, isVerified, otp, user)
+	authUser := NewAuthUser(id, userId, name, email, hashedPassword, isVerified, otp)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 
@@ -252,12 +204,12 @@ func (userdb *UserDb) SetOtp(userId string, otp string) error {
 	return err
 }
 
-func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error) {
+func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error) {
 
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
-	authUser, err := userdb.FindUserByEmail(user)
+	authUser, err := userdb.FindUserByEmail(user.Email)
 
 	// try to create user if user does not exist
 	if err != nil {
@@ -283,7 +235,7 @@ func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error)
 		}
 
 		// Call function again to get the user details
-		authUser, err = userdb.FindUserByEmail(user)
+		authUser, err = userdb.FindUserByEmail(user.Email)
 
 		if err != nil {
 			return nil, err
