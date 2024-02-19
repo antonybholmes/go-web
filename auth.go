@@ -23,7 +23,7 @@ const FIND_USER_BY_ID_SQL string = `SELECT id, user_id, name, email, password, i
 const FIND_USER_BY_EMAIL_SQL string = `SELECT id, user_id, name, email, password, is_verified, otp FROM users WHERE users.email = ?`
 const CREATE_USER_SQL = `INSERT INTO users (user_id, name, email, password, otp) VALUES(?, ?, ?, ?, ?)`
 const SET_IS_VERIFIED_SQL = `UPDATE users SET is_verified = 1 WHERE users.user_id = ?`
-const CLEAR_OTP_SQL = `UPDATE users SET otp = "" WHERE users.user_id = ?`
+const SET_OTP_SQL = `UPDATE users SET otp = ? WHERE users.user_id = ?`
 
 type UrlReq struct {
 	Url string `json:"url"`
@@ -46,6 +46,11 @@ type LoginReq struct {
 type User struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type PublicUser struct {
+	UserId string `json:"user_id"`
+	User
 }
 
 type LoginUser struct {
@@ -80,9 +85,8 @@ func (user *LoginUser) Mailbox() *mailer.Mailbox {
 }
 
 type AuthUser struct {
-	User
+	PublicUser
 	Id             int    `json:"int"`
-	UserId         string `json:"user_id"`
 	HashedPassword []byte `json:"hashed_password"`
 	IsVerified     bool   `json:"isVerified"`
 	OTP            string `json:"otp"`
@@ -97,18 +101,17 @@ func init() {
 }
 
 func NewAuthUser(id int, userId string, name string, email string, hashedPassword string, isVerified bool, otp string) *AuthUser {
-	return &AuthUser{User: User{Name: name, Email: email},
+	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: name, Email: email}},
 		Id:             id,
-		UserId:         userId,
 		HashedPassword: []byte(hashedPassword),
 		IsVerified:     isVerified,
 		OTP:            otp}
 }
 
 func NewAuthUserFromLogin(id int, userId string, hashedPassword string, isVerified bool, otp string, user *LoginUser) *AuthUser {
-	return &AuthUser{User: User{Name: user.Name, Email: user.Email},
-		Id:             id,
-		UserId:         userId,
+	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: user.Name, Email: user.Email}},
+		Id: id,
+
 		HashedPassword: []byte(hashedPassword),
 		IsVerified:     isVerified,
 		OTP:            otp}
@@ -131,7 +134,7 @@ type UserDb struct {
 	findUserByIdStmt    *sql.Stmt
 	createUserStmt      *sql.Stmt
 	setIsVerifiedStmt   *sql.Stmt
-	clearOtpStmt        *sql.Stmt
+	setOtpStmt          *sql.Stmt
 }
 
 func NewUserDb(file string) (*UserDb, error) {
@@ -165,13 +168,13 @@ func NewUserDb(file string) (*UserDb, error) {
 		return nil, err
 	}
 
-	clearOtpStmt, err := db.Prepare(SET_IS_VERIFIED_SQL)
+	setOtpStmt, err := db.Prepare(SET_OTP_SQL)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &UserDb{db, findUserByEmailStmt, findUserByIdStmt, createUserStmt, setIsVerifiedStmt, clearOtpStmt}, nil
+	return &UserDb{db, findUserByEmailStmt, findUserByIdStmt, createUserStmt, setIsVerifiedStmt, setOtpStmt}, nil
 }
 
 func (userdb *UserDb) Close() {
@@ -187,16 +190,11 @@ func (userdb *UserDb) FindUserByEmail(user *LoginUser) (*AuthUser, error) {
 	var isVerified bool
 	var otp string
 
-	log.Debug().Msgf("%s here", user.Email)
-
 	err := userdb.findUserByEmailStmt.QueryRow(user.Email).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
 
 	if err != nil {
-		log.Debug().Msgf("%s ee", err)
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
-
-	log.Debug().Msgf("%s here2", user.Email)
 
 	authUser := NewAuthUserFromLogin(id, userId, hashedPassword, isVerified, otp, user)
 
@@ -215,12 +213,9 @@ func (userdb *UserDb) FindUserById(userId string) (*AuthUser, error) {
 	var isVerified bool
 	var otp string
 
-	log.Debug().Msgf("%s here", userId)
-
 	err := userdb.findUserByIdStmt.QueryRow(userId).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
 
 	if err != nil {
-		log.Debug().Msgf("%s ee", err)
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
@@ -233,21 +228,28 @@ func (userdb *UserDb) FindUserById(userId string) (*AuthUser, error) {
 	return authUser, nil
 }
 
-func (userdb *UserDb) SetIsVerified(userId string) bool {
+func (userdb *UserDb) SetIsVerified(userId string) error {
 	log.Debug().Msgf("verify %s", userId)
 	_, err := userdb.setIsVerifiedStmt.Exec(userId)
 
 	if err != nil {
-		return false
+		return err
 	}
 
-	// _, err = userdb.clearOtpStmt.Exec(userId)
+	// _, err = userdb.setOtpStmt.Exec("", userId)
 
 	// if err != nil {
 	// 	return false
 	// }
 
-	return true
+	return nil
+}
+
+func (userdb *UserDb) SetOtp(userId string, otp string) error {
+
+	_, err := userdb.setOtpStmt.Exec(otp, userId)
+
+	return err
 }
 
 func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error) {
@@ -255,42 +257,43 @@ func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error)
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
-	authUser, _ := userdb.FindUserByEmail(user)
+	authUser, err := userdb.FindUserByEmail(user)
 
-	if authUser != nil {
-		return nil, fmt.Errorf("user already exists")
+	// try to create user if user does not exist
+	if err != nil {
+		// Create a uuid for the user id
+		uuid, err := Uuid()
+
+		if err != nil {
+			return nil, err
+		}
+
+		hash, err := user.HashPassword()
+
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debug().Msgf("%s %s %s %s %s", user.Name, user.Email, hash, otp)
+
+		_, err = userdb.createUserStmt.Exec(uuid, user.Name, user.Email, hash, otp)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Call function again to get the user details
+		authUser, err = userdb.FindUserByEmail(user)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Create a uuid for the user id
-	u1, err := uuid.NewV4()
+	err = userdb.SetOtp(authUser.UserId, otp)
 
 	if err != nil {
-		return nil, err
-	}
-
-	uuid := u1.String()
-
-	uuid = strings.ReplaceAll(uuid, "-", "")
-
-	hash, err := user.HashPassword()
-
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debug().Msgf("%s %s %s %s %s", uuid, user.Name, user.Email, hash, otp)
-
-	_, err = userdb.createUserStmt.Exec(uuid, user.Name, user.Email, hash, otp)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Call function again to get the user details
-	authUser, err = userdb.FindUserByEmail(user)
-
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not set otp")
 	}
 
 	return authUser, nil
@@ -299,4 +302,14 @@ func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error)
 // Generate a one time code
 func OTP() string {
 	return randomstring.CookieFriendlyString(32)
+}
+
+func Uuid() (string, error) {
+	u1, err := uuid.NewV4()
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.ReplaceAll(u1.String(), "-", ""), nil
 }

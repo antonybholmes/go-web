@@ -24,7 +24,7 @@ func CreateOtpJwt(user *AuthUser, otp string, ipAddr string, secret string) (str
 	// Set custom claims
 	claims := JwtOtpCustomClaims{
 		JwtCustomClaims: JwtCustomClaims{UserId: user.UserId, IpAddr: ipAddr, RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 20)),
 		}},
 		OTP: otp,
 	}
