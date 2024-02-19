@@ -176,6 +176,6 @@ func (userdb *UserDb) CreateUser(user *LoginUser, otp string) (*AuthUser, error)
 	return authUser, nil
 }
 
-func AuthCode() string {
+func OTP() string {
 	return randomstring.CookieFriendlyString(32)
 }
