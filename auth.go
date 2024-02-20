@@ -19,8 +19,8 @@ import (
 
 const JWT_TOKEN_EXPIRES_HOURS time.Duration = 24
 const INVALID_JWT_MESSAGE string = "Invalid JWT"
-const FIND_USER_BY_ID_SQL string = `SELECT id, user_id, name, email, password, is_verified, otp FROM users WHERE users.user_id = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, user_id, name, email, password, is_verified, otp FROM users WHERE users.email = ?`
+const FIND_USER_BY_ID_SQL string = `SELECT id, user_id, name, email, password, is_verified, can_auth, otp FROM users WHERE users.user_id = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, user_id, name, email, password, is_verified, can_auth, otp FROM users WHERE users.email = ?`
 const CREATE_USER_SQL = `INSERT INTO users (user_id, name, email, password, otp) VALUES(?, ?, ?, ?, ?)`
 const SET_IS_VERIFIED_SQL = `UPDATE users SET is_verified = 1 WHERE users.user_id = ?`
 const SET_OTP_SQL = `UPDATE users SET otp = ? WHERE users.user_id = ?`
@@ -51,6 +51,7 @@ type AuthUser struct {
 	Id             int    `json:"int"`
 	HashedPassword []byte `json:"hashed_password"`
 	IsVerified     bool   `json:"isVerified"`
+	CanAuth        bool   `json:"canAuth"`
 	OTP            string `json:"otp"`
 }
 
@@ -62,11 +63,12 @@ func init() {
 	randomstring.Seed()
 }
 
-func NewAuthUser(id int, userId string, name string, email string, hashedPassword string, isVerified bool, otp string) *AuthUser {
+func NewAuthUser(id int, userId string, name string, email string, hashedPassword string, isVerified bool, canAuth bool, otp string) *AuthUser {
 	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: name, Email: email}},
 		Id:             id,
 		HashedPassword: []byte(hashedPassword),
 		IsVerified:     isVerified,
+		CanAuth:        canAuth,
 		OTP:            otp}
 }
 
@@ -140,15 +142,16 @@ func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 	var name string
 	var hashedPassword string
 	var isVerified bool
+	var canAuth bool
 	var otp string
 
-	err := userdb.findUserByEmailStmt.QueryRow(email).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
+	err := userdb.findUserByEmailStmt.QueryRow(email).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &canAuth, &otp)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, userId, name, email, hashedPassword, isVerified, otp)
+	authUser := NewAuthUser(id, userId, name, email, hashedPassword, isVerified, canAuth, otp)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 
@@ -163,15 +166,16 @@ func (userdb *UserDb) FindUserById(userId string) (*AuthUser, error) {
 	var email string
 	var hashedPassword string
 	var isVerified bool
+	var canAuth bool
 	var otp string
 
-	err := userdb.findUserByIdStmt.QueryRow(userId).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &otp)
+	err := userdb.findUserByIdStmt.QueryRow(userId).Scan(&id, &userId, &name, &email, &hashedPassword, &isVerified, &canAuth, &otp)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, userId, name, email, hashedPassword, isVerified, otp)
+	authUser := NewAuthUser(id, userId, name, email, hashedPassword, isVerified, canAuth, otp)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 
@@ -198,14 +202,12 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 }
 
 func (userdb *UserDb) SetOtp(userId string, otp string) error {
-
 	_, err := userdb.setOtpStmt.Exec(otp, userId)
 
 	return err
 }
 
 func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error) {
-
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
@@ -226,7 +228,7 @@ func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error
 			return nil, err
 		}
 
-		log.Debug().Msgf("%s %s %s %s %s", user.Name, user.Email, hash, otp)
+		//log.Debug().Msgf("%s %s %s %s %s", user.Name, user.Email, hash, otp)
 
 		_, err = userdb.createUserStmt.Exec(uuid, user.Name, user.Email, hash, otp)
 
@@ -252,7 +254,7 @@ func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error
 }
 
 // Generate a one time code
-func OTP() string {
+func RandCode() string {
 	return randomstring.CookieFriendlyString(32)
 }
 
