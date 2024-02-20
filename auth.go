@@ -83,6 +83,11 @@ func (user *AuthUser) CheckPasswords(plainPwd []byte) bool {
 	return err == nil
 }
 
+func (user *AuthUser) ToPublicUser() *PublicUser {
+	return &PublicUser{UserId: user.UserId,
+		User: User{Name: user.Name, Email: user.Email}}
+}
+
 type UserDb struct {
 	db                  *sql.DB
 	findUserByEmailStmt *sql.Stmt
