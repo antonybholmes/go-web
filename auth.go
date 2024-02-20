@@ -72,13 +72,13 @@ func NewAuthUser(id int, userId string, name string, email string, hashedPasswor
 		OTP:            otp}
 }
 
-func (user *AuthUser) CheckPasswords(plainPwd []byte) bool {
+func (user *AuthUser) CheckPasswords(plainPwd string) bool {
 	// Since we'll be getting the hashed password from the DB it
 	// will be a string so we'll need to convert it to a byte slice
 
 	//log.Printf("comp %s %s\n", string(user.HashedPassword), string(plainPwd))
 
-	err := bcrypt.CompareHashAndPassword(user.HashedPassword, plainPwd)
+	err := bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(plainPwd))
 
 	return err == nil
 }
@@ -212,7 +212,7 @@ func (userdb *UserDb) SetOtp(userId string, otp string) error {
 	return err
 }
 
-func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error) {
+func (userdb *UserDb) CreateUser(user *SignupReq, otp string) (*AuthUser, error) {
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
@@ -227,7 +227,7 @@ func (userdb *UserDb) CreateUser(user *SignupUser, otp string) (*AuthUser, error
 			return nil, err
 		}
 
-		hash, err := user.HashPassword()
+		hash, err := user.Hash()
 
 		if err != nil {
 			return nil, err

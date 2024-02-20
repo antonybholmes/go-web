@@ -28,7 +28,6 @@ type JwtOtpCustomClaims struct {
 }
 
 func CreateOtpJwt(userId string, otp string, ipAddr string, secret string) (string, error) {
-
 	// Set custom claims
 	claims := JwtOtpCustomClaims{
 		JwtCustomClaims: JwtCustomClaims{UserId: userId, Type: TOKEN_TYPE_OTP, IpAddr: ipAddr, RegisteredClaims: jwt.RegisteredClaims{
@@ -41,7 +40,6 @@ func CreateOtpJwt(userId string, otp string, ipAddr string, secret string) (stri
 }
 
 func CreateAccessToken(userId string, ipAddr string, secret string) (string, error) {
-
 	// Set custom claims
 	claims := JwtCustomClaims{
 		UserId:           userId,
@@ -54,20 +52,21 @@ func CreateAccessToken(userId string, ipAddr string, secret string) (string, err
 }
 
 func CreateRefreshToken(userId string, ipAddr string, secret string) (string, error) {
+	//expires := jwt.NewNumericDate(time.Now().Add(time.Second * 10))
+	expires := jwt.NewNumericDate(time.Now().AddDate(0, 0, TOKEN_TYPE_REFRESH_TTL_DAYS))
 
 	// Set custom claims
 	claims := JwtCustomClaims{
 		UserId:           userId,
 		IpAddr:           ipAddr,
 		Type:             TOKEN_TYPE_REFRESH,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().AddDate(0, 0, TOKEN_TYPE_REFRESH_TTL_DAYS))},
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
 	}
 
 	return CreateToken(claims, secret)
 }
 
 func CreateToken(claims jwt.Claims, secret string) (string, error) {
-
 	// Create token with claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 

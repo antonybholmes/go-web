@@ -1,20 +1,24 @@
 package auth
 
-type LoginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+type PasswordlessLoginReq struct {
+	Email string `json:"email"`
 	UrlCallbackReq
 }
 
-type LoginUser struct {
-	Email    string `json:"email"`
-	Password []byte `json:"password"`
+type LoginReq struct {
+	PasswordlessLoginReq
+	Password string `json:"password"`
 }
 
-func NewLoginUser(email string, password string) *LoginUser {
-	return &LoginUser{Email: email, Password: []byte(password)}
-}
+// type LoginUser struct {
+// 	Email    string
+// 	Password []byte
+// }
 
-func LoginUserFromReq(req *LoginReq) *LoginUser {
-	return NewLoginUser(req.Email, req.Password)
-}
+// func NewLoginUser(email string, password string) *LoginUser {
+// 	return &LoginUser{Email: email, Password: []byte(password)}
+// }
+
+// func LoginUserFromReq(req *LoginReq) *LoginUser {
+// 	return NewLoginUser(req.Email, req.Password)
+// }
