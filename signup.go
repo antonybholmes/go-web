@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/antonybholmes/go-mailer"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // type SignupUser struct {
@@ -37,13 +36,8 @@ func (user *SignupReq) Hash() (string, error) {
 		return "", nil
 	}
 
-	bytes, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	return HashPassword(user.Password)
 
-	if err != nil {
-		return "", err
-	}
-
-	return string(bytes), nil
 }
 
 func (user *SignupReq) Mailbox() *mailer.Mailbox {
