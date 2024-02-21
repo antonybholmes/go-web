@@ -26,14 +26,14 @@ type User struct {
 }
 
 type PublicUser struct {
-	UserId string `json:"user_id"`
+	UserId string `json:"userId"`
 	User
 }
 
 type AuthUser struct {
 	PublicUser
 	Id             int    `json:"int"`
-	HashedPassword []byte `json:"hashed_password"`
+	HashedPassword []byte `json:"hashedPassword"`
 	IsVerified     bool   `json:"isVerified"`
 	CanAuth        bool   `json:"canAuth"`
 }
