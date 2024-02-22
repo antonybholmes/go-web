@@ -19,6 +19,10 @@ func FindUserByEmail(email string) (*auth.AuthUser, error) {
 	return users.FindUserByEmail(email)
 }
 
+func FindUserByUsername(username string) (*auth.AuthUser, error) {
+	return users.FindUserByUsername(username)
+}
+
 func FindUserByUuid(user string) (*auth.AuthUser, error) {
 	return users.FindUserByUuid(user)
 }

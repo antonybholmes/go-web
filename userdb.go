@@ -11,17 +11,19 @@ import (
 
 const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, is_verified, can_auth FROM users WHERE users.uuid = ?`
 const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, is_verified, can_auth FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, is_verified, can_auth FROM users WHERE users.username = ?`
 const CREATE_USER_SQL = `INSERT INTO users (uuid, name, username, email, password) VALUES(?, ?, ?, ?, ?)`
 const SET_IS_VERIFIED_SQL = `UPDATE users SET is_verified = 1 WHERE users.user_id = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.user_id = ?`
 
 type UserDb struct {
-	db                  *sql.DB
-	findUserByEmailStmt *sql.Stmt
-	findUserByIdStmt    *sql.Stmt
-	createUserStmt      *sql.Stmt
-	setIsVerifiedStmt   *sql.Stmt
-	setPasswordStmt     *sql.Stmt
+	db                     *sql.DB
+	findUserByEmailStmt    *sql.Stmt
+	findUserByUsernameStmt *sql.Stmt
+	findUserByIdStmt       *sql.Stmt
+	createUserStmt         *sql.Stmt
+	setIsVerifiedStmt      *sql.Stmt
+	setPasswordStmt        *sql.Stmt
 	//setOtpStmt          *sql.Stmt
 }
 
@@ -38,7 +40,13 @@ func (userdb *UserDb) Init(file string) error {
 		return err
 	}
 
-	findUserByIdStmt, err := db.Prepare(FIND_USER_BY_UUID_SQL)
+	findUserByUsernameStmt, err := db.Prepare(FIND_USER_BY_USERNAME_SQL)
+
+	if err != nil {
+		return err
+	}
+
+	findUserByUuidStmt, err := db.Prepare(FIND_USER_BY_UUID_SQL)
 
 	if err != nil {
 		return err
@@ -64,7 +72,8 @@ func (userdb *UserDb) Init(file string) error {
 
 	userdb.db = db
 	userdb.findUserByEmailStmt = findUserByEmailStmt
-	userdb.findUserByIdStmt = findUserByIdStmt
+	userdb.findUserByUsernameStmt = findUserByUsernameStmt
+	userdb.findUserByIdStmt = findUserByUuidStmt
 	userdb.createUserStmt = createUserStmt
 	userdb.setIsVerifiedStmt = setIsVerifiedStmt
 	userdb.setPasswordStmt = setPasswordStmt
@@ -80,25 +89,42 @@ func (userdb *UserDb) Close() {
 
 func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 	var id int
-	var userId string
+	var uuid string
 	var name string
-	var userName string
+	var username string
 	var hashedPassword string
 	var isVerified bool
 	var canAuth bool
 
 	err := userdb.findUserByEmailStmt.QueryRow(email).
-		Scan(&id, &userId, &name, &userName, &hashedPassword, &isVerified, &canAuth)
+		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canAuth)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, userId, name, userName, email, hashedPassword, isVerified, canAuth)
+	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canAuth)
 
-	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
+	return authUser, nil
+}
 
-	// check password hash matches hash in database
+func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
+	var id int
+	var uuid string
+	var name string
+	var email string
+	var hashedPassword string
+	var isVerified bool
+	var canAuth bool
+
+	err := userdb.findUserByUsernameStmt.QueryRow(username).
+		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canAuth)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database query")
+	}
+
+	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canAuth)
 
 	return authUser, nil
 }
@@ -106,19 +132,20 @@ func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var id int
 	var name string
-	var userName string
+	var username string
 	var email string
 	var hashedPassword string
 	var isVerified bool
 	var canAuth bool
 
-	err := userdb.findUserByIdStmt.QueryRow(uuid).Scan(&id, &name, &userName, &email, &hashedPassword, &isVerified, &canAuth)
+	err := userdb.findUserByIdStmt.QueryRow(uuid).
+		Scan(&id, &name, &username, &email, &hashedPassword, &isVerified, &canAuth)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, userName, email, hashedPassword, isVerified, canAuth)
+	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canAuth)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 

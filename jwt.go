@@ -25,8 +25,8 @@ const TOKEN_TYPE_REFRESH_TTL_DAYS = 7
 type JwtCustomClaims struct {
 	Uuid string `json:"uuid"`
 	//Name  string `json:"name"`
-	Type   TokenType `json:"type"`
-	IpAddr string    `json:"ipAddr"`
+	Type TokenType `json:"type"`
+	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
 
@@ -100,8 +100,8 @@ func OtpToken(userId string, ipAddr string, tokenType TokenType, secret string) 
 func JwtToken(uuid string, ipAddr string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
-		Uuid:             uuid,
-		IpAddr:           ipAddr,
+		Uuid: uuid,
+		//IpAddr:           ipAddr,
 		Type:             tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
 	}

@@ -5,9 +5,21 @@ type EmailOnlyLoginReq struct {
 	UrlCallbackReq
 }
 
-type LoginReq struct {
-	EmailOnlyLoginReq
+type EmailPasswordLoginReq struct {
+	Email    string `json:"email" db:"email"`
 	Password string `json:"password" db:"password"`
+	UrlCallbackReq
+}
+
+type UsernamePasswordLoginReq struct {
+	Username string `json:"email" db:"email"`
+	Password string `json:"password" db:"password"`
+	UrlCallbackReq
+}
+
+type PasswordLoginReq struct {
+	Password string `json:"password" db:"password"`
+	UrlCallbackReq
 }
 
 // type LoginUser struct {
