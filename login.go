@@ -1,13 +1,13 @@
 package auth
 
 type EmailOnlyLoginReq struct {
-	Email string `json:"email"`
+	Email string `json:"email" db:"email"`
 	UrlCallbackReq
 }
 
 type LoginReq struct {
 	EmailOnlyLoginReq
-	Password string `json:"password"`
+	Password string `json:"password" db:"password"`
 }
 
 // type LoginUser struct {

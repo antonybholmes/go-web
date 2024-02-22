@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"strings"
+	"net/mail"
 
-	"github.com/antonybholmes/go-mailer"
-	"github.com/gofrs/uuid/v5"
+	"github.com/antonybholmes/go-sys"
+	"github.com/google/uuid"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,12 +21,13 @@ type UrlCallbackReq struct {
 }
 
 type User struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name     string `json:"name" db:"name"`
+	UserName string `json:"userName" db:"username"`
+	Email    string `json:"email" db:"email"`
 }
 
 type PublicUser struct {
-	UserId string `json:"userId"`
+	Uuid string `json:"uuid" db:"uuid"`
 	User
 }
 
@@ -38,16 +39,26 @@ type AuthUser struct {
 	CanAuth        bool   `json:"canAuth"`
 }
 
-func (user *AuthUser) Mailbox() *mailer.Mailbox {
-	return mailer.NewMailbox(user.Name, user.Email)
+func (user *AuthUser) Address() *mail.Address {
+	return &mail.Address{Name: user.Name, Address: user.Email}
 }
 
 func init() {
 	randomstring.Seed()
 }
 
-func NewAuthUser(id int, userId string, name string, email string, hashedPassword string, isVerified bool, canAuth bool) *AuthUser {
-	return &AuthUser{PublicUser: PublicUser{UserId: userId, User: User{Name: name, Email: email}},
+func NewAuthUser(id int,
+	uuid string,
+	name string,
+	userName string,
+	email string,
+	hashedPassword string,
+	isVerified bool,
+	canAuth bool) *AuthUser {
+	return &AuthUser{
+		PublicUser: PublicUser{
+			Uuid: uuid,
+			User: User{Name: name, UserName: userName, Email: email}},
 		Id:             id,
 		HashedPassword: []byte(hashedPassword),
 		IsVerified:     isVerified,
@@ -65,8 +76,9 @@ func (user *AuthUser) CheckPasswords(plainPwd string) bool {
 	return err == nil
 }
 
+// Returns user details suitable for a web app to display
 func (user *AuthUser) ToPublicUser() *PublicUser {
-	return &PublicUser{UserId: user.UserId,
+	return &PublicUser{Uuid: user.Uuid,
 		User: User{Name: user.Name, Email: user.Email}}
 }
 
@@ -75,22 +87,10 @@ func RandCode() string {
 	return randomstring.CookieFriendlyString(32)
 }
 
-func Uuid() (string, error) {
-	u1, err := uuid.NewV4()
-
-	if err != nil {
-		return "", err
-	}
-
-	return strings.ReplaceAll(u1.String(), "-", ""), nil
+func Uuid() string {
+	return uuid.New().String() // strings.ReplaceAll(u1.String(), "-", ""), nil
 }
 
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(bytes), nil
+func HashPassword(password string) string {
+	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
 }

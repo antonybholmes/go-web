@@ -2,8 +2,7 @@ package auth
 
 import (
 	"fmt"
-
-	"github.com/antonybholmes/go-mailer"
+	"net/mail"
 )
 
 // type SignupUser struct {
@@ -31,15 +30,23 @@ func (user *SignupReq) String() string {
 
 // Returns the hash of the password suitable for storing in a db.
 // We allow empty passwords for passwordless login
-func (user *SignupReq) Hash() (string, error) {
+func (user *SignupReq) Hash() string {
 	if user.Password == "" {
-		return "", nil
+		return ""
 	}
 
 	return HashPassword(user.Password)
 
 }
 
-func (user *SignupReq) Mailbox() *mailer.Mailbox {
-	return mailer.NewMailbox(user.Name, user.Email)
+func (user *SignupReq) Address() (*mail.Address, error) {
+	email, err := mail.ParseAddress(user.Email)
+
+	if err != nil {
+		return nil, err
+	}
+
+	email.Name = user.Name
+
+	return email, nil
 }

@@ -23,7 +23,7 @@ const TOKEN_TYPE_OTP_TTL_MINS time.Duration = time.Minute * 10
 const TOKEN_TYPE_REFRESH_TTL_DAYS = 7
 
 type JwtCustomClaims struct {
-	UserId string `json:"userId"`
+	Uuid string `json:"uuid"`
 	//Name  string `json:"name"`
 	Type   TokenType `json:"type"`
 	IpAddr string    `json:"ipAddr"`
@@ -52,38 +52,38 @@ func TokenTypeString(t TokenType) string {
 	}
 }
 
-func RefreshToken(userId string, ipAddr string, secret string) (string, error) {
-	return JwtToken(userId,
+func RefreshToken(uuid string, ipAddr string, secret string) (string, error) {
+	return JwtToken(uuid,
 		ipAddr,
 		TOKEN_TYPE_REFRESH,
 		secret,
 		jwt.NewNumericDate(time.Now().AddDate(0, 0, TOKEN_TYPE_REFRESH_TTL_DAYS)))
 }
 
-func AccessToken(userId string, ipAddr string, secret string) (string, error) {
-	return JwtToken(userId,
+func AccessToken(uuid string, ipAddr string, secret string) (string, error) {
+	return JwtToken(uuid,
 		ipAddr,
 		TOKEN_TYPE_ACCESS,
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
 }
 
-func VerifyEmailToken(userId string, ipAddr string, secret string) (string, error) {
-	return OtpToken(userId,
+func VerifyEmailToken(uuid string, ipAddr string, secret string) (string, error) {
+	return OtpToken(uuid,
 		ipAddr,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
 }
 
-func ResetPasswordToken(userId string, ipAddr string, secret string) (string, error) {
-	return OtpToken(userId,
+func ResetPasswordToken(uuid string, ipAddr string, secret string) (string, error) {
+	return OtpToken(uuid,
 		ipAddr,
 		TOKEN_TYPE_RESET_PASSWORD,
 		secret)
 }
 
-func PasswordlessToken(userId string, ipAddr string, secret string) (string, error) {
-	return OtpToken(userId,
+func PasswordlessToken(uuid string, ipAddr string, secret string) (string, error) {
+	return OtpToken(uuid,
 		ipAddr,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
@@ -97,10 +97,10 @@ func OtpToken(userId string, ipAddr string, tokenType TokenType, secret string) 
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_OTP_TTL_MINS)))
 }
 
-func JwtToken(userId string, ipAddr string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
+func JwtToken(uuid string, ipAddr string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
-		UserId:           userId,
+		Uuid:             uuid,
 		IpAddr:           ipAddr,
 		Type:             tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
