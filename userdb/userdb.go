@@ -34,3 +34,7 @@ func SetIsVerified(user string) error {
 func SetPassword(user string, password string) error {
 	return users.SetPassword(user, password)
 }
+
+func SetUsername(user string, username string) error {
+	return users.SetUsername(user, username)
+}

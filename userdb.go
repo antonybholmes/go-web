@@ -2,19 +2,24 @@ package auth
 
 import (
 	"database/sql"
+	"fmt"
 	"net/mail"
+	"regexp"
+
+	"github.com/antonybholmes/go-sys"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, is_verified, can_auth FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, is_verified, can_auth FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, is_verified, can_auth FROM users WHERE users.username = ?`
+const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, email_verified, can_auth FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, email_verified, can_auth FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, email_verified, can_auth FROM users WHERE users.username = ?`
 const CREATE_USER_SQL = `INSERT INTO users (uuid, name, username, email, password) VALUES(?, ?, ?, ?, ?)`
-const SET_IS_VERIFIED_SQL = `UPDATE users SET is_verified = 1 WHERE users.user_id = ?`
-const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.user_id = ?`
+const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
+const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
+const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
 
 type UserDb struct {
 	db                     *sql.DB
@@ -22,61 +27,24 @@ type UserDb struct {
 	findUserByUsernameStmt *sql.Stmt
 	findUserByIdStmt       *sql.Stmt
 	createUserStmt         *sql.Stmt
-	setIsVerifiedStmt      *sql.Stmt
+	setEmailVerifiedStmt   *sql.Stmt
 	setPasswordStmt        *sql.Stmt
-	//setOtpStmt          *sql.Stmt
+	setUsernameStmt        *sql.Stmt
+	userNamePattern        *regexp.Regexp
 }
 
 func (userdb *UserDb) Init(file string) error {
-	db, err := sql.Open("sqlite3", file)
-
-	if err != nil {
-		return err
-	}
-
-	findUserByEmailStmt, err := db.Prepare(FIND_USER_BY_EMAIL_SQL)
-
-	if err != nil {
-		return err
-	}
-
-	findUserByUsernameStmt, err := db.Prepare(FIND_USER_BY_USERNAME_SQL)
-
-	if err != nil {
-		return err
-	}
-
-	findUserByUuidStmt, err := db.Prepare(FIND_USER_BY_UUID_SQL)
-
-	if err != nil {
-		return err
-	}
-
-	createUserStmt, err := db.Prepare(CREATE_USER_SQL)
-
-	if err != nil {
-		return err
-	}
-
-	setIsVerifiedStmt, err := db.Prepare(SET_IS_VERIFIED_SQL)
-
-	if err != nil {
-		return err
-	}
-
-	setPasswordStmt, err := db.Prepare(SET_PASSWORD_SQL)
-
-	if err != nil {
-		return err
-	}
+	db := sys.Must(sql.Open("sqlite3", file))
 
 	userdb.db = db
-	userdb.findUserByEmailStmt = findUserByEmailStmt
-	userdb.findUserByUsernameStmt = findUserByUsernameStmt
-	userdb.findUserByIdStmt = findUserByUuidStmt
-	userdb.createUserStmt = createUserStmt
-	userdb.setIsVerifiedStmt = setIsVerifiedStmt
-	userdb.setPasswordStmt = setPasswordStmt
+	userdb.findUserByEmailStmt = sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL))
+	userdb.findUserByUsernameStmt = sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL))
+	userdb.findUserByIdStmt = sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL))
+	userdb.createUserStmt = sys.Must(db.Prepare(CREATE_USER_SQL))
+	userdb.setEmailVerifiedStmt = sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL))
+	userdb.setPasswordStmt = sys.Must(db.Prepare(SET_PASSWORD_SQL))
+	userdb.setUsernameStmt = sys.Must(db.Prepare(SET_USERNAME_SQL))
+	userdb.userNamePattern = sys.Must(regexp.Compile(`^[\w\-\.@]+$`))
 
 	return nil
 }
@@ -96,14 +64,20 @@ func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 	var isVerified bool
 	var canAuth bool
 
-	err := userdb.findUserByEmailStmt.QueryRow(email).
+	e, err := mail.ParseAddress(email)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid email address")
+	}
+
+	err = userdb.findUserByEmailStmt.QueryRow(e.Address).
 		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canAuth)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canAuth)
+	authUser := NewAuthUser(id, uuid, name, username, e.Address, hashedPassword, isVerified, canAuth)
 
 	return authUser, nil
 }
@@ -116,6 +90,12 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var hashedPassword string
 	var isVerified bool
 	var canAuth bool
+
+	match := userdb.userNamePattern.MatchString(username)
+
+	if !match {
+		return nil, fmt.Errorf("invalid username")
+	}
 
 	err := userdb.findUserByUsernameStmt.QueryRow(username).
 		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canAuth)
@@ -156,7 +136,7 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
 
-	_, err := userdb.setIsVerifiedStmt.Exec(userId)
+	_, err := userdb.setEmailVerifiedStmt.Exec(userId)
 
 	if err != nil {
 		return err
@@ -175,6 +155,17 @@ func (userdb *UserDb) SetPassword(userId string, password string) error {
 	hash := HashPassword(password)
 
 	_, err := userdb.setPasswordStmt.Exec(hash, userId)
+
+	return err
+}
+
+func (userdb *UserDb) SetUsername(userId string, username string) error {
+
+	if !userdb.userNamePattern.MatchString(username) {
+		return fmt.Errorf("invalid username")
+	}
+
+	_, err := userdb.setPasswordStmt.Exec(username, userId)
 
 	return err
 }
@@ -203,11 +194,9 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		// Create a uuid for the user id
 		uuid := Uuid()
 
-		hash := user.Hash()
-
 		//log.Debug().Msgf("%s %s %s %s %s", user.Name, user.Email, hash, otp)
 
-		_, err = userdb.createUserStmt.Exec(uuid, user.Name, email.Address, email.Address, hash)
+		_, err = userdb.createUserStmt.Exec(uuid, user.Name, email.Address, email.Address, user.Hash())
 
 		if err != nil {
 			return nil, err
@@ -218,6 +207,23 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 
 		if err != nil {
 			return nil, err
+		}
+	} else {
+		// user already exists so check if verified
+
+		if authUser.EmailVerified {
+			return nil, fmt.Errorf("you cannot sign up with this email address")
+		} else {
+			// if user is not verified, update the password since we assume
+			// rightful owner of email address will keep trying until verified
+			// this is to stop people blocking creation of accounts by just
+			// signing up with email addresses they have no intention of
+			// verifying
+			err := userdb.SetPassword(authUser.Uuid, user.Password)
+
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

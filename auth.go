@@ -21,22 +21,27 @@ type UrlCallbackReq struct {
 }
 
 type User struct {
-	Name     string `json:"name" db:"name"`
-	UserName string `json:"userName" db:"username"`
-	Email    string `json:"email" db:"email"`
+	Name     string `db:"name"`
+	UserName string `db:"username"`
+	Email    string `db:"email"`
 }
 
 type PublicUser struct {
-	Uuid string `json:"uuid" db:"uuid"`
-	User
+	Uuid     string `json:"uuid"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type AuthUser struct {
-	PublicUser
-	Id             int    `json:"int"`
-	HashedPassword []byte `json:"hashedPassword"`
-	IsVerified     bool   `json:"isVerified"`
-	CanAuth        bool   `json:"canAuth"`
+	Id             int    `db:"id"`
+	Uuid           string ` db:"uuid"`
+	Name           string ` db:"name"`
+	Username       string ` db:"username"`
+	Email          string ` db:"email"`
+	HashedPassword []byte
+	EmailVerified  bool
+	CanAuth        bool
 }
 
 func (user *AuthUser) Address() *mail.Address {
@@ -56,12 +61,13 @@ func NewAuthUser(id int,
 	isVerified bool,
 	canAuth bool) *AuthUser {
 	return &AuthUser{
-		PublicUser: PublicUser{
-			Uuid: uuid,
-			User: User{Name: name, UserName: userName, Email: email}},
+		Uuid:           uuid,
+		Name:           name,
+		Username:       userName,
+		Email:          email,
 		Id:             id,
 		HashedPassword: []byte(hashedPassword),
-		IsVerified:     isVerified,
+		EmailVerified:  isVerified,
 		CanAuth:        canAuth}
 }
 
@@ -79,7 +85,9 @@ func (user *AuthUser) CheckPasswords(plainPwd string) bool {
 // Returns user details suitable for a web app to display
 func (user *AuthUser) ToPublicUser() *PublicUser {
 	return &PublicUser{Uuid: user.Uuid,
-		User: User{Name: user.Name, Email: user.Email}}
+		Name:     user.Name,
+		Username: user.Username,
+		Email:    user.Email}
 }
 
 // Generate a one time code
