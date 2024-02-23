@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo/v4"
 )
 
 type TokenType = uint8
@@ -52,52 +53,51 @@ func TokenTypeString(t TokenType) string {
 	}
 }
 
-func RefreshToken(uuid string, ipAddr string, secret string) (string, error) {
-	return JwtToken(uuid,
-		ipAddr,
+func RefreshToken(c echo.Context, uuid string, secret string) (string, error) {
+	return JwtToken(c,
+		uuid,
 		TOKEN_TYPE_REFRESH,
 		secret,
 		jwt.NewNumericDate(time.Now().AddDate(0, 0, TOKEN_TYPE_REFRESH_TTL_DAYS)))
 }
 
-func AccessToken(uuid string, ipAddr string, secret string) (string, error) {
-	return JwtToken(uuid,
-		ipAddr,
+func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
+	return JwtToken(c,
+		uuid,
 		TOKEN_TYPE_ACCESS,
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
 }
 
-func VerifyEmailToken(uuid string, ipAddr string, secret string) (string, error) {
-	return OtpToken(uuid,
-		ipAddr,
+func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error) {
+	return OtpToken(c,
+		uuid,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
 }
 
-func ResetPasswordToken(uuid string, ipAddr string, secret string) (string, error) {
-	return OtpToken(uuid,
-		ipAddr,
+func ResetPasswordToken(c echo.Context, uuid string, secret string) (string, error) {
+	return OtpToken(c,
+		uuid,
 		TOKEN_TYPE_RESET_PASSWORD,
 		secret)
 }
 
-func PasswordlessToken(uuid string, ipAddr string, secret string) (string, error) {
-	return OtpToken(uuid,
-		ipAddr,
+func PasswordlessToken(c echo.Context, uuid string, secret string) (string, error) {
+	return OtpToken(c,
+		uuid,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
 }
 
-func OtpToken(userId string, ipAddr string, tokenType TokenType, secret string) (string, error) {
-	return JwtToken(userId,
-		ipAddr,
+func OtpToken(c echo.Context, uuid string, tokenType TokenType, secret string) (string, error) {
+	return JwtToken(c, uuid,
 		tokenType,
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_OTP_TTL_MINS)))
 }
 
-func JwtToken(uuid string, ipAddr string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
+func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,

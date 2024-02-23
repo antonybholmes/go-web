@@ -40,3 +40,7 @@ func SetPassword(user string, password string) error {
 func SetUsername(user string, username string) error {
 	return users.SetUsername(user, username)
 }
+
+func SetName(user string, name string) error {
+	return users.SetName(user, name)
+}

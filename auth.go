@@ -34,19 +34,19 @@ type PublicUser struct {
 }
 
 type AuthUser struct {
-	Id             int    `db:"id"`
-	Uuid           string ` db:"uuid"`
-	Name           string ` db:"name"`
-	Username       string ` db:"username"`
-	Email          string ` db:"email"`
+	Id             int           `db:"id"`
+	Uuid           string        ` db:"uuid"`
+	Name           string        ` db:"name"`
+	Username       string        ` db:"username"`
+	Email          *mail.Address ` db:"email"`
 	HashedPassword []byte
 	EmailVerified  bool
 	CanAuth        bool
 }
 
-func (user *AuthUser) Address() *mail.Address {
-	return &mail.Address{Name: user.Name, Address: user.Email}
-}
+// func (user *AuthUser) Address() *mail.Address {
+// 	return &mail.Address{Name: user.Name, Address: user.Email}
+// }
 
 func init() {
 	randomstring.Seed()
@@ -64,7 +64,7 @@ func NewAuthUser(id int,
 		Uuid:           uuid,
 		Name:           name,
 		Username:       userName,
-		Email:          email,
+		Email:          sys.Must(mail.ParseAddress(email)),
 		Id:             id,
 		HashedPassword: []byte(hashedPassword),
 		EmailVerified:  isVerified,
@@ -87,7 +87,7 @@ func (user *AuthUser) ToPublicUser() *PublicUser {
 	return &PublicUser{Uuid: user.Uuid,
 		Name:     user.Name,
 		Username: user.Username,
-		Email:    user.Email}
+		Email:    user.Email.Address}
 }
 
 // Generate a one time code

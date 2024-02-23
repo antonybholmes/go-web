@@ -20,6 +20,7 @@ const CREATE_USER_SQL = `INSERT INTO users (uuid, name, username, email, passwor
 const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
+const SET_NAME_SQL = `UPDATE users SET name = ? WHERE users.uuid = ?`
 
 type UserDb struct {
 	db                     *sql.DB
@@ -30,7 +31,9 @@ type UserDb struct {
 	setEmailVerifiedStmt   *sql.Stmt
 	setPasswordStmt        *sql.Stmt
 	setUsernameStmt        *sql.Stmt
+	setNameStmt            *sql.Stmt
 	userNamePattern        *regexp.Regexp
+	namePattern            *regexp.Regexp
 }
 
 func (userdb *UserDb) Init(file string) error {
@@ -44,7 +47,9 @@ func (userdb *UserDb) Init(file string) error {
 	userdb.setEmailVerifiedStmt = sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL))
 	userdb.setPasswordStmt = sys.Must(db.Prepare(SET_PASSWORD_SQL))
 	userdb.setUsernameStmt = sys.Must(db.Prepare(SET_USERNAME_SQL))
+	userdb.setNameStmt = sys.Must(db.Prepare(SET_NAME_SQL))
 	userdb.userNamePattern = sys.Must(regexp.Compile(`^[\w\-\.@]+$`))
+	userdb.namePattern = sys.Must(regexp.Compile(`^[\w\- ]+$`))
 
 	return nil
 }
@@ -159,7 +164,18 @@ func (userdb *UserDb) SetUsername(userId string, username string) error {
 		return fmt.Errorf("invalid username")
 	}
 
-	_, err := userdb.setPasswordStmt.Exec(username, userId)
+	_, err := userdb.setUsernameStmt.Exec(username, userId)
+
+	return err
+}
+
+func (userdb *UserDb) SetName(userId string, name string) error {
+
+	if !userdb.namePattern.MatchString(name) {
+		return fmt.Errorf("invalid name")
+	}
+
+	_, err := userdb.setNameStmt.Exec(name, userId)
 
 	return err
 }
