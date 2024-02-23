@@ -55,7 +55,7 @@ func (userdb *UserDb) Close() {
 	}
 }
 
-func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
+func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var id int
 	var uuid string
 	var name string
@@ -64,20 +64,14 @@ func (userdb *UserDb) FindUserByEmail(email string) (*AuthUser, error) {
 	var isVerified bool
 	var canAuth bool
 
-	e, err := mail.ParseAddress(email)
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid email address")
-	}
-
-	err = userdb.findUserByEmailStmt.QueryRow(e.Address).
+	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
 		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canAuth)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, e.Address, hashedPassword, isVerified, canAuth)
+	authUser := NewAuthUser(id, uuid, name, username, email.Address, hashedPassword, isVerified, canAuth)
 
 	return authUser, nil
 }
@@ -187,7 +181,7 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
-	authUser, err := userdb.FindUserByEmail(email.Address)
+	authUser, err := userdb.FindUserByEmail(email)
 
 	// try to create user if user does not exist
 	if err != nil {
@@ -203,7 +197,7 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		}
 
 		// Call function again to get the user details
-		authUser, err = userdb.FindUserByEmail(email.Address)
+		authUser, err = userdb.FindUserByEmail(email)
 
 		if err != nil {
 			return nil, err

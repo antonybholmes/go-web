@@ -1,6 +1,8 @@
 package userdb
 
 import (
+	"net/mail"
+
 	"github.com/antonybholmes/go-auth"
 )
 
@@ -15,7 +17,7 @@ func CreateUser(user *auth.SignupReq) (*auth.AuthUser, error) {
 	return users.CreateUser(user)
 }
 
-func FindUserByEmail(email string) (*auth.AuthUser, error) {
+func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return users.FindUserByEmail(email)
 }
 
