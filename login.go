@@ -22,6 +22,14 @@ type PasswordLoginReq struct {
 	UrlCallbackReq
 }
 
+type PasswordResetReq struct {
+	Password string `json:"password"`
+}
+
+type UsernameReq struct {
+	Username string `json:"username"`
+}
+
 // type LoginUser struct {
 // 	Email    string
 // 	Password []byte
