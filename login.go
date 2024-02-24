@@ -12,7 +12,7 @@ type EmailPasswordLoginReq struct {
 }
 
 type UsernamePasswordLoginReq struct {
-	Username string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 	UrlCallbackReq
 }

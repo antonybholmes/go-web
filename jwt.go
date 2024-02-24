@@ -19,9 +19,9 @@ const (
 
 const TOKEN_TYPE_OTP string = "otp"
 
-const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour * 24
+const TOKEN_TYPE_REFRESH_TTL_HOURS time.Duration = time.Hour * 24
+const TOKEN_TYPE_ACCESS_TTL_MINS time.Duration = time.Minute * 60
 const TOKEN_TYPE_OTP_TTL_MINS time.Duration = time.Minute * 10
-const TOKEN_TYPE_REFRESH_TTL_DAYS = 7
 
 type JwtCustomClaims struct {
 	Uuid string `json:"uuid"`
@@ -58,7 +58,7 @@ func RefreshToken(c echo.Context, uuid string, secret string) (string, error) {
 		uuid,
 		TOKEN_TYPE_REFRESH,
 		secret,
-		jwt.NewNumericDate(time.Now().AddDate(0, 0, TOKEN_TYPE_REFRESH_TTL_DAYS)))
+		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_REFRESH_TTL_HOURS)))
 }
 
 func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
@@ -66,7 +66,7 @@ func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
 		uuid,
 		TOKEN_TYPE_ACCESS,
 		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
+		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_MINS)))
 }
 
 func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error) {
