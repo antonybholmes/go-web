@@ -30,6 +30,13 @@ type UsernameReq struct {
 	Username string `json:"username"`
 }
 
+type LoginReq struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	UrlCallbackReq
+}
+
 // type LoginUser struct {
 // 	Email    string
 // 	Password []byte

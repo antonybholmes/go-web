@@ -69,6 +69,10 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var isVerified bool
 	var canAuth bool
 
+	if email == nil {
+		return nil, fmt.Errorf("no email address")
+	}
+
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
 		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canAuth)
 
