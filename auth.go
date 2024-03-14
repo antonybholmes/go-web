@@ -41,7 +41,7 @@ type AuthUser struct {
 	Email          *mail.Address ` db:"email"`
 	HashedPassword []byte
 	EmailVerified  bool
-	CanAuth        bool
+	CanLogin       bool
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -59,7 +59,7 @@ func NewAuthUser(id int,
 	email string,
 	hashedPassword string,
 	isVerified bool,
-	canAuth bool) *AuthUser {
+	canLogin bool) *AuthUser {
 	return &AuthUser{
 		Uuid:           uuid,
 		Name:           name,
@@ -68,7 +68,7 @@ func NewAuthUser(id int,
 		Id:             id,
 		HashedPassword: []byte(hashedPassword),
 		EmailVerified:  isVerified,
-		CanAuth:        canAuth}
+		CanLogin:       canLogin}
 }
 
 func (user *AuthUser) CheckPasswords(plainPwd string) bool {

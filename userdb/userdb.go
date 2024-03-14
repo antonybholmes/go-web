@@ -25,8 +25,8 @@ func FindUserByUsername(username string) (*auth.AuthUser, error) {
 	return users.FindUserByUsername(username)
 }
 
-func FindUserByUuid(user string) (*auth.AuthUser, error) {
-	return users.FindUserByUuid(user)
+func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
+	return users.FindUserByUuid(uuid)
 }
 
 func SetIsVerified(user string) error {
