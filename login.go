@@ -30,8 +30,14 @@ type UsernameReq struct {
 	Username string `json:"username"`
 }
 
+type NewPasswordReq struct {
+	Password    string `json:"password"`
+	NewPassword string `json:"newPassword"`
+}
+
 type LoginReq struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	UrlCallbackReq

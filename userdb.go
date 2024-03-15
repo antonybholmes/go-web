@@ -21,6 +21,7 @@ const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
 const SET_NAME_SQL = `UPDATE users SET name = ? WHERE users.uuid = ?`
+const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
 type UserDb struct {
 	db                     *sql.DB
@@ -32,6 +33,7 @@ type UserDb struct {
 	setPasswordStmt        *sql.Stmt
 	setUsernameStmt        *sql.Stmt
 	setNameStmt            *sql.Stmt
+	setEmailStmt           *sql.Stmt
 	userNamePattern        *regexp.Regexp
 	namePattern            *regexp.Regexp
 }
@@ -48,6 +50,7 @@ func (userdb *UserDb) Init(file string) error {
 	userdb.setPasswordStmt = sys.Must(db.Prepare(SET_PASSWORD_SQL))
 	userdb.setUsernameStmt = sys.Must(db.Prepare(SET_USERNAME_SQL))
 	userdb.setNameStmt = sys.Must(db.Prepare(SET_NAME_SQL))
+	userdb.setEmailStmt = sys.Must(db.Prepare(SET_EMAIL_SQL))
 	userdb.userNamePattern = sys.Must(regexp.Compile(`^[\w\-\.@]+$`))
 	userdb.namePattern = sys.Must(regexp.Compile(`^[\w\- ]+$`))
 
@@ -161,32 +164,39 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 	return nil
 }
 
-func (userdb *UserDb) SetPassword(userId string, password string) error {
+func (userdb *UserDb) SetPassword(uuid string, password string) error {
 	hash := HashPassword(password)
 
-	_, err := userdb.setPasswordStmt.Exec(hash, userId)
+	_, err := userdb.setPasswordStmt.Exec(hash, uuid)
 
 	return err
 }
 
-func (userdb *UserDb) SetUsername(userId string, username string) error {
+func (userdb *UserDb) SetUsername(uuid string, username string) error {
 
 	if !userdb.userNamePattern.MatchString(username) {
 		return fmt.Errorf("invalid username")
 	}
 
-	_, err := userdb.setUsernameStmt.Exec(username, userId)
+	_, err := userdb.setUsernameStmt.Exec(username, uuid)
 
 	return err
 }
 
-func (userdb *UserDb) SetName(userId string, name string) error {
+func (userdb *UserDb) SetName(uuid string, name string) error {
 
 	if !userdb.namePattern.MatchString(name) {
 		return fmt.Errorf("invalid name")
 	}
 
-	_, err := userdb.setNameStmt.Exec(name, userId)
+	_, err := userdb.setNameStmt.Exec(name, uuid)
+
+	return err
+}
+
+func (userdb *UserDb) SetEmail(uuid string, address *mail.Address) error {
+
+	_, err := userdb.setEmailStmt.Exec(address.Address, uuid)
 
 	return err
 }

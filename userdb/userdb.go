@@ -33,14 +33,18 @@ func SetIsVerified(user string) error {
 	return users.SetIsVerified(user)
 }
 
-func SetPassword(user string, password string) error {
-	return users.SetPassword(user, password)
+func SetPassword(uuid string, password string) error {
+	return users.SetPassword(uuid, password)
 }
 
-func SetUsername(user string, username string) error {
-	return users.SetUsername(user, username)
+func SetUsername(uuid string, username string) error {
+	return users.SetUsername(uuid, username)
 }
 
-func SetName(user string, name string) error {
-	return users.SetName(user, name)
+func SetName(uuid string, name string) error {
+	return users.SetName(uuid, name)
+}
+
+func SetEmail(uuid string, address *mail.Address) error {
+	return users.SetEmail(uuid, address)
 }
