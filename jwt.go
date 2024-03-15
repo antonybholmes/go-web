@@ -7,14 +7,24 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type TokenType = uint8
+// type TokenType = uint8
+
+// const (
+// 	TOKEN_TYPE_VERIFY_EMAIL TokenType = iota
+// 	TOKEN_TYPE_PASSWORDLESS
+// 	TOKEN_TYPE_RESET_PASSWORD
+// 	TOKEN_TYPE_REFRESH
+// 	TOKEN_TYPE_ACCESS
+// )
+
+type TokenType = string
 
 const (
-	TOKEN_TYPE_VERIFY_EMAIL TokenType = iota
-	TOKEN_TYPE_PASSWORDLESS
-	TOKEN_TYPE_RESET_PASSWORD
-	TOKEN_TYPE_REFRESH
-	TOKEN_TYPE_ACCESS
+	TOKEN_TYPE_VERIFY_EMAIL   TokenType = "verify_email"
+	TOKEN_TYPE_PASSWORDLESS   TokenType = "passwordless"
+	TOKEN_TYPE_RESET_PASSWORD TokenType = "reset_password"
+	TOKEN_TYPE_REFRESH        TokenType = "refresh"
+	TOKEN_TYPE_ACCESS         TokenType = "access"
 )
 
 const TOKEN_TYPE_OTP string = "otp"
@@ -26,7 +36,7 @@ const TOKEN_TYPE_OTP_TTL_MINS time.Duration = time.Minute * 10
 type JwtCustomClaims struct {
 	Uuid string `json:"uuid"`
 	//Name  string `json:"name"`
-	Type TokenType `json:"type"`
+	Type string `json:"type"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
@@ -36,22 +46,22 @@ type JwtCustomClaims struct {
 // 	JwtCustomClaims
 // }
 
-func TokenTypeString(t TokenType) string {
-	switch t {
-	case TOKEN_TYPE_VERIFY_EMAIL:
-		return "verify_email_token"
-	case TOKEN_TYPE_PASSWORDLESS:
-		return "passwordless_token"
-	case TOKEN_TYPE_RESET_PASSWORD:
-		return "reset_password_token"
-	case TOKEN_TYPE_ACCESS:
-		return "access_token"
-	case TOKEN_TYPE_REFRESH:
-		return "refresh_token"
-	default:
-		return "other"
-	}
-}
+// func TokenTypeString(t TokenType) string {
+// 	switch t {
+// 	case TOKEN_TYPE_VERIFY_EMAIL:
+// 		return "verify_email_token"
+// 	case TOKEN_TYPE_PASSWORDLESS:
+// 		return "passwordless_token"
+// 	case TOKEN_TYPE_RESET_PASSWORD:
+// 		return "reset_password_token"
+// 	case TOKEN_TYPE_ACCESS:
+// 		return "access_token"
+// 	case TOKEN_TYPE_REFRESH:
+// 		return "refresh_token"
+// 	default:
+// 		return "other"
+// 	}
+// }
 
 func RefreshToken(c echo.Context, uuid string, secret string) (string, error) {
 	return JwtToken(c,
