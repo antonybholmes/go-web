@@ -23,6 +23,8 @@ const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
 const SET_NAME_SQL = `UPDATE users SET name = ? WHERE users.uuid = ?`
 const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
+const MIN_PASSWORD_LENGTH int = 8
+
 type UserDb struct {
 	db                     *sql.DB
 	findUserByEmailStmt    *sql.Stmt
@@ -165,9 +167,15 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 }
 
 func (userdb *UserDb) SetPassword(uuid string, password string) error {
+	err := CheckPassword(password)
+
+	if err != nil {
+		return err
+	}
+
 	hash := HashPassword(password)
 
-	_, err := userdb.setPasswordStmt.Exec(hash, uuid)
+	_, err = userdb.setPasswordStmt.Exec(hash, uuid)
 
 	return err
 }
@@ -208,6 +216,11 @@ func (userdb *UserDb) SetEmail(uuid string, address *mail.Address) error {
 // }
 
 func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
+	err := CheckPassword(user.Password)
+
+	if err != nil {
+		return nil, err
+	}
 
 	email, err := mail.ParseAddress(user.Email)
 
@@ -227,7 +240,7 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 
 		//log.Debug().Msgf("%s %s %s %s %s", user.Name, user.Email, hash, otp)
 
-		_, err = userdb.createUserStmt.Exec(uuid, user.Name, email.Address, email.Address, user.Hash())
+		_, err = userdb.createUserStmt.Exec(uuid, user.Name, email.Address, email.Address, user.HashedPassword())
 
 		if err != nil {
 			return nil, err
@@ -265,4 +278,13 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 	// }
 
 	return authUser, nil
+}
+
+// Make sure password meets requirements
+func CheckPassword(password string) error {
+	if password != "" && len(password) < MIN_PASSWORD_LENGTH {
+		return fmt.Errorf("password must be at least %d characters", MIN_PASSWORD_LENGTH)
+	}
+
+	return nil
 }

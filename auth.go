@@ -39,9 +39,9 @@ type AuthUser struct {
 	Name           string        ` db:"name"`
 	Username       string        ` db:"username"`
 	Email          *mail.Address ` db:"email"`
-	HashedPassword []byte
+	HashedPassword string
 	EmailVerified  bool
-	CanLogin       bool
+	CanSignIn      bool
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -59,25 +59,29 @@ func NewAuthUser(id int,
 	email string,
 	hashedPassword string,
 	isVerified bool,
-	canLogin bool) *AuthUser {
+	canSignIn bool) *AuthUser {
 	return &AuthUser{
 		Uuid:           uuid,
 		Name:           name,
 		Username:       userName,
 		Email:          sys.Must(mail.ParseAddress(email)),
 		Id:             id,
-		HashedPassword: []byte(hashedPassword),
+		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
-		CanLogin:       canLogin}
+		CanSignIn:      canSignIn}
 }
 
 func (user *AuthUser) CheckPasswords(plainPwd string) bool {
+	if plainPwd == "" && user.HashedPassword == "" {
+		return true
+	}
+
 	// Since we'll be getting the hashed password from the DB it
 	// will be a string so we'll need to convert it to a byte slice
 
 	//log.Printf("comp %s %s\n", string(user.HashedPassword), string(plainPwd))
 
-	err := bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(plainPwd))
+	err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(plainPwd))
 
 	return err == nil
 }
@@ -100,5 +104,9 @@ func Uuid() string {
 }
 
 func HashPassword(password string) string {
+	if password == "" {
+		return password
+	}
+
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
 }
