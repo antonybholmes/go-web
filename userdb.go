@@ -256,7 +256,7 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		// user already exists so check if verified
 
 		if authUser.EmailVerified {
-			return nil, fmt.Errorf("you cannot sign up with this email address")
+			return nil, fmt.Errorf("please sign up with another email address")
 		} else {
 			// if user is not verified, update the password since we assume
 			// rightful owner of email address will keep trying until verified
