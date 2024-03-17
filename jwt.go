@@ -41,10 +41,10 @@ type JwtCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-// type JwtOtpCustomClaims struct {
-// 	OTP string `json:"otp"`
-// 	JwtCustomClaims
-// }
+type JwtResetPasswordClaims struct {
+	Username string `json:"username"`
+	JwtCustomClaims
+}
 
 // func TokenTypeString(t TokenType) string {
 // 	switch t {
@@ -86,11 +86,17 @@ func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error
 		secret)
 }
 
-func ResetPasswordToken(c echo.Context, uuid string, secret string) (string, error) {
-	return OtpToken(c,
-		uuid,
-		TOKEN_TYPE_RESET_PASSWORD,
-		secret)
+func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, error) {
+
+	claims := JwtResetPasswordClaims{
+		JwtCustomClaims: JwtCustomClaims{
+			Uuid:             user.Uuid,
+			Type:             TOKEN_TYPE_RESET_PASSWORD,
+			RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_OTP_TTL_MINS))}},
+		Username: user.Username}
+
+	return BaseJwtToken(c, claims, secret)
+
 }
 
 func PasswordlessToken(c echo.Context, uuid string, secret string) (string, error) {
@@ -115,6 +121,11 @@ func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret string, e
 		Type:             tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
 	}
+
+	return BaseJwtToken(c, claims, secret)
+}
+
+func BaseJwtToken(c echo.Context, claims jwt.Claims, secret string) (string, error) {
 
 	// Create token with claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
