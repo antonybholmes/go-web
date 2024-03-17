@@ -212,9 +212,14 @@ func (userdb *UserDb) SetName(uuid string, name string) error {
 	return err
 }
 
-func (userdb *UserDb) SetEmail(uuid string, address *mail.Address) error {
+func (userdb *UserDb) SetEmail(uuid string, email string) error {
+	address, err := CheckEmail(email)
 
-	_, err := userdb.setEmailStmt.Exec(address.Address, uuid)
+	if err != nil {
+		return err
+	}
+
+	_, err = userdb.setEmailStmt.Exec(address.Address, uuid)
 
 	return err
 }
@@ -327,4 +332,18 @@ func CheckName(name string) error {
 	}
 
 	return nil
+}
+
+func CheckEmail(email string) (*mail.Address, error) {
+	if !USERNAME_REGEX.MatchString(email) {
+		return nil, fmt.Errorf("invalid email address")
+	}
+
+	address, err := mail.ParseAddress(email)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not parse email")
+	}
+
+	return address, nil
 }
