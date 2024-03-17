@@ -24,6 +24,7 @@ const SET_NAME_SQL = `UPDATE users SET name = ? WHERE users.uuid = ?`
 const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
+const MIN_NAME_LENGTH int = 4
 
 type UserDb struct {
 	db                     *sql.DB
@@ -36,14 +37,16 @@ type UserDb struct {
 	setUsernameStmt        *sql.Stmt
 	setNameStmt            *sql.Stmt
 	setEmailStmt           *sql.Stmt
-	userNamePattern        *regexp.Regexp
-	namePattern            *regexp.Regexp
 }
 
 var PASSWORD_REGEX *regexp.Regexp
+var USERNAME_REGEX *regexp.Regexp
+var NAME_REGEX *regexp.Regexp
 
 func init() {
 	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@$!%*#?&]*$`)
+	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
+	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
 
 func (userdb *UserDb) Init(file string) error {
@@ -59,8 +62,6 @@ func (userdb *UserDb) Init(file string) error {
 	userdb.setUsernameStmt = sys.Must(db.Prepare(SET_USERNAME_SQL))
 	userdb.setNameStmt = sys.Must(db.Prepare(SET_NAME_SQL))
 	userdb.setEmailStmt = sys.Must(db.Prepare(SET_EMAIL_SQL))
-	userdb.userNamePattern = sys.Must(regexp.Compile(`^[\w\-\.@]+$`))
-	userdb.namePattern = sys.Must(regexp.Compile(`^[\w\- ]+$`))
 
 	return nil
 }
@@ -105,13 +106,13 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var isVerified bool
 	var canLogin bool
 
-	match := userdb.userNamePattern.MatchString(username)
+	err := CheckUsername(username)
 
-	if !match {
-		return nil, fmt.Errorf("invalid username")
+	if err != nil {
+		return nil, err
 	}
 
-	err := userdb.findUserByUsernameStmt.QueryRow(username).
+	err = userdb.findUserByUsernameStmt.QueryRow(username).
 		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canLogin)
 
 	if err != nil {
@@ -188,22 +189,25 @@ func (userdb *UserDb) SetPassword(uuid string, password string) error {
 
 func (userdb *UserDb) SetUsername(uuid string, username string) error {
 
-	if !userdb.userNamePattern.MatchString(username) {
-		return fmt.Errorf("invalid username")
+	err := CheckUsername(username)
+
+	if err != nil {
+		return err
 	}
 
-	_, err := userdb.setUsernameStmt.Exec(username, uuid)
+	_, err = userdb.setUsernameStmt.Exec(username, uuid)
 
 	return err
 }
 
 func (userdb *UserDb) SetName(uuid string, name string) error {
+	err := CheckName(name)
 
-	if !userdb.namePattern.MatchString(name) {
-		return fmt.Errorf("invalid name")
+	if err != nil {
+		return err
 	}
 
-	_, err := userdb.setNameStmt.Exec(name, uuid)
+	_, err = userdb.setNameStmt.Exec(name, uuid)
 
 	return err
 }
@@ -293,7 +297,33 @@ func CheckPassword(password string) error {
 	}
 
 	if !PASSWORD_REGEX.MatchString(password) {
-		return fmt.Errorf("password contains invalid characters")
+		return fmt.Errorf("invalid password")
+	}
+
+	return nil
+}
+
+// Make sure password meets requirements
+func CheckUsername(username string) error {
+	if len(username) < MIN_NAME_LENGTH {
+		return fmt.Errorf("username must be at least %d characters", MIN_NAME_LENGTH)
+	}
+
+	if !USERNAME_REGEX.MatchString(username) {
+		return fmt.Errorf("invalid username")
+	}
+
+	return nil
+}
+
+// Make sure password meets requirements
+func CheckName(name string) error {
+	if len(name) < MIN_NAME_LENGTH {
+		return fmt.Errorf("name must be at least %d characters", MIN_NAME_LENGTH)
+	}
+
+	if !NAME_REGEX.MatchString(name) {
+		return fmt.Errorf("invalid name")
 	}
 
 	return nil
