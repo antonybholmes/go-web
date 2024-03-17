@@ -40,6 +40,12 @@ type UserDb struct {
 	namePattern            *regexp.Regexp
 }
 
+var PASSWORD_REGEX *regexp.Regexp
+
+func init() {
+	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@$!%*#?&]*$`)
+}
+
 func (userdb *UserDb) Init(file string) error {
 	db := sys.Must(sql.Open("sqlite3", file))
 
@@ -284,6 +290,10 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 func CheckPassword(password string) error {
 	if password != "" && len(password) < MIN_PASSWORD_LENGTH {
 		return fmt.Errorf("password must be at least %d characters", MIN_PASSWORD_LENGTH)
+	}
+
+	if !PASSWORD_REGEX.MatchString(password) {
+		return fmt.Errorf("password contains invalid characters")
 	}
 
 	return nil
