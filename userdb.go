@@ -44,7 +44,7 @@ var USERNAME_REGEX *regexp.Regexp
 var NAME_REGEX *regexp.Regexp
 
 func init() {
-	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@$!%*#?&]*$`)
+	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d\@\$\!\%\*\#\?\&\.\~\^\-]*$`)
 	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
