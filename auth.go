@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/mail"
 
 	"github.com/antonybholmes/go-sys"
@@ -71,9 +72,9 @@ func NewAuthUser(id int,
 		CanSignIn:      canSignIn}
 }
 
-func (user *AuthUser) CheckPasswords(plainPwd string) bool {
+func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	if plainPwd == "" && user.HashedPassword == "" {
-		return true
+		return nil
 	}
 
 	// Since we'll be getting the hashed password from the DB it
@@ -83,7 +84,11 @@ func (user *AuthUser) CheckPasswords(plainPwd string) bool {
 
 	err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(plainPwd))
 
-	return err == nil
+	if err != nil {
+		return fmt.Errorf("passwords do not match")
+	}
+
+	return nil
 }
 
 // Returns user details suitable for a web app to display

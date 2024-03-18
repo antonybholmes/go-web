@@ -48,3 +48,7 @@ func SetName(uuid string, name string) error {
 func SetEmail(uuid string, email string) error {
 	return users.SetEmail(uuid, email)
 }
+
+func SetEmailAddress(uuid string, address *mail.Address) error {
+	return users.SetEmailAddress(uuid, address)
+}

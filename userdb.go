@@ -184,6 +184,10 @@ func (userdb *UserDb) SetPassword(uuid string, password string) error {
 
 	_, err = userdb.setPasswordStmt.Exec(hash, uuid)
 
+	if err != nil {
+		return fmt.Errorf("could not update password")
+	}
+
 	return err
 }
 
@@ -197,6 +201,10 @@ func (userdb *UserDb) SetUsername(uuid string, username string) error {
 
 	_, err = userdb.setUsernameStmt.Exec(username, uuid)
 
+	if err != nil {
+		return fmt.Errorf("could not update username")
+	}
+
 	return err
 }
 
@@ -209,6 +217,10 @@ func (userdb *UserDb) SetName(uuid string, name string) error {
 
 	_, err = userdb.setNameStmt.Exec(name, uuid)
 
+	if err != nil {
+		return fmt.Errorf("could not update name")
+	}
+
 	return err
 }
 
@@ -219,7 +231,16 @@ func (userdb *UserDb) SetEmail(uuid string, email string) error {
 		return err
 	}
 
-	_, err = userdb.setEmailStmt.Exec(address.Address, uuid)
+	return userdb.SetEmailAddress(uuid, address)
+}
+
+func (userdb *UserDb) SetEmailAddress(uuid string, address *mail.Address) error {
+
+	_, err := userdb.setEmailStmt.Exec(address.Address, uuid)
+
+	if err != nil {
+		return fmt.Errorf("could not update email address")
+	}
 
 	return err
 }
