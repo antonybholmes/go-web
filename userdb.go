@@ -13,9 +13,9 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, email_verified, can_login FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, email_verified, can_login FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, email_verified, can_login FROM users WHERE users.username = ?`
+const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, email_verified, can_signin FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, email_verified, can_signin FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, email_verified, can_signin FROM users WHERE users.username = ?`
 const CREATE_USER_SQL = `INSERT INTO users (uuid, name, username, email, password) VALUES(?, ?, ?, ?, ?)`
 const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
@@ -79,20 +79,20 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var username string
 	var hashedPassword string
 	var isVerified bool
-	var canLogin bool
+	var canSignIn bool
 
 	if email == nil {
 		return nil, fmt.Errorf("no email address")
 	}
 
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canLogin)
+		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canSignIn)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email.Address, hashedPassword, isVerified, canLogin)
+	authUser := NewAuthUser(id, uuid, name, username, email.Address, hashedPassword, isVerified, canSignIn)
 
 	return authUser, nil
 }
@@ -104,7 +104,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var email string
 	var hashedPassword string
 	var isVerified bool
-	var canLogin bool
+	var canSignIn bool
 
 	err := CheckUsername(username)
 
@@ -113,7 +113,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	}
 
 	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canLogin)
+		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canSignIn)
 
 	if err != nil {
 
@@ -126,7 +126,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return userdb.FindUserByEmail(e)
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canLogin)
+	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canSignIn)
 
 	return authUser, nil
 }
@@ -138,16 +138,16 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var email string
 	var hashedPassword string
 	var isVerified bool
-	var canLogin bool
+	var canSignIn bool
 
 	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&id, &name, &username, &email, &hashedPassword, &isVerified, &canLogin)
+		Scan(&id, &name, &username, &email, &hashedPassword, &isVerified, &canSignIn)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canLogin)
+	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canSignIn)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 
