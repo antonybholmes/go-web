@@ -109,9 +109,5 @@ func Uuid() string {
 }
 
 func HashPassword(password string) string {
-	if password == "" {
-		return password
-	}
-
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
 }

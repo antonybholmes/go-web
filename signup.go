@@ -31,12 +31,7 @@ func (user *SignupReq) String() string {
 // Returns the hash of the password suitable for storing in a db.
 // We allow empty passwords for passwordless login
 func (user *SignupReq) HashedPassword() string {
-	if user.Password == "" {
-		return ""
-	}
-
 	return HashPassword(user.Password)
-
 }
 
 func (user *SignupReq) Address() (*mail.Address, error) {

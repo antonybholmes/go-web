@@ -182,6 +182,8 @@ func (userdb *UserDb) SetPassword(uuid string, password string) error {
 
 	hash := HashPassword(password)
 
+	//log.Debug().Msgf("hash:%s:%s:", hash, password)
+
 	_, err = userdb.setPasswordStmt.Exec(hash, uuid)
 
 	if err != nil {
