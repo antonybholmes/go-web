@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/mail"
+	"strconv"
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/google/uuid"
@@ -35,7 +36,7 @@ type PublicUser struct {
 }
 
 type AuthUser struct {
-	Id             int           `db:"id"`
+	Id             uint          `db:"id"`
 	Uuid           string        ` db:"uuid"`
 	Name           string        ` db:"name"`
 	Username       string        ` db:"username"`
@@ -43,6 +44,7 @@ type AuthUser struct {
 	HashedPassword string
 	EmailVerified  bool
 	CanSignIn      bool
+	Updated        uint64
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -53,14 +55,15 @@ func init() {
 	randomstring.Seed()
 }
 
-func NewAuthUser(id int,
+func NewAuthUser(id uint,
 	uuid string,
 	name string,
 	userName string,
 	email string,
 	hashedPassword string,
 	isVerified bool,
-	canSignIn bool) *AuthUser {
+	canSignIn bool,
+	updated uint64) *AuthUser {
 	return &AuthUser{
 		Uuid:           uuid,
 		Name:           name,
@@ -69,26 +72,12 @@ func NewAuthUser(id int,
 		Id:             id,
 		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
-		CanSignIn:      canSignIn}
+		CanSignIn:      canSignIn,
+		Updated:        updated}
 }
 
 func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
-	if plainPwd == "" && user.HashedPassword == "" {
-		return nil
-	}
-
-	// Since we'll be getting the hashed password from the DB it
-	// will be a string so we'll need to convert it to a byte slice
-
-	//log.Printf("comp %s %s\n", string(user.HashedPassword), string(plainPwd))
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(plainPwd))
-
-	if err != nil {
-		return fmt.Errorf("passwords do not match")
-	}
-
-	return nil
+	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
 }
 
 // Returns user details suitable for a web app to display
@@ -110,4 +99,35 @@ func Uuid() string {
 
 func HashPassword(password string) string {
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
+}
+
+func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
+
+	// Since we'll be getting the hashed password from the DB it
+	// will be a string so we'll need to convert it to a byte slice
+
+	//log.Printf("comp %s %s\n", string(user.HashedPassword), string(plainPwd))
+
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPwd))
+
+	if err != nil {
+		return fmt.Errorf("passwords do not match")
+	}
+
+	return nil
+}
+
+func CreateOtp(user *AuthUser) string {
+	return HashPassword(strconv.FormatUint(user.Updated, 10))
+
+}
+
+func CheckOtpValid(user *AuthUser, otp string) error {
+	err := CheckPasswordsMatch(otp, strconv.FormatUint(user.Updated, 10))
+
+	if err != nil {
+		return fmt.Errorf("one time code has expired")
+	}
+
+	return nil
 }

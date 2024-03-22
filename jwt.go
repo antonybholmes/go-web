@@ -31,12 +31,13 @@ const TOKEN_TYPE_OTP string = "otp"
 
 const TOKEN_TYPE_REFRESH_TTL_HOURS time.Duration = time.Hour * 24
 const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
-const TOKEN_TYPE_OTP_TTL_MINS time.Duration = time.Minute * 10
+const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
 	Uuid string `json:"uuid"`
 	//Name  string `json:"name"`
 	Type string `json:"type"`
+	Otp  string `json:"otp"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
@@ -80,7 +81,7 @@ func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
 }
 
 func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error) {
-	return OneTimeToken(c,
+	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
@@ -89,10 +90,12 @@ func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error
 func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, error) {
 
 	claims := JwtResetPasswordClaims{
+
 		JwtCustomClaims: JwtCustomClaims{
 			Uuid:             user.Uuid,
 			Type:             TOKEN_TYPE_RESET_PASSWORD,
-			RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_OTP_TTL_MINS))}},
+			Otp:              CreateOtp(user),
+			RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}},
 		Username: user.Username}
 
 	return BaseJwtToken(c, claims, secret)
@@ -100,26 +103,41 @@ func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, 
 }
 
 func PasswordlessToken(c echo.Context, uuid string, secret string) (string, error) {
-	return OneTimeToken(c,
+	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
 }
 
+func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret string) (string, error) {
+	return BasicJwtToken(c, user.Uuid,
+		tokenType,
+		CreateOtp(user),
+		secret,
+		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
+}
+
 // Generate short lived tokens for one time passcode use.
-func OneTimeToken(c echo.Context, uuid string, tokenType TokenType, secret string) (string, error) {
+func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret string) (string, error) {
 	return JwtToken(c, uuid,
 		tokenType,
 		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_OTP_TTL_MINS)))
+		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
 }
 
+// simple non otp token
 func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
+	return BasicJwtToken(c, uuid, tokenType, "", secret, expires)
+}
+
+// token for all possible values
+func BasicJwtToken(c echo.Context, uuid string, tokenType TokenType, otp string, secret string, expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
+		Otp:              otp,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
 	}
 
