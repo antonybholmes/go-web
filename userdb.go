@@ -14,14 +14,14 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, name, username, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, name, username, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
-const CREATE_USER_SQL = `INSERT INTO users (uuid, name, username, email, password) VALUES(?, ?, ?, ?, ?)`
+const FIND_USER_BY_UUID_SQL string = `SELECT id, first_name, last_name, username, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, first_name, last_name, username, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, first_name, last_name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
+const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
 const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
-const SET_NAME_SQL = `UPDATE users SET name = ? WHERE users.uuid = ?`
+const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.uuid = ?`
 const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
@@ -76,7 +76,8 @@ func (userdb *UserDb) Close() {
 func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var id uint
 	var uuid string
-	var name string
+	var firstName string
+	var lastName string
 	var username string
 	var hashedPassword string
 	var isVerified bool
@@ -88,13 +89,13 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	}
 
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&id, &uuid, &name, &username, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email.Address, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
@@ -102,7 +103,8 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var id uint
 	var uuid string
-	var name string
+	var firstName string
+	var lastName string
 	var email string
 	var hashedPassword string
 	var isVerified bool
@@ -116,7 +118,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	}
 
 	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&id, &uuid, &name, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 
@@ -129,14 +131,15 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return userdb.FindUserByEmail(e)
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
 
 func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var id uint
-	var name string
+	var firstName string
+	var lastName string
 	var username string
 	var email string
 	var hashedPassword string
@@ -145,13 +148,13 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var updated uint64
 
 	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&id, &name, &username, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, name, username, email, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
 
 	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
 
@@ -214,14 +217,20 @@ func (userdb *UserDb) SetUsername(uuid string, username string) error {
 	return err
 }
 
-func (userdb *UserDb) SetName(uuid string, name string) error {
-	err := CheckName(name)
+func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) error {
+	err := CheckName(firstName)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = userdb.setNameStmt.Exec(name, uuid)
+	err = CheckName(lastName)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = userdb.setNameStmt.Exec(firstName, lastName, uuid)
 
 	if err != nil {
 		return fmt.Errorf("could not update name")
@@ -280,9 +289,14 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		// Create a uuid for the user id
 		uuid := Uuid()
 
-		log.Debug().Msgf("%s %s", user.Name, user.Email)
+		log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 
-		_, err = userdb.createUserStmt.Exec(uuid, user.Name, email.Address, email.Address, user.HashedPassword())
+		_, err = userdb.createUserStmt.Exec(uuid,
+			user.FirstName,
+			user.LastName,
+			email.Address,
+			email.Address,
+			user.HashedPassword())
 
 		if err != nil {
 			return nil, err

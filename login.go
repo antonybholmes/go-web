@@ -38,7 +38,8 @@ type NewPasswordReq struct {
 type LoginReq struct {
 	Username     string `json:"username"`
 	Email        string `json:"email"`
-	Name         string `json:"name"`
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
 	Password     string `json:"password"`
 	StaySignedIn bool   `json:"staySignedIn"`
 	UrlCallbackReq

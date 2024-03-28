@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/mail"
+	"strings"
 )
 
 // type SignupUser struct {
@@ -17,7 +18,7 @@ type SignupReq struct {
 }
 
 func (user *SignupReq) String() string {
-	return fmt.Sprintf("%s:%s:%s", user.Name, user.Email, user.Password)
+	return fmt.Sprintf("%s:%s:%s", user.FirstName, user.Email, user.Password)
 }
 
 // func NewSignupUser(name string, email string, password string) *SignupUser {
@@ -41,7 +42,7 @@ func (user *SignupReq) Address() (*mail.Address, error) {
 		return nil, err
 	}
 
-	email.Name = user.Name
+	email.Name = strings.TrimSpace(fmt.Sprintf("%s %s", user.FirstName, user.LastName))
 
 	return email, nil
 }

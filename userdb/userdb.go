@@ -41,8 +41,8 @@ func SetUsername(uuid string, username string) error {
 	return users.SetUsername(uuid, username)
 }
 
-func SetName(uuid string, name string) error {
-	return users.SetName(uuid, name)
+func SetName(uuid string, firstName string, lastName string) error {
+	return users.SetName(uuid, firstName, lastName)
 }
 
 func SetEmail(uuid string, email string) error {

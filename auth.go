@@ -23,22 +23,25 @@ type UrlCallbackReq struct {
 }
 
 type User struct {
-	Name     string `db:"name"`
-	UserName string `db:"username"`
-	Email    string `db:"email"`
+	FirstName string `db:"first_name"`
+	LastName  string `db:"last_name"`
+	UserName  string `db:"username"`
+	Email     string `db:"email"`
 }
 
 type PublicUser struct {
-	Uuid     string `json:"uuid"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	Uuid      string `json:"uuid"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
 }
 
 type AuthUser struct {
 	Id             uint          `db:"id"`
 	Uuid           string        ` db:"uuid"`
-	Name           string        ` db:"name"`
+	FirstName      string        `db:"first_name"`
+	LastName       string        `db:"last_name"`
 	Username       string        ` db:"username"`
 	Email          *mail.Address ` db:"email"`
 	HashedPassword string
@@ -57,7 +60,8 @@ func init() {
 
 func NewAuthUser(id uint,
 	uuid string,
-	name string,
+	firstName string,
+	lastName string,
 	userName string,
 	email string,
 	hashedPassword string,
@@ -66,7 +70,8 @@ func NewAuthUser(id uint,
 	updated uint64) *AuthUser {
 	return &AuthUser{
 		Uuid:           uuid,
-		Name:           name,
+		FirstName:      firstName,
+		LastName:       lastName,
 		Username:       userName,
 		Email:          sys.Must(mail.ParseAddress(email)),
 		Id:             id,
@@ -83,9 +88,10 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 // Returns user details suitable for a web app to display
 func (user *AuthUser) ToPublicUser() *PublicUser {
 	return &PublicUser{Uuid: user.Uuid,
-		Name:     user.Name,
-		Username: user.Username,
-		Email:    user.Email.Address}
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Username:  user.Username,
+		Email:     user.Email.Address}
 }
 
 // Generate a one time code
