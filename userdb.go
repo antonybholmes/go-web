@@ -7,7 +7,6 @@ import (
 	"regexp"
 
 	"github.com/antonybholmes/go-sys"
-	"github.com/rs/zerolog/log"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
@@ -156,8 +155,6 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 
 	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
 
-	//log.Printf("find %s %t\n", user.Email, authUser.CheckPasswords(user.Password))
-
 	// check password hash matches hash in database
 
 	return authUser, nil
@@ -289,7 +286,7 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		// Create a uuid for the user id
 		uuid := Uuid()
 
-		log.Debug().Msgf("%s %s", user.FirstName, user.Email)
+		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 
 		_, err = userdb.createUserStmt.Exec(uuid,
 			user.FirstName,

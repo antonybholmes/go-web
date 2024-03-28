@@ -7,6 +7,7 @@ import (
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -87,6 +88,7 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 
 // Returns user details suitable for a web app to display
 func (user *AuthUser) ToPublicUser() *PublicUser {
+	log.Debug().Msgf("here")
 	return &PublicUser{Uuid: user.Uuid,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
