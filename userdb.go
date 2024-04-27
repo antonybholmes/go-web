@@ -49,21 +49,21 @@ func init() {
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
 
-func (userdb *UserDb) Init(file string) error {
+func NewUserDB(file string) (*UserDb, error) {
+
 	db := sys.Must(sql.Open("sqlite3", file))
 
-	userdb.db = db
-	userdb.findUserByEmailStmt = sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL))
-	userdb.findUserByUsernameStmt = sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL))
-	userdb.findUserByIdStmt = sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL))
-	userdb.createUserStmt = sys.Must(db.Prepare(CREATE_USER_SQL))
-	userdb.setEmailVerifiedStmt = sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL))
-	userdb.setPasswordStmt = sys.Must(db.Prepare(SET_PASSWORD_SQL))
-	userdb.setUsernameStmt = sys.Must(db.Prepare(SET_USERNAME_SQL))
-	userdb.setNameStmt = sys.Must(db.Prepare(SET_NAME_SQL))
-	userdb.setEmailStmt = sys.Must(db.Prepare(SET_EMAIL_SQL))
+	return &UserDb{db: db,
+		findUserByEmailStmt:    sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL)),
+		findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
+		findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL)),
+		createUserStmt:         sys.Must(db.Prepare(CREATE_USER_SQL)),
+		setEmailVerifiedStmt:   sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL)),
+		setPasswordStmt:        sys.Must(db.Prepare(SET_PASSWORD_SQL)),
+		setUsernameStmt:        sys.Must(db.Prepare(SET_USERNAME_SQL)),
+		setNameStmt:            sys.Must(db.Prepare(SET_NAME_SQL)),
+		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL))}, nil
 
-	return nil
 }
 
 func (userdb *UserDb) Close() {

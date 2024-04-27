@@ -9,8 +9,13 @@ import (
 // pretend its a global const
 var users *auth.UserDb = new(auth.UserDb)
 
-func Init(file string) error {
-	return users.Init(file)
+func InitDB(file string) error {
+	var err error
+
+	users, err = auth.NewUserDB(file)
+
+	return err
+
 }
 
 func CreateUser(user *auth.SignupReq) (*auth.AuthUser, error) {
