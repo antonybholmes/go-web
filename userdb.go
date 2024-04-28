@@ -267,7 +267,7 @@ func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) er
 }
 
 func (userdb *UserDb) SetEmail(uuid string, email string) error {
-	address, err := CheckEmail(email)
+	address, err := CheckEmailIsWellFormed(email)
 
 	if err != nil {
 		return err
@@ -403,7 +403,7 @@ func CheckName(name string) error {
 	return nil
 }
 
-func CheckEmail(email string) (*mail.Address, error) {
+func CheckEmailIsWellFormed(email string) (*mail.Address, error) {
 	if !USERNAME_REGEX.MatchString(email) {
 		return nil, fmt.Errorf("invalid email address")
 	}

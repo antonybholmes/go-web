@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"net/mail"
 	"strconv"
 
 	"github.com/antonybholmes/go-sys"
@@ -38,16 +37,16 @@ type User struct {
 // }
 
 type AuthUser struct {
-	Id             uint          `json:"-" db:"id"`
-	Uuid           string        `json:"uuid" db:"uuid"`
-	FirstName      string        `json:"firstName" db:"first_name"`
-	LastName       string        `json:"lastName" db:"last_name"`
-	Username       string        `json:"username" db:"username"`
-	Email          *mail.Address `json:"email" db:"email"`
-	HashedPassword string        `json:"-"`
-	EmailVerified  bool          `json:"-"`
-	CanSignIn      bool          `json:"-"`
-	Updated        uint64        `json:"-"`
+	Id             uint   `json:"-" db:"id"`
+	Uuid           string `json:"uuid" db:"uuid"`
+	FirstName      string `json:"firstName" db:"first_name"`
+	LastName       string `json:"lastName" db:"last_name"`
+	Username       string `json:"username" db:"username"`
+	Email          string `json:"email" db:"email"`
+	HashedPassword string `json:"-"`
+	EmailVerified  bool   `json:"-"`
+	CanSignIn      bool   `json:"-"`
+	Updated        uint64 `json:"-"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -73,7 +72,7 @@ func NewAuthUser(id uint,
 		FirstName:      firstName,
 		LastName:       lastName,
 		Username:       userName,
-		Email:          sys.Must(mail.ParseAddress(email)),
+		Email:          email,
 		Id:             id,
 		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
