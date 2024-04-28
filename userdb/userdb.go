@@ -7,53 +7,57 @@ import (
 )
 
 // pretend its a global const
-var users *auth.UserDb = new(auth.UserDb)
+var userdb *auth.UserDb
 
 func InitDB(file string) error {
 	var err error
 
-	users, err = auth.NewUserDB(file)
+	userdb, err = auth.NewUserDB(file)
 
 	return err
 
 }
 
 func CreateUser(user *auth.SignupReq) (*auth.AuthUser, error) {
-	return users.CreateUser(user)
+	return userdb.CreateUser(user)
+}
+
+func FindUserById(id string) (*auth.AuthUser, error) {
+	return userdb.FindUserById(id)
 }
 
 func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return users.FindUserByEmail(email)
+	return userdb.FindUserByEmail(email)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
-	return users.FindUserByUsername(username)
+	return userdb.FindUserByUsername(username)
 }
 
 func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
-	return users.FindUserByUuid(uuid)
+	return userdb.FindUserByUuid(uuid)
 }
 
 func SetIsVerified(user string) error {
-	return users.SetIsVerified(user)
+	return userdb.SetIsVerified(user)
 }
 
 func SetPassword(uuid string, password string) error {
-	return users.SetPassword(uuid, password)
+	return userdb.SetPassword(uuid, password)
 }
 
 func SetUsername(uuid string, username string) error {
-	return users.SetUsername(uuid, username)
+	return userdb.SetUsername(uuid, username)
 }
 
 func SetName(uuid string, firstName string, lastName string) error {
-	return users.SetName(uuid, firstName, lastName)
+	return userdb.SetName(uuid, firstName, lastName)
 }
 
 func SetEmail(uuid string, email string) error {
-	return users.SetEmail(uuid, email)
+	return userdb.SetEmail(uuid, email)
 }
 
 func SetEmailAddress(uuid string, address *mail.Address) error {
-	return users.SetEmailAddress(uuid, address)
+	return userdb.SetEmailAddress(uuid, address)
 }

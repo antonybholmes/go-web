@@ -72,6 +72,36 @@ func (userdb *UserDb) Close() {
 	}
 }
 
+func (userdb *UserDb) FindUserById(id string) (*AuthUser, error) {
+	authUser, err := userdb.FindUserByUsername(id)
+
+	if err == nil {
+		return authUser, nil
+	}
+
+	// try finding by email
+
+	email, err := mail.ParseAddress(id)
+
+	if err == nil {
+		// also check if username is valid email and try to login
+		// with that
+		authUser, err = userdb.FindUserByEmail(email)
+
+		if err == nil {
+			return authUser, nil
+		}
+	}
+
+	authUser, err = userdb.FindUserByUuid(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return authUser, nil
+}
+
 func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var id uint
 	var uuid string

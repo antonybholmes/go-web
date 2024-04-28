@@ -1,15 +1,15 @@
 package auth
 
-type EmailOnlyLoginReq struct {
-	Email string `json:"email" `
+type PasswordlessLogin struct {
+	Username string `json:"username" `
 	UrlCallbackReq
 }
 
-type EmailPasswordLoginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	UrlCallbackReq
-}
+// type EmailPasswordLoginReq struct {
+// 	Email    string `json:"email"`
+// 	Password string `json:"password"`
+// 	UrlCallbackReq
+// }
 
 type UsernamePasswordLoginReq struct {
 	Username string `json:"username"`
@@ -17,10 +17,10 @@ type UsernamePasswordLoginReq struct {
 	UrlCallbackReq
 }
 
-type PasswordLoginReq struct {
-	Password string `json:"password"`
-	UrlCallbackReq
-}
+// type PasswordLoginReq struct {
+// 	Password string `json:"password"`
+// 	UrlCallbackReq
+// }
 
 type PasswordResetReq struct {
 	Password string `json:"password"`
@@ -36,8 +36,8 @@ type NewPasswordReq struct {
 }
 
 type LoginReq struct {
-	Username     string `json:"username"`
-	Email        string `json:"email"`
+	Username string `json:"username"`
+	//Email        string `json:"email"`
 	FirstName    string `json:"firstName"`
 	LastName     string `json:"lastName"`
 	Password     string `json:"password"`

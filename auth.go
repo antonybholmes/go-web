@@ -7,7 +7,6 @@ import (
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,25 +29,25 @@ type User struct {
 	Email     string `db:"email"`
 }
 
-type PublicUser struct {
-	Uuid      string `json:"uuid"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-}
+// type PublicUser struct {
+// 	Uuid      string `json:"uuid"`
+// 	FirstName string `json:"firstName"`
+// 	LastName  string `json:"lastName"`
+// 	Username  string `json:"username"`
+// 	Email     string `json:"email"`
+// }
 
 type AuthUser struct {
-	Id             uint          `db:"id"`
-	Uuid           string        ` db:"uuid"`
-	FirstName      string        `db:"first_name"`
-	LastName       string        `db:"last_name"`
-	Username       string        ` db:"username"`
-	Email          *mail.Address ` db:"email"`
-	HashedPassword string
-	EmailVerified  bool
-	CanSignIn      bool
-	Updated        uint64
+	Id             uint          `json:"-" db:"id"`
+	Uuid           string        `json:"uuid" db:"uuid"`
+	FirstName      string        `json:"firstName" db:"first_name"`
+	LastName       string        `json:"lastName" db:"last_name"`
+	Username       string        `json:"username" db:"username"`
+	Email          *mail.Address `json:"email" db:"email"`
+	HashedPassword string        `json:"-"`
+	EmailVerified  bool          `json:"-"`
+	CanSignIn      bool          `json:"-"`
+	Updated        uint64        `json:"-"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -87,14 +86,14 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 }
 
 // Returns user details suitable for a web app to display
-func (user *AuthUser) ToPublicUser() *PublicUser {
-	log.Debug().Msgf("here")
-	return &PublicUser{Uuid: user.Uuid,
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Username:  user.Username,
-		Email:     user.Email.Address}
-}
+// func (user *AuthUser) ToPublicUser() *PublicUser {
+// 	log.Debug().Msgf("here")
+// 	return &PublicUser{Uuid: user.Uuid,
+// 		FirstName: user.FirstName,
+// 		LastName:  user.LastName,
+// 		Username:  user.Username,
+// 		Email:     user.Email.Address}
+// }
 
 // Generate a one time code
 func RandCode() string {
