@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/mail"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -23,6 +24,7 @@ const (
 	TOKEN_TYPE_VERIFY_EMAIL   TokenType = "verify_email"
 	TOKEN_TYPE_PASSWORDLESS   TokenType = "passwordless"
 	TOKEN_TYPE_RESET_PASSWORD TokenType = "reset_password"
+	TOKEN_TYPE_CHANGE_EMAIL   TokenType = "change_email"
 	TOKEN_TYPE_REFRESH        TokenType = "refresh"
 	TOKEN_TYPE_ACCESS         TokenType = "access"
 )
@@ -35,7 +37,7 @@ const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
 	Uuid string `json:"uuid"`
-	//Name  string `json:"name"`
+	Data string `json:"data"`
 	Type string `json:"type"`
 	Otp  string `json:"otp"`
 	//IpAddr string    `json:"ipAddr"`
@@ -44,6 +46,11 @@ type JwtCustomClaims struct {
 
 type JwtResetPasswordClaims struct {
 	Username string `json:"username"`
+	JwtCustomClaims
+}
+
+type JwtUpdateEmailClaims struct {
+	Email string `json:"email"`
 	JwtCustomClaims
 }
 
@@ -97,6 +104,19 @@ func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, 
 			Otp:              CreateOtp(user),
 			RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}},
 		Username: user.Username}
+
+	return BaseJwtToken(c, claims, secret)
+
+}
+
+func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret string) (string, error) {
+
+	claims := JwtCustomClaims{
+		Uuid:             user.Uuid,
+		Data:             email.Address,
+		Type:             TOKEN_TYPE_RESET_PASSWORD,
+		Otp:              CreateOtp(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
 
 	return BaseJwtToken(c, claims, secret)
 

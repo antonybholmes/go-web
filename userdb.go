@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/rs/zerolog/log"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
@@ -21,6 +22,7 @@ const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
 const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.uuid = ?`
+const SET_INFO_SQL = `UPDATE users SET username = ?2, first_name = ?3, last_name = ?4 WHERE users.uuid = ?1`
 const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
@@ -36,6 +38,7 @@ type UserDb struct {
 	setPasswordStmt        *sql.Stmt
 	setUsernameStmt        *sql.Stmt
 	setNameStmt            *sql.Stmt
+	setInfoStmt            *sql.Stmt
 	setEmailStmt           *sql.Stmt
 }
 
@@ -62,6 +65,7 @@ func NewUserDB(file string) (*UserDb, error) {
 		setPasswordStmt:        sys.Must(db.Prepare(SET_PASSWORD_SQL)),
 		setUsernameStmt:        sys.Must(db.Prepare(SET_USERNAME_SQL)),
 		setNameStmt:            sys.Must(db.Prepare(SET_NAME_SQL)),
+		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
 		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL))}, nil
 
 }
@@ -261,6 +265,39 @@ func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) er
 
 	if err != nil {
 		return fmt.Errorf("could not update name")
+	}
+
+	return err
+}
+
+func (userdb *UserDb) SetUserInfo(uuid string, username string, firstName string, lastName string) error {
+
+	err := CheckUsername(username)
+
+	if err != nil {
+		return err
+	}
+
+	err = CheckName(firstName)
+
+	if err != nil {
+		return err
+	}
+
+	err = CheckName(lastName)
+
+	if err != nil {
+		return err
+	}
+
+	log.Debug().Msgf("%s %s", uuid, username)
+
+	_, err = userdb.setInfoStmt.Exec(uuid, username, firstName, lastName)
+
+	log.Debug().Msgf("%s ", err)
+
+	if err != nil {
+		return fmt.Errorf("could not update user info")
 	}
 
 	return err

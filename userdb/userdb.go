@@ -54,6 +54,10 @@ func SetName(uuid string, firstName string, lastName string) error {
 	return userdb.SetName(uuid, firstName, lastName)
 }
 
+func SetUserInfo(uuid string, username string, firstName string, lastName string) error {
+	return userdb.SetUserInfo(uuid, username, firstName, lastName)
+}
+
 func SetEmail(uuid string, email string) error {
 	return userdb.SetEmail(uuid, email)
 }
