@@ -96,14 +96,12 @@ func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error
 
 func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, error) {
 
-	claims := JwtResetPasswordClaims{
-
-		JwtCustomClaims: JwtCustomClaims{
-			Uuid:             user.Uuid,
-			Type:             TOKEN_TYPE_RESET_PASSWORD,
-			Otp:              CreateOtp(user),
-			RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}},
-		Username: user.Username}
+	claims := JwtCustomClaims{
+		Uuid:             user.Uuid,
+		Data:             user.Username,
+		Type:             TOKEN_TYPE_RESET_PASSWORD,
+		Otp:              CreateOtp(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
 
 	return BaseJwtToken(c, claims, secret)
 
@@ -114,7 +112,7 @@ func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secre
 	claims := JwtCustomClaims{
 		Uuid:             user.Uuid,
 		Data:             email.Address,
-		Type:             TOKEN_TYPE_RESET_PASSWORD,
+		Type:             TOKEN_TYPE_CHANGE_EMAIL,
 		Otp:              CreateOtp(user),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
 
