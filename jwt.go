@@ -71,7 +71,7 @@ type JwtUpdateEmailClaims struct {
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, secret string) (string, error) {
+func RefreshToken(c echo.Context, uuid string, secret []byte) (string, error) {
 	return JwtToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
@@ -79,7 +79,7 @@ func RefreshToken(c echo.Context, uuid string, secret string) (string, error) {
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_REFRESH_TTL_HOURS)))
 }
 
-func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
+func AccessToken(c echo.Context, uuid string, secret []byte) (string, error) {
 	return JwtToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
@@ -87,14 +87,14 @@ func AccessToken(c echo.Context, uuid string, secret string) (string, error) {
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
 }
 
-func VerifyEmailToken(c echo.Context, uuid string, secret string) (string, error) {
+func VerifyEmailToken(c echo.Context, uuid string, secret []byte) (string, error) {
 	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
 }
 
-func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, error) {
+func ResetPasswordToken(c echo.Context, user *AuthUser, secret []byte) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid:             user.Uuid,
@@ -107,7 +107,7 @@ func ResetPasswordToken(c echo.Context, user *AuthUser, secret string) (string, 
 
 }
 
-func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret string) (string, error) {
+func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret []byte) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid:             user.Uuid,
@@ -120,14 +120,14 @@ func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secre
 
 }
 
-func PasswordlessToken(c echo.Context, uuid string, secret string) (string, error) {
+func PasswordlessToken(c echo.Context, uuid string, secret []byte) (string, error) {
 	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
 }
 
-func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret string) (string, error) {
+func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret []byte) (string, error) {
 	return BasicJwtToken(c, user.Uuid,
 		tokenType,
 		CreateOtp(user),
@@ -136,7 +136,7 @@ func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret st
 }
 
 // Generate short lived tokens for one time passcode use.
-func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret string) (string, error) {
+func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret []byte) (string, error) {
 	return JwtToken(c, uuid,
 		tokenType,
 		secret,
@@ -144,12 +144,12 @@ func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret str
 }
 
 // simple non otp token
-func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret string, expires *jwt.NumericDate) (string, error) {
+func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret []byte, expires *jwt.NumericDate) (string, error) {
 	return BasicJwtToken(c, uuid, tokenType, "", secret, expires)
 }
 
 // token for all possible values
-func BasicJwtToken(c echo.Context, uuid string, tokenType TokenType, otp string, secret string, expires *jwt.NumericDate) (string, error) {
+func BasicJwtToken(c echo.Context, uuid string, tokenType TokenType, otp string, secret []byte, expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,
@@ -162,13 +162,14 @@ func BasicJwtToken(c echo.Context, uuid string, tokenType TokenType, otp string,
 	return BaseJwtToken(c, claims, secret)
 }
 
-func BaseJwtToken(c echo.Context, claims jwt.Claims, secret string) (string, error) {
+func BaseJwtToken(c echo.Context, claims jwt.Claims, secret []byte) (string, error) {
 
 	// Create token with claims
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	//token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString([]byte(secret))
+	t, err := token.SignedString(secret)
 
 	if err != nil {
 		return "", err
