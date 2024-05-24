@@ -11,7 +11,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.12.0
-	github.com/rs/zerolog v1.32.0
+	github.com/rs/zerolog v1.33.0
 	github.com/xyproto/randomstring v1.0.5
 	golang.org/x/crypto v0.23.0
 )
