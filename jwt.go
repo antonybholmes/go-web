@@ -36,23 +36,24 @@ const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
 const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
-	Uuid string `json:"uuid"`
-	Data string `json:"data"`
-	Type string `json:"type"`
-	Otp  string `json:"otp"`
+	Uuid  string `json:"uuid"`
+	Type  string `json:"type"`
+	Data  string `json:"data,omitempty"`
+	Otp   string `json:"otp,omitempty"`
+	Scope string `json:"scope,omitempty"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
 
-type JwtResetPasswordClaims struct {
-	Username string `json:"username"`
-	JwtCustomClaims
-}
+// type JwtResetPasswordClaims struct {
+// 	Username string `json:"username"`
+// 	JwtCustomClaims
+// }
 
-type JwtUpdateEmailClaims struct {
-	Email string `json:"email"`
-	JwtCustomClaims
-}
+// type JwtUpdateEmailClaims struct {
+// 	Email string `json:"email"`
+// 	JwtCustomClaims
+// }
 
 // func TokenTypeString(t TokenType) string {
 // 	switch t {
@@ -71,18 +72,20 @@ type JwtUpdateEmailClaims struct {
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, secret []byte) (string, error) {
+func RefreshToken(c echo.Context, uuid string, scope string, secret []byte) (string, error) {
 	return JwtToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
+		scope,
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_REFRESH_TTL_HOURS)))
 }
 
-func AccessToken(c echo.Context, uuid string, secret []byte) (string, error) {
+func AccessToken(c echo.Context, uuid string, scope string, secret []byte) (string, error) {
 	return JwtToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
+		scope,
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
 }
@@ -130,6 +133,7 @@ func PasswordlessToken(c echo.Context, uuid string, secret []byte) (string, erro
 func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret []byte) (string, error) {
 	return BasicJwtToken(c, user.Uuid,
 		tokenType,
+		"",
 		CreateOtp(user),
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
@@ -139,22 +143,35 @@ func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret []
 func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret []byte) (string, error) {
 	return JwtToken(c, uuid,
 		tokenType,
+		"",
 		secret,
 		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
 }
 
 // simple non otp token
-func JwtToken(c echo.Context, uuid string, tokenType TokenType, secret []byte, expires *jwt.NumericDate) (string, error) {
-	return BasicJwtToken(c, uuid, tokenType, "", secret, expires)
+func JwtToken(c echo.Context,
+	uuid string,
+	tokenType TokenType,
+	scope string,
+	secret []byte,
+	expires *jwt.NumericDate) (string, error) {
+	return BasicJwtToken(c, uuid, tokenType, scope, "", secret, expires)
 }
 
 // token for all possible values
-func BasicJwtToken(c echo.Context, uuid string, tokenType TokenType, otp string, secret []byte, expires *jwt.NumericDate) (string, error) {
+func BasicJwtToken(c echo.Context,
+	uuid string,
+	tokenType TokenType,
+	scope string,
+	otp string,
+	secret []byte,
+	expires *jwt.NumericDate) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
+		Scope:            scope,
 		Otp:              otp,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
 	}

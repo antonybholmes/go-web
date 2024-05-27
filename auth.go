@@ -37,12 +37,13 @@ type User struct {
 // }
 
 type AuthUser struct {
-	Id             uint   `json:"-" db:"id"`
+	//Id             uint   `json:"-" db:"id"`
 	Uuid           string `json:"uuid" db:"uuid"`
 	FirstName      string `json:"firstName" db:"first_name"`
 	LastName       string `json:"lastName" db:"last_name"`
 	Username       string `json:"username" db:"username"`
 	Email          string `json:"email" db:"email"`
+	Scope          string `json:"scope" db:"scope"`
 	HashedPassword string `json:"-"`
 	EmailVerified  bool   `json:"-"`
 	CanSignIn      bool   `json:"-"`
@@ -57,12 +58,13 @@ func init() {
 	randomstring.Seed()
 }
 
-func NewAuthUser(id uint,
+func NewAuthUser(
 	uuid string,
 	firstName string,
 	lastName string,
 	userName string,
 	email string,
+	scope string,
 	hashedPassword string,
 	isVerified bool,
 	canSignIn bool,
@@ -73,7 +75,7 @@ func NewAuthUser(id uint,
 		LastName:       lastName,
 		Username:       userName,
 		Email:          email,
-		Id:             id,
+		Scope:          scope,
 		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
 		CanSignIn:      canSignIn,

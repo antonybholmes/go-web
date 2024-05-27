@@ -14,9 +14,9 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, first_name, last_name, username, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, first_name, last_name, username, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, first_name, last_name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
+const FIND_USER_BY_UUID_SQL string = `SELECT first_name, last_name, username, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT uuid, first_name, last_name, username, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT uuid, first_name, last_name, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
 const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
 const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
@@ -107,11 +107,11 @@ func (userdb *UserDb) FindUserById(id string) (*AuthUser, error) {
 }
 
 func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
-	var id uint
 	var uuid string
 	var firstName string
 	var lastName string
 	var username string
+	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
@@ -122,23 +122,23 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	}
 
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&id, &uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&uuid, &firstName, &lastName, &username, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email.Address, scope, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
 
 func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
-	var id uint
 	var uuid string
 	var firstName string
 	var lastName string
 	var email string
+	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
@@ -151,7 +151,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	}
 
 	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&id, &uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&uuid, &firstName, &lastName, &email, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 
@@ -164,30 +164,30 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return userdb.FindUserByEmail(e)
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email, scope, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
 
 func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
-	var id uint
 	var firstName string
 	var lastName string
 	var username string
 	var email string
+	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
 	var updated uint64
 
 	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&id, &firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&firstName, &lastName, &username, &email, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email, scope, hashedPassword, isVerified, canSignIn, updated)
 
 	// check password hash matches hash in database
 
