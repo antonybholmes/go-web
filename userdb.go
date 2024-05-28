@@ -19,17 +19,17 @@ const FIND_USER_BY_EMAIL_SQL string = `SELECT uuid, first_name, last_name, usern
 const FIND_USER_BY_USERNAME_SQL string = `SELECT uuid, first_name, last_name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
 const ROLES_SQL string = `SELECT roles.uuid, roles.name 
 	FROM user_roles, roles 
-	WHERE user_roles.user_uuid = ? AND roles.uuid = user_roles.role_uuid 
+	WHERE user_roles.user_uuid = ?1 AND roles.uuid = user_roles.role_uuid 
 	ORDER BY roles.name`
 
-//const PERMISSIONS_SQL string = `SELECT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name
-//	FROM user_roles, roles, role_permissions, permissions
-//	WHERE user_roles.user_uuid = ? AND roles.uuid = user_roles.role_uuid AND role_permissions.role_uuid = roles.uuid AND permissions.uuid = role_permissions.permission_uuid
-//	ORDER BY roles.name, permissions.name`
+const USER_ROLE_PERMISSIONS_SQL string = `SELECT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name 
+	FROM user_roles, roles, role_permissions, permissions 
+	WHERE user_roles.user_uuid = ?1 AND roles.uuid = user_roles.role_uuid AND role_permissions.role_uuid = roles.uuid AND permissions.uuid = role_permissions.permission_uuid 
+	ORDER BY roles.name, permissions.name`
 
-const PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name
+const USER_PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name
 	FROM user_roles, role_permissions, permissions 
-	WHERE user_roles.user_uuid = ? AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
+	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
 	ORDER BY permissions.name`
 
 const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
@@ -43,6 +43,8 @@ const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
+
+const STANDARD_ROLE = "Standard"
 
 type UserDb struct {
 	db                     *sql.DB
@@ -86,7 +88,7 @@ func NewUserDB(file string) (*UserDb, error) {
 		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
 		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
 		rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
-		permissionsStmt:        sys.Must(db.Prepare(PERMISSIONS_SQL))}, nil
+		permissionsStmt:        sys.Must(db.Prepare(USER_PERMISSIONS_SQL))}, nil
 
 }
 
@@ -212,11 +214,11 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 }
 
 func (userdb *UserDb) Query(query string, args ...any) (*sql.Rows, error) {
-	return userdb.db.Query(query, args)
+	return userdb.db.Query(query, args...)
 }
 
 func (userdb *UserDb) QueryRow(query string, args ...any) *sql.Row {
-	return userdb.db.QueryRow(query, args)
+	return userdb.db.QueryRow(query, args...)
 }
 
 func (userdb *UserDb) Roles() (*[]Role, error) {
@@ -303,6 +305,45 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 	}
 
 	return &permissions, nil
+}
+
+func (userdb *UserDb) PublicUserRolePermissions(user *AuthUser) (*[]PublicRole, error) {
+
+	rows, err := userdb.Query(USER_ROLE_PERMISSIONS_SQL, user.Uuid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var roleUuid string
+	var roleName string
+	var permissionUuid string
+	var permissionName string
+	var currentRole string = ""
+
+	ret := make([]PublicRole, 0, 10)
+
+	for rows.Next() {
+		err := rows.Scan(&roleUuid, &roleName, &permissionUuid, &permissionName)
+
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debug().Msgf("%s %s", roleName, permissionName)
+
+		if roleUuid != currentRole {
+			ret = append(ret, PublicRole{Name: roleName, Permissions: make([]string, 0, 10)})
+			currentRole = roleUuid
+		}
+
+		idx := len(ret) - 1
+		ret[idx].Permissions = append(ret[idx].Permissions, permissionName)
+	}
+
+	return &ret, nil
 }
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
@@ -520,7 +561,7 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 
 	// Give user standard role
 
-	userdb.AddUserRole(authUser, "Standard")
+	userdb.AddUserRole(authUser, STANDARD_ROLE)
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 

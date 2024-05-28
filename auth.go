@@ -28,11 +28,20 @@ type User struct {
 	Email     string `db:"email"`
 }
 
-type Role = Permission
-
 type Permission struct {
 	Uuid string `json:"uuid" db:"uuid"`
 	Name string `json:"name" db:"name"`
+}
+
+type Role struct {
+	Uuid        string       `json:"uuid" db:"uuid"`
+	Name        string       `json:"name" db:"name"`
+	Permissions []Permission `json:"permissions"`
+}
+
+type PublicRole struct {
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
 }
 
 // type PublicUser struct {
@@ -44,7 +53,6 @@ type Permission struct {
 // }
 
 type AuthUser struct {
-	//Id             uint   `json:"-" db:"id"`
 	Uuid           string `json:"uuid" db:"uuid"`
 	FirstName      string `json:"firstName" db:"first_name"`
 	LastName       string `json:"lastName" db:"last_name"`

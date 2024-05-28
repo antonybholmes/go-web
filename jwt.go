@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rsa"
 	"net/mail"
+	"sort"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -37,15 +38,17 @@ const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
 const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
-	Uuid        string `json:"uuid"`
-	Type        string `json:"type"`
-	Data        string `json:"data,omitempty"`
-	Otp         string `json:"otp,omitempty"`
-	Roles       string `json:"roles,omitempty"`
-	Permissions string `json:"permissions,omitempty"`
+	Uuid  string  `json:"uuid"`
+	Type  string  `json:"type"`
+	Data  string  `json:"data,omitempty"`
+	Otp   string  `json:"otp,omitempty"`
+	Roles RoleMap `json:"roles,omitempty"`
+	//Permissions string `json:"permissions,omitempty"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
+
+type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {
 // 	Username string `json:"username"`
@@ -74,21 +77,21 @@ type JwtCustomClaims struct {
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, roles string, permissions string, secret *rsa.PrivateKey) (string, error) {
+func RefreshToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
 		roles,
-		permissions,
+
 		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, roles string, permissions string, secret *rsa.PrivateKey) (string, error) {
+func AccessToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
 		roles,
-		permissions,
+
 		secret)
 }
 
@@ -96,16 +99,16 @@ func AccessToken(c echo.Context, uuid string, roles string, permissions string, 
 func BaseAuthToken(c echo.Context,
 	uuid string,
 	tokenType TokenType,
-	roles string,
-	permissions string,
+	roles *RoleMap,
+
 	secret *rsa.PrivateKey) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
-		Type:             tokenType,
-		Roles:            roles,
-		Permissions:      permissions,
+		Type:  tokenType,
+		Roles: *roles,
+
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
 	}
 
@@ -198,4 +201,32 @@ func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
 	}
 
 	return t, nil
+}
+
+// Get the unique permissions associated with a user based
+// on their jwt roles
+func RolesToPermissions(roles *RoleMap) []string {
+	permissionSet := make(map[string]struct{})
+
+	for role := range *roles {
+
+		for _, permission := range (*roles)[role] {
+			_, ok := permissionSet[permission]
+
+			if !ok {
+				permissionSet[permission] = struct{}{}
+			}
+		}
+	}
+
+	// sort
+	ret := make([]string, 0, len(permissionSet))
+
+	for permission := range permissionSet {
+		ret = append(ret, permission)
+	}
+
+	sort.Strings(ret)
+
+	return ret
 }

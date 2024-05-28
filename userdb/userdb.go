@@ -43,25 +43,25 @@ func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
 	return userdb.UserRoles(user)
 }
 
-func RoleList(user *auth.AuthUser) (string, error) {
+// func RoleList(user *auth.AuthUser) (string, error) {
 
-	roles, err := userdb.UserRoles(user)
+// 	roles, err := userdb.UserRoles(user)
 
-	if err != nil {
-		return "", err
-	}
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	tokens := make([]string, len(*roles))
+// 	tokens := make([]string, len(*roles))
 
-	for ri, role := range *roles {
-		tokens[ri] = role.Name
-	}
+// 	for ri, role := range *roles {
+// 		tokens[ri] = role.Name
+// 	}
 
-	ret := strings.Join(tokens, ",")
+// 	ret := strings.Join(tokens, ",")
 
-	return ret, nil
+// 	return ret, nil
 
-}
+// }
 
 func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 	return userdb.UserPermissions(user)
@@ -84,6 +84,38 @@ func PermissionList(user *auth.AuthUser) (string, error) {
 	ret := strings.Join(tokens, ",")
 
 	return ret, nil
+
+}
+
+func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {
+	return userdb.PublicUserRolePermissions(user)
+}
+
+func PublicUserRolePermissionsList(user *auth.AuthUser) (*auth.RoleMap, error) {
+
+	roles, err := userdb.PublicUserRolePermissions(user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(auth.RoleMap)
+
+	for _, role := range *roles {
+		//for _, permission := range role.Permissions {
+		//	tokens = append(tokens, fmt.Sprintf("%s::%s", role.Name, permission))
+		//}
+
+		_, ok := ret[role.Name]
+
+		if !ok {
+			ret[role.Name] = make([]string, 0, 10)
+		}
+
+		ret[role.Name] = append(ret[role.Name], role.Permissions...)
+	}
+
+	return &ret, nil
 
 }
 
