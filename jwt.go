@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/rsa"
 	"net/mail"
 	"time"
 
@@ -36,11 +37,12 @@ const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
 const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
-	Uuid  string `json:"uuid"`
-	Type  string `json:"type"`
-	Data  string `json:"data,omitempty"`
-	Otp   string `json:"otp,omitempty"`
-	Scope string `json:"scope,omitempty"`
+	Uuid        string `json:"uuid"`
+	Type        string `json:"type"`
+	Data        string `json:"data,omitempty"`
+	Otp         string `json:"otp,omitempty"`
+	Roles       string `json:"roles,omitempty"`
+	Permissions string `json:"permissions,omitempty"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
 }
@@ -72,32 +74,52 @@ type JwtCustomClaims struct {
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, scope string, secret []byte) (string, error) {
-	return JwtToken(c,
+func RefreshToken(c echo.Context, uuid string, roles string, permissions string, secret *rsa.PrivateKey) (string, error) {
+	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
-		scope,
-		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_REFRESH_TTL_HOURS)))
+		roles,
+		permissions,
+		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, scope string, secret []byte) (string, error) {
-	return JwtToken(c,
+func AccessToken(c echo.Context, uuid string, roles string, permissions string, secret *rsa.PrivateKey) (string, error) {
+	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
-		scope,
-		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS)))
+		roles,
+		permissions,
+		secret)
 }
 
-func VerifyEmailToken(c echo.Context, uuid string, secret []byte) (string, error) {
+// token for all possible values
+func BaseAuthToken(c echo.Context,
+	uuid string,
+	tokenType TokenType,
+	roles string,
+	permissions string,
+	secret *rsa.PrivateKey) (string, error) {
+
+	claims := JwtCustomClaims{
+		Uuid: uuid,
+		//IpAddr:           ipAddr,
+		Type:             tokenType,
+		Roles:            roles,
+		Permissions:      permissions,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
+	}
+
+	return BaseJwtToken(claims, secret)
+}
+
+func VerifyEmailToken(c echo.Context, uuid string, secret *rsa.PrivateKey) (string, error) {
 	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
 }
 
-func ResetPasswordToken(c echo.Context, user *AuthUser, secret []byte) (string, error) {
+func ResetPasswordToken(c echo.Context, user *AuthUser, secret *rsa.PrivateKey) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid:             user.Uuid,
@@ -106,11 +128,11 @@ func ResetPasswordToken(c echo.Context, user *AuthUser, secret []byte) (string, 
 		Otp:              CreateOtp(user),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
 
-	return BaseJwtToken(c, claims, secret)
+	return BaseJwtToken(claims, secret)
 
 }
 
-func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret []byte) (string, error) {
+func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret *rsa.PrivateKey) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid:             user.Uuid,
@@ -119,67 +141,50 @@ func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secre
 		Otp:              CreateOtp(user),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
 
-	return BaseJwtToken(c, claims, secret)
+	return BaseJwtToken(claims, secret)
 
 }
 
-func PasswordlessToken(c echo.Context, uuid string, secret []byte) (string, error) {
+func PasswordlessToken(c echo.Context, uuid string, secret *rsa.PrivateKey) (string, error) {
 	return ShortTimeToken(c,
 		uuid,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
 }
 
-func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret []byte) (string, error) {
-	return BasicJwtToken(c, user.Uuid,
-		tokenType,
-		"",
-		CreateOtp(user),
-		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
+func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
+	claims := JwtCustomClaims{
+		Uuid:             user.Uuid,
+		Type:             tokenType,
+		Otp:              CreateOtp(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))},
+	}
+
+	return BaseJwtToken(claims, secret)
 }
 
 // Generate short lived tokens for one time passcode use.
-func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret []byte) (string, error) {
-	return JwtToken(c, uuid,
-		tokenType,
-		"",
-		secret,
-		jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS)))
+func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
+	claims := JwtCustomClaims{
+		Uuid:             uuid,
+		Type:             tokenType,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))},
+	}
+
+	return BaseJwtToken(claims, secret)
 }
 
 // simple non otp token
-func JwtToken(c echo.Context,
-	uuid string,
-	tokenType TokenType,
-	scope string,
-	secret []byte,
-	expires *jwt.NumericDate) (string, error) {
-	return BasicJwtToken(c, uuid, tokenType, scope, "", secret, expires)
-}
+// func JwtToken(c echo.Context,
+// 	uuid string,
+// 	tokenType TokenType,
+// 	permissions string,
+// 	secret *rsa.PrivateKey,
+// 	expires *jwt.NumericDate) (string, error) {
+// 	return BasicJwtToken(c, uuid, tokenType, permissions, "", secret, expires)
+// }
 
-// token for all possible values
-func BasicJwtToken(c echo.Context,
-	uuid string,
-	tokenType TokenType,
-	scope string,
-	otp string,
-	secret []byte,
-	expires *jwt.NumericDate) (string, error) {
-
-	claims := JwtCustomClaims{
-		Uuid: uuid,
-		//IpAddr:           ipAddr,
-		Type:             tokenType,
-		Scope:            scope,
-		Otp:              otp,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: expires},
-	}
-
-	return BaseJwtToken(c, claims, secret)
-}
-
-func BaseJwtToken(c echo.Context, claims jwt.Claims, secret []byte) (string, error) {
+func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
 
 	// Create token with claims
 	//token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

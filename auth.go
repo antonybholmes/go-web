@@ -50,7 +50,6 @@ type AuthUser struct {
 	LastName       string `json:"lastName" db:"last_name"`
 	Username       string `json:"username" db:"username"`
 	Email          string `json:"email" db:"email"`
-	Scope          string `json:"scope" db:"scope"`
 	HashedPassword string `json:"-"`
 	EmailVerified  bool   `json:"-"`
 	CanSignIn      bool   `json:"-"`
@@ -71,7 +70,6 @@ func NewAuthUser(
 	lastName string,
 	userName string,
 	email string,
-	scope string,
 	hashedPassword string,
 	isVerified bool,
 	canSignIn bool,
@@ -82,7 +80,6 @@ func NewAuthUser(
 		LastName:       lastName,
 		Username:       userName,
 		Email:          email,
-		Scope:          scope,
 		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
 		CanSignIn:      canSignIn,

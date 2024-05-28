@@ -14,17 +14,22 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT first_name, last_name, username, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT uuid, first_name, last_name, username, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT uuid, first_name, last_name, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
+const FIND_USER_BY_UUID_SQL string = `SELECT first_name, last_name, username, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT uuid, first_name, last_name, username, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT uuid, first_name, last_name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
 const ROLES_SQL string = `SELECT roles.uuid, roles.name 
-	FROM users_roles, roles 
-	WHERE users_roles.user_uuid = ? AND roles.uuid = users_roles.role_uuid 
+	FROM user_roles, roles 
+	WHERE user_roles.user_uuid = ? AND roles.uuid = user_roles.role_uuid 
 	ORDER BY roles.name`
 
-const PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name 
-	FROM users_roles, roles_permissions, permissions 
-	WHERE users_roles.user_uuid = ? AND roles_permissions.role_uuid = users_roles.role_uuid AND permissions.uuid = roles_permissions.permission_uuid 
+//const PERMISSIONS_SQL string = `SELECT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name
+//	FROM user_roles, roles, role_permissions, permissions
+//	WHERE user_roles.user_uuid = ? AND roles.uuid = user_roles.role_uuid AND role_permissions.role_uuid = roles.uuid AND permissions.uuid = role_permissions.permission_uuid
+//	ORDER BY roles.name, permissions.name`
+
+const PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name
+	FROM user_roles, role_permissions, permissions 
+	WHERE user_roles.user_uuid = ? AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
 	ORDER BY permissions.name`
 
 const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
@@ -126,7 +131,6 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var firstName string
 	var lastName string
 	var username string
-	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
@@ -137,13 +141,13 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	}
 
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&uuid, &firstName, &lastName, &username, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(uuid, firstName, lastName, username, email.Address, scope, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
@@ -153,7 +157,6 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var firstName string
 	var lastName string
 	var email string
-	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
@@ -166,7 +169,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	}
 
 	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&uuid, &firstName, &lastName, &email, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 
@@ -179,7 +182,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return userdb.FindUserByEmail(e)
 	}
 
-	authUser := NewAuthUser(uuid, firstName, lastName, username, email, scope, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
 
 	return authUser, nil
 }
@@ -189,29 +192,36 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var lastName string
 	var username string
 	var email string
-	var scope string
 	var hashedPassword string
 	var isVerified bool
 	var canSignIn bool
 	var updated uint64
 
 	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&firstName, &lastName, &username, &email, &scope, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(uuid, firstName, lastName, username, email, scope, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
 
 	// check password hash matches hash in database
 
 	return authUser, nil
 }
 
-func (userdb *UserDb) Roles(userUuid string) (*[]Role, error) {
+func (userdb *UserDb) Query(query string, args ...any) (*sql.Rows, error) {
+	return userdb.db.Query(query, args)
+}
 
-	rows, err := userdb.rolesStmt.Query(userUuid)
+func (userdb *UserDb) QueryRow(query string, args ...any) *sql.Row {
+	return userdb.db.QueryRow(query, args)
+}
+
+func (userdb *UserDb) Roles() (*[]Role, error) {
+
+	rows, err := userdb.Query("SELECT uuid, name FROM roles ORDER by roles.name")
 
 	if err != nil {
 		return nil, err
@@ -234,9 +244,45 @@ func (userdb *UserDb) Roles(userUuid string) (*[]Role, error) {
 	return &roles, nil
 }
 
-func (userdb *UserDb) Permissions(userUuid string) (*[]Permission, error) {
+func (userdb *UserDb) Role(name string) (*Role, error) {
+	var role Role
+	err := userdb.QueryRow("SELECT uuid, name FROM roles WHERE roles.name = ?", name).Scan(role.Uuid, role.Name)
 
-	rows, err := userdb.permissionsStmt.Query(userUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &role, err
+}
+
+func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
+
+	rows, err := userdb.rolesStmt.Query(user.Uuid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var roles []Role
+
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Uuid, &role.Name)
+
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return &roles, nil
+}
+
+func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
+
+	rows, err := userdb.permissionsStmt.Query(user.Uuid)
 
 	if err != nil {
 		return nil, err
@@ -389,13 +435,29 @@ func (userdb *UserDb) SetEmailAddress(uuid string, address *mail.Address) error 
 	return err
 }
 
+func (userdb *UserDb) AddUserRole(user *AuthUser, role string) error {
+	r, err := userdb.Role(role)
+
+	if err != nil {
+		return fmt.Errorf("%s role not available", role)
+	}
+
+	_, err = userdb.db.Exec("INSERT INTO user_roles (user_uuid, role_uuid) VALUES(?, ?)", user.Uuid, r.Uuid)
+
+	if err != nil {
+		return fmt.Errorf("%s role not available", role)
+	}
+
+	return nil
+}
+
 // func (userdb *UserDb) SetOtp(userId string, otp string) error {
 // 	_, err := userdb.setOtpStmt.Exec(otp, userId)
 
 // 	return err
 // }
 
-func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
+func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 	err := CheckPassword(user.Password)
 
 	if err != nil {
@@ -454,8 +516,11 @@ func (userdb *UserDb) CreateUser(user *SignupReq) (*AuthUser, error) {
 		if err != nil {
 			return nil, fmt.Errorf("user already registered:please sign up with another email address")
 		}
-
 	}
+
+	// Give user standard role
+
+	userdb.AddUserRole(authUser, "Standard")
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 

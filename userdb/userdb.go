@@ -2,6 +2,7 @@ package userdb
 
 import (
 	"net/mail"
+	"strings"
 
 	"github.com/antonybholmes/go-auth"
 )
@@ -18,8 +19,8 @@ func InitDB(file string) error {
 
 }
 
-func CreateUser(user *auth.SignupReq) (*auth.AuthUser, error) {
-	return userdb.CreateUser(user)
+func CreateStandardUser(user *auth.SignupReq) (*auth.AuthUser, error) {
+	return userdb.CreateStandardUser(user)
 }
 
 func FindUserById(id string) (*auth.AuthUser, error) {
@@ -36,6 +37,54 @@ func FindUserByUsername(username string) (*auth.AuthUser, error) {
 
 func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
 	return userdb.FindUserByUuid(uuid)
+}
+
+func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
+	return userdb.UserRoles(user)
+}
+
+func RoleList(user *auth.AuthUser) (string, error) {
+
+	roles, err := userdb.UserRoles(user)
+
+	if err != nil {
+		return "", err
+	}
+
+	tokens := make([]string, len(*roles))
+
+	for ri, role := range *roles {
+		tokens[ri] = role.Name
+	}
+
+	ret := strings.Join(tokens, ",")
+
+	return ret, nil
+
+}
+
+func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
+	return userdb.UserPermissions(user)
+}
+
+func PermissionList(user *auth.AuthUser) (string, error) {
+
+	permissions, err := userdb.UserPermissions(user)
+
+	if err != nil {
+		return "", err
+	}
+
+	tokens := make([]string, len(*permissions))
+
+	for pi, permission := range *permissions {
+		tokens[pi] = permission.Name
+	}
+
+	ret := strings.Join(tokens, ",")
+
+	return ret, nil
+
 }
 
 func SetIsVerified(user string) error {
