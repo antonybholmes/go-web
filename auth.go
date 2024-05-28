@@ -28,6 +28,13 @@ type User struct {
 	Email     string `db:"email"`
 }
 
+type Role = Permission
+
+type Permission struct {
+	Uuid string `json:"uuid" db:"uuid"`
+	Name string `json:"name" db:"name"`
+}
+
 // type PublicUser struct {
 // 	Uuid      string `json:"uuid"`
 // 	FirstName string `json:"firstName"`

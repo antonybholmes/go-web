@@ -17,7 +17,18 @@ import (
 const FIND_USER_BY_UUID_SQL string = `SELECT first_name, last_name, username, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
 const FIND_USER_BY_EMAIL_SQL string = `SELECT uuid, first_name, last_name, username, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
 const FIND_USER_BY_USERNAME_SQL string = `SELECT uuid, first_name, last_name, email, scope, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
+const ROLES_SQL string = `SELECT roles.uuid, roles.name 
+	FROM users_roles, roles 
+	WHERE users_roles.user_uuid = ? AND roles.uuid = users_roles.role_uuid 
+	ORDER BY roles.name`
+
+const PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name 
+	FROM users_roles, roles_permissions, permissions 
+	WHERE users_roles.user_uuid = ? AND roles_permissions.role_uuid = users_roles.role_uuid AND permissions.uuid = roles_permissions.permission_uuid 
+	ORDER BY permissions.name`
+
 const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
+
 const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
@@ -33,6 +44,8 @@ type UserDb struct {
 	findUserByEmailStmt    *sql.Stmt
 	findUserByUsernameStmt *sql.Stmt
 	findUserByIdStmt       *sql.Stmt
+	rolesStmt              *sql.Stmt
+	permissionsStmt        *sql.Stmt
 	createUserStmt         *sql.Stmt
 	setEmailVerifiedStmt   *sql.Stmt
 	setPasswordStmt        *sql.Stmt
@@ -66,7 +79,9 @@ func NewUserDB(file string) (*UserDb, error) {
 		setUsernameStmt:        sys.Must(db.Prepare(SET_USERNAME_SQL)),
 		setNameStmt:            sys.Must(db.Prepare(SET_NAME_SQL)),
 		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
-		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL))}, nil
+		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
+		rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
+		permissionsStmt:        sys.Must(db.Prepare(PERMISSIONS_SQL))}, nil
 
 }
 
@@ -192,6 +207,56 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	// check password hash matches hash in database
 
 	return authUser, nil
+}
+
+func (userdb *UserDb) Roles(userUuid string) (*[]Role, error) {
+
+	rows, err := userdb.rolesStmt.Query(userUuid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var roles []Role
+
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Uuid, &role.Name)
+
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return &roles, nil
+}
+
+func (userdb *UserDb) Permissions(userUuid string) (*[]Permission, error) {
+
+	rows, err := userdb.permissionsStmt.Query(userUuid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var permissions []Permission
+
+	for rows.Next() {
+		var permission Permission
+		err := rows.Scan(&permission.Uuid, &permission.Name)
+
+		if err != nil {
+			return nil, err
+		}
+		permissions = append(permissions, permission)
+	}
+
+	return &permissions, nil
 }
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
