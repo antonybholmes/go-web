@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"net/mail"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,11 +39,12 @@ const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
 const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
-	Uuid  string  `json:"uuid"`
-	Type  string  `json:"type"`
-	Data  string  `json:"data,omitempty"`
-	Otp   string  `json:"otp,omitempty"`
-	Roles RoleMap `json:"roles,omitempty"`
+	Uuid  string `json:"uuid"`
+	Type  string `json:"type"`
+	Data  string `json:"data,omitempty"`
+	Otp   string `json:"otp,omitempty"`
+	Scope string `json:"scope,omitempty"`
+	//Roles RoleMap `json:"roles,omitempty"`
 	//Permissions string `json:"permissions,omitempty"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
@@ -77,7 +79,7 @@ type RoleMap map[string][]string
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.PrivateKey) (string, error) {
+func RefreshToken(c echo.Context, uuid string, roles *[]string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
@@ -86,7 +88,7 @@ func RefreshToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.Priva
 		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.PrivateKey) (string, error) {
+func AccessToken(c echo.Context, uuid string, roles *[]string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
@@ -99,16 +101,15 @@ func AccessToken(c echo.Context, uuid string, roles *RoleMap, secret *rsa.Privat
 func BaseAuthToken(c echo.Context,
 	uuid string,
 	tokenType TokenType,
-	roles *RoleMap,
+	roles *[]string,
 
 	secret *rsa.PrivateKey) (string, error) {
 
 	claims := JwtCustomClaims{
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
-		Type:  tokenType,
-		Roles: *roles,
-
+		Type:             tokenType,
+		Scope:            strings.Join(*roles, " "),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
 	}
 

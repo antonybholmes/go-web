@@ -43,25 +43,27 @@ func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
 	return userdb.UserRoles(user)
 }
 
-// func RoleList(user *auth.AuthUser) (string, error) {
+func RoleList(user *auth.AuthUser) (*[]string, error) {
 
-// 	roles, err := userdb.UserRoles(user)
+	roles, err := userdb.UserRoles(user)
 
-// 	if err != nil {
-// 		return "", err
-// 	}
+	if err != nil {
+		return nil, err
+	}
 
-// 	tokens := make([]string, len(*roles))
+	ret := make([]string, len(*roles))
 
-// 	for ri, role := range *roles {
-// 		tokens[ri] = role.Name
-// 	}
+	for ri, role := range *roles {
+		ret[ri] = role.Name
+	}
 
-// 	ret := strings.Join(tokens, ",")
+	return &ret, nil
 
-// 	return ret, nil
+	//ret := strings.Join(tokens, ",")
 
-// }
+	//return ret, nil
+
+}
 
 func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 	return userdb.UserPermissions(user)
