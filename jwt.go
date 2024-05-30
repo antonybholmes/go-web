@@ -44,7 +44,7 @@ type JwtCustomClaims struct {
 	Data  string `json:"data,omitempty"`
 	Otp   string `json:"otp,omitempty"`
 	Scope string `json:"scope,omitempty"`
-	//Roles RoleMap `json:"roles,omitempty"`
+	//permissions RoleMap `json:"permissions,omitempty"`
 	//Permissions string `json:"permissions,omitempty"`
 	//IpAddr string    `json:"ipAddr"`
 	jwt.RegisteredClaims
@@ -79,20 +79,20 @@ type RoleMap map[string][]string
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, roles *[]string, secret *rsa.PrivateKey) (string, error) {
+func RefreshToken(c echo.Context, uuid string, permissions *[]string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
-		roles,
+		permissions,
 
 		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, roles *[]string, secret *rsa.PrivateKey) (string, error) {
+func AccessToken(c echo.Context, uuid string, permissions *[]string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
-		roles,
+		permissions,
 
 		secret)
 }
@@ -101,7 +101,7 @@ func AccessToken(c echo.Context, uuid string, roles *[]string, secret *rsa.Priva
 func BaseAuthToken(c echo.Context,
 	uuid string,
 	tokenType TokenType,
-	roles *[]string,
+	permissions *[]string,
 
 	secret *rsa.PrivateKey) (string, error) {
 
@@ -109,7 +109,7 @@ func BaseAuthToken(c echo.Context,
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
-		Scope:            strings.Join(*roles, " "),
+		Scope:            strings.Join(*permissions, " "),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
 	}
 
@@ -205,13 +205,13 @@ func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
 }
 
 // Get the unique permissions associated with a user based
-// on their jwt roles
-func RolesToPermissions(roles *RoleMap) []string {
+// on their jwt permissions
+func RolesToPermissions(roleMap *RoleMap) []string {
 	permissionSet := make(map[string]struct{})
 
-	for role := range *roles {
+	for role := range *roleMap {
 
-		for _, permission := range (*roles)[role] {
+		for _, permission := range (*roleMap)[role] {
 			_, ok := permissionSet[permission]
 
 			if !ok {

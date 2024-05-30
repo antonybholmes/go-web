@@ -22,12 +22,12 @@ const ROLES_SQL string = `SELECT roles.uuid, roles.name
 	WHERE user_roles.user_uuid = ?1 AND roles.uuid = user_roles.role_uuid 
 	ORDER BY roles.name`
 
-const USER_ROLE_PERMISSIONS_SQL string = `SELECT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name 
-	FROM user_roles, roles, role_permissions, permissions 
-	WHERE user_roles.user_uuid = ?1 AND roles.uuid = user_roles.role_uuid AND role_permissions.role_uuid = roles.uuid AND permissions.uuid = role_permissions.permission_uuid 
+const USER_ROLE_PERMISSIONS_SQL string = `SELECT DISTINCT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name 
+	FROM user_roles, role_permissions, permissions 
+	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
 	ORDER BY roles.name, permissions.name`
 
-const USER_PERMISSIONS_SQL string = `SELECT permissions.uuid, permissions.name
+const USER_PERMISSIONS_SQL string = `SELECT DISTINCT permissions.uuid, permissions.name
 	FROM user_roles, role_permissions, permissions 
 	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
 	ORDER BY permissions.name`

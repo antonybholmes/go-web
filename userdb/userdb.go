@@ -2,7 +2,6 @@ package userdb
 
 import (
 	"net/mail"
-	"strings"
 
 	"github.com/antonybholmes/go-auth"
 )
@@ -69,23 +68,21 @@ func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 	return userdb.UserPermissions(user)
 }
 
-func PermissionList(user *auth.AuthUser) (string, error) {
+func PermissionList(user *auth.AuthUser) (*[]string, error) {
 
 	permissions, err := userdb.UserPermissions(user)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	tokens := make([]string, len(*permissions))
+	ret := make([]string, len(*permissions))
 
 	for pi, permission := range *permissions {
-		tokens[pi] = permission.Name
+		ret[pi] = permission.Name
 	}
 
-	ret := strings.Join(tokens, ",")
-
-	return ret, nil
+	return &ret, nil
 
 }
 
