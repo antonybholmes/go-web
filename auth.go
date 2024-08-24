@@ -34,7 +34,10 @@ type Permission struct {
 }
 
 type Role struct {
-	Uuid        string       `json:"uuid" db:"uuid"`
+	Id   int    `json:"-"`
+	Uuid string `json:"uuid" db:"uuid"`
+	// A short simple lowercase name to represent the role to reduce packet sizes
+	PublicId    string       `json:"publicId"`
 	Name        string       `json:"name" db:"name"`
 	Permissions []Permission `json:"permissions"`
 }
@@ -53,6 +56,7 @@ type PublicRole struct {
 // }
 
 type AuthUser struct {
+	Id             int    `json:"-"`
 	Uuid           string `json:"uuid" db:"uuid"`
 	FirstName      string `json:"firstName" db:"first_name"`
 	LastName       string `json:"lastName" db:"last_name"`
@@ -73,6 +77,7 @@ func init() {
 }
 
 func NewAuthUser(
+	id int,
 	uuid string,
 	firstName string,
 	lastName string,
@@ -83,6 +88,7 @@ func NewAuthUser(
 	canSignIn bool,
 	updated uint64) *AuthUser {
 	return &AuthUser{
+		Id:             id,
 		Uuid:           uuid,
 		FirstName:      firstName,
 		LastName:       lastName,

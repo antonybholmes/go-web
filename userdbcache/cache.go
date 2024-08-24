@@ -1,50 +1,56 @@
-package userdb
+package userdbcache
 
 import (
 	"net/mail"
+	"sync"
 
 	"github.com/antonybholmes/go-auth"
 )
 
 // pretend its a global const
-var userdb *auth.UserDb
+var instance *auth.UserDb
+var once sync.Once
 
-func InitDB(file string) error {
+func InitCache(file string) error {
 	var err error
 
-	userdb, err = auth.NewUserDB(file)
+	//instance, err = auth.NewUserDB(file)
+
+	once.Do(func() {
+		instance, err = auth.NewUserDB(file)
+	})
 
 	return err
 
 }
 
 func CreateStandardUser(user *auth.SignupReq) (*auth.AuthUser, error) {
-	return userdb.CreateStandardUser(user)
+	return instance.CreateStandardUser(user)
 }
 
 func FindUserById(id string) (*auth.AuthUser, error) {
-	return userdb.FindUserById(id)
+	return instance.FindUserById(id)
 }
 
 func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return userdb.FindUserByEmail(email)
+	return instance.FindUserByEmail(email)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
-	return userdb.FindUserByUsername(username)
+	return instance.FindUserByUsername(username)
 }
 
 func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
-	return userdb.FindUserByUuid(uuid)
+	return instance.FindUserByUuid(uuid)
 }
 
 func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
-	return userdb.UserRoles(user)
+	return instance.UserRoles(user)
 }
 
 func RoleList(user *auth.AuthUser) (*[]string, error) {
 
-	roles, err := userdb.UserRoles(user)
+	roles, err := instance.UserRoles(user)
 
 	if err != nil {
 		return nil, err
@@ -53,7 +59,7 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 	ret := make([]string, len(*roles))
 
 	for ri, role := range *roles {
-		ret[ri] = role.Name
+		ret[ri] = role.PublicId
 	}
 
 	return &ret, nil
@@ -65,12 +71,12 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 }
 
 func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
-	return userdb.UserPermissions(user)
+	return instance.UserPermissions(user)
 }
 
 func PermissionList(user *auth.AuthUser) (*[]string, error) {
 
-	permissions, err := userdb.UserPermissions(user)
+	permissions, err := instance.UserPermissions(user)
 
 	if err != nil {
 		return nil, err
@@ -87,12 +93,12 @@ func PermissionList(user *auth.AuthUser) (*[]string, error) {
 }
 
 func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {
-	return userdb.PublicUserRolePermissions(user)
+	return instance.PublicUserRolePermissions(user)
 }
 
 func PublicUserRolePermissionsList(user *auth.AuthUser) (*auth.RoleMap, error) {
 
-	roles, err := userdb.PublicUserRolePermissions(user)
+	roles, err := instance.PublicUserRolePermissions(user)
 
 	if err != nil {
 		return nil, err
@@ -119,29 +125,29 @@ func PublicUserRolePermissionsList(user *auth.AuthUser) (*auth.RoleMap, error) {
 }
 
 func SetIsVerified(user string) error {
-	return userdb.SetIsVerified(user)
+	return instance.SetIsVerified(user)
 }
 
 func SetPassword(uuid string, password string) error {
-	return userdb.SetPassword(uuid, password)
+	return instance.SetPassword(uuid, password)
 }
 
 func SetUsername(uuid string, username string) error {
-	return userdb.SetUsername(uuid, username)
+	return instance.SetUsername(uuid, username)
 }
 
 func SetName(uuid string, firstName string, lastName string) error {
-	return userdb.SetName(uuid, firstName, lastName)
+	return instance.SetName(uuid, firstName, lastName)
 }
 
 func SetUserInfo(uuid string, username string, firstName string, lastName string) error {
-	return userdb.SetUserInfo(uuid, username, firstName, lastName)
+	return instance.SetUserInfo(uuid, username, firstName, lastName)
 }
 
 func SetEmail(uuid string, email string) error {
-	return userdb.SetEmail(uuid, email)
+	return instance.SetEmail(uuid, email)
 }
 
 func SetEmailAddress(uuid string, address *mail.Address) error {
-	return userdb.SetEmailAddress(uuid, address)
+	return instance.SetEmailAddress(uuid, address)
 }
