@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/mail"
 	"regexp"
+	"strings"
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/rs/zerolog/log"
@@ -14,23 +15,27 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, first_name, last_name, username, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, first_name, last_name, username, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.email = ?`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, first_name, last_name, email, password, email_verified, can_signin, strftime('%s', updated_on) FROM users WHERE users.username = ?`
+const FIND_USER_BY_UUID_SQL string = `SELECT id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.uuid = ?`
+const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, first_name, last_name, username, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.email = ?`
+const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, first_name, last_name, email, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.username = ?`
 
-const ROLES_SQL string = `SELECT roles.uuid, roles.name 
-	FROM user_roles, roles 
-	WHERE user_roles.user_uuid = ?1 AND roles.uuid = user_roles.role_uuid 
+const ROLES_SQL string = `SELECT roles.uuid, roles.name, roles.description
+	FROM roles 
 	ORDER BY roles.name`
 
-const USER_ROLE_PERMISSIONS_SQL string = `SELECT DISTINCT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name 
-	FROM user_roles, role_permissions, permissions 
-	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid 
-	ORDER BY roles.name, permissions.name`
+// const USER_ROLE_PERMISSIONS_SQL string = `SELECT DISTINCT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name
+// 	FROM user_roles, role_permissions, permissions
+// 	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid
+// 	ORDER BY roles.name, permissions.name`
 
-const USER_ROLES string = `SELECT DISTINCT roles.id, roles.uuid, roles.publicId, roles.name
-	FROM users_groups, groups_roles, roles 
-	WHERE users_groups.user_id = ?1 AND groups_roles.group_id = users_groups.group_id AND roles.id = groups_roles.role_id 
+const USER_PERMISSIONS string = `SELECT DISTINCT permissions.id, permissions.uuid, permissions.name, permissions.description
+	FROM users_roles, roles_permissions, permissions 
+	WHERE users_roles.user_id = ?1 AND roles_permissions.role_id = users_roles.role_id AND permissions.id = roles_permissions.permission_id 
+	ORDER BY permissions.name`
+
+const USER_ROLES string = `SELECT DISTINCT roles.id, roles.uuid, roles.name, roles.description
+	FROM users_roles, roles 
+	WHERE users_roles.user_id = ?1 AND roles.id = users_roles.role_id 
 	ORDER BY roles.name`
 
 const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
@@ -53,15 +58,15 @@ type UserDb struct {
 	findUserByEmailStmt    *sql.Stmt
 	findUserByUsernameStmt *sql.Stmt
 	findUserByIdStmt       *sql.Stmt
-	rolesStmt              *sql.Stmt
-	permissionsStmt        *sql.Stmt
-	createUserStmt         *sql.Stmt
-	setEmailVerifiedStmt   *sql.Stmt
-	setPasswordStmt        *sql.Stmt
-	setUsernameStmt        *sql.Stmt
-	setNameStmt            *sql.Stmt
-	setInfoStmt            *sql.Stmt
-	setEmailStmt           *sql.Stmt
+	//rolesStmt              *sql.Stmt
+	//permissionsStmt        *sql.Stmt
+	createUserStmt       *sql.Stmt
+	setEmailVerifiedStmt *sql.Stmt
+	setPasswordStmt      *sql.Stmt
+	setUsernameStmt      *sql.Stmt
+	setNameStmt          *sql.Stmt
+	setInfoStmt          *sql.Stmt
+	setEmailStmt         *sql.Stmt
 }
 
 var PASSWORD_REGEX *regexp.Regexp
@@ -74,7 +79,7 @@ func init() {
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
 
-func NewUserDB(file string) (*UserDb, error) {
+func NewUserDB(file string) *UserDb {
 
 	db := sys.Must(sql.Open("sqlite3", file))
 
@@ -90,9 +95,9 @@ func NewUserDB(file string) (*UserDb, error) {
 		setNameStmt:            sys.Must(db.Prepare(SET_NAME_SQL)),
 		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
 		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
-		rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
-		permissionsStmt:        sys.Must(db.Prepare(USER_ROLES))}, nil
-
+		//rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
+		//permissionsStmt:        sys.Must(db.Prepare(USER_PERMISSIONS))
+	}
 }
 
 func (userdb *UserDb) Close() {
@@ -139,7 +144,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var username string
 	var hashedPassword string
 	var isVerified bool
-	var canSignIn bool
+	//var canSignIn bool
 	var updated uint64
 
 	if email == nil {
@@ -147,13 +152,13 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	}
 
 	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&id, &uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, updated)
 
 	return authUser, nil
 }
@@ -166,7 +171,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var email string
 	var hashedPassword string
 	var isVerified bool
-	var canSignIn bool
+	//var canSignIn bool
 	var updated uint64
 
 	err := CheckUsername(username)
@@ -176,7 +181,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	}
 
 	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&id, &uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &updated)
 
 	if err != nil {
 
@@ -189,7 +194,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return userdb.FindUserByEmail(e)
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
+	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, updated)
 
 	return authUser, nil
 }
@@ -202,21 +207,46 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	var email string
 	var hashedPassword string
 	var isVerified bool
-	var canSignIn bool
+	//var canSignIn bool
 	var updated uint64
 
 	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&id, &firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &canSignIn, &updated)
+		Scan(&id, &firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &updated)
 
 	if err != nil {
 		return nil, err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, canSignIn, updated)
+	user := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, updated)
 
+	permissions, err := userdb.PermissionList(user)
+
+	if err != nil {
+		return nil, err //fmt.Errorf("there was an error with the database query")
+	}
+
+	user.Permissions = strings.Join(*permissions, ",")
 	// check password hash matches hash in database
 
-	return authUser, nil
+	return user, nil
+}
+
+func (userdb *UserDb) PermissionList(user *AuthUser) (*[]string, error) {
+
+	permissions, err := userdb.UserPermissions(user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]string, len(*permissions))
+
+	for pi, permission := range *permissions {
+		ret[pi] = permission.Name
+	}
+
+	return &ret, nil
+
 }
 
 func (userdb *UserDb) Query(query string, args ...any) (*sql.Rows, error) {
@@ -273,7 +303,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 	defer db.Close()
 
-	rows, err := db.Query(USER_ROLES, user.Uuid)
+	rows, err := db.Query(USER_PERMISSIONS, user.Uuid)
 
 	if err != nil {
 		return nil, err
@@ -285,7 +315,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 	for rows.Next() {
 		var role Role
-		err := rows.Scan(&role.Id, &role.Uuid, &role.PublicId, &role.Name)
+		err := rows.Scan(&role.Id, &role.Uuid, &role.Name, &role.Description)
 
 		if err != nil {
 			return nil, err
@@ -298,7 +328,15 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
-	rows, err := userdb.permissionsStmt.Query(user.Uuid)
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	rows, err := db.Query(USER_PERMISSIONS, user.Uuid)
 
 	if err != nil {
 		return nil, err
@@ -310,7 +348,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
 	for rows.Next() {
 		var permission Permission
-		err := rows.Scan(&permission.Uuid, &permission.Name)
+		err := rows.Scan(&permission.Id, &permission.Uuid, &permission.Name, &permission.Description)
 
 		if err != nil {
 			return nil, err
@@ -321,44 +359,44 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 	return &permissions, nil
 }
 
-func (userdb *UserDb) PublicUserRolePermissions(user *AuthUser) (*[]PublicRole, error) {
+// func (userdb *UserDb) PublicUserRolePermissions(user *AuthUser) (*[]PublicRole, error) {
 
-	rows, err := userdb.Query(USER_ROLE_PERMISSIONS_SQL, user.Uuid)
+// 	rows, err := userdb.Query(USER_ROLE_PERMISSIONS_SQL, user.Uuid)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	var roleUuid string
-	var roleName string
-	var permissionUuid string
-	var permissionName string
-	var currentRole string = ""
+// 	var roleUuid string
+// 	var roleName string
+// 	var permissionUuid string
+// 	var permissionName string
+// 	var currentRole string = ""
 
-	ret := make([]PublicRole, 0, 10)
+// 	ret := make([]PublicRole, 0, 10)
 
-	for rows.Next() {
-		err := rows.Scan(&roleUuid, &roleName, &permissionUuid, &permissionName)
+// 	for rows.Next() {
+// 		err := rows.Scan(&roleUuid, &roleName, &permissionUuid, &permissionName)
 
-		if err != nil {
-			return nil, err
-		}
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		log.Debug().Msgf("%s %s", roleName, permissionName)
+// 		log.Debug().Msgf("%s %s", roleName, permissionName)
 
-		if roleUuid != currentRole {
-			ret = append(ret, PublicRole{Name: roleName, Permissions: make([]string, 0, 10)})
-			currentRole = roleUuid
-		}
+// 		if roleUuid != currentRole {
+// 			ret = append(ret, PublicRole{Name: roleName, Permissions: make([]string, 0, 10)})
+// 			currentRole = roleUuid
+// 		}
 
-		idx := len(ret) - 1
-		ret[idx].Permissions = append(ret[idx].Permissions, permissionName)
-	}
+// 		idx := len(ret) - 1
+// 		ret[idx].Permissions = append(ret[idx].Permissions, permissionName)
+// 	}
 
-	return &ret, nil
-}
+// 	return &ret, nil
+// }
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
 

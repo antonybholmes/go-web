@@ -11,16 +11,13 @@ import (
 var instance *auth.UserDb
 var once sync.Once
 
-func InitCache(file string) error {
-	var err error
+func InitCache(file string) {
 
 	//instance, err = auth.NewUserDB(file)
 
 	once.Do(func() {
-		instance, err = auth.NewUserDB(file)
+		instance = auth.NewUserDB(file)
 	})
-
-	return err
 
 }
 
@@ -59,7 +56,7 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 	ret := make([]string, len(*roles))
 
 	for ri, role := range *roles {
-		ret[ri] = role.PublicId
+		ret[ri] = role.Name
 	}
 
 	return &ret, nil
@@ -76,53 +73,41 @@ func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 
 func PermissionList(user *auth.AuthUser) (*[]string, error) {
 
-	permissions, err := instance.UserPermissions(user)
-
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]string, len(*permissions))
-
-	for pi, permission := range *permissions {
-		ret[pi] = permission.Name
-	}
-
-	return &ret, nil
+	return instance.PermissionList(user)
 
 }
 
-func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {
-	return instance.PublicUserRolePermissions(user)
-}
+// func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {
+// 	return instance.PublicUserRolePermissions(user)
+// }
 
-func PublicUserRolePermissionsList(user *auth.AuthUser) (*auth.RoleMap, error) {
+// func PublicUserRolePermissionsList(user *auth.AuthUser) (*auth.RoleMap, error) {
 
-	roles, err := instance.PublicUserRolePermissions(user)
+// 	roles, err := instance.UserRoles(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	ret := make(auth.RoleMap)
+// 	ret := make(auth.RoleMap)
 
-	for _, role := range *roles {
-		//for _, permission := range role.Permissions {
-		//	tokens = append(tokens, fmt.Sprintf("%s::%s", role.Name, permission))
-		//}
+// 	for _, role := range *roles {
+// 		//for _, permission := range role.Permissions {
+// 		//	tokens = append(tokens, fmt.Sprintf("%s::%s", role.Name, permission))
+// 		//}
 
-		_, ok := ret[role.Name]
+// 		_, ok := ret[role.Name]
 
-		if !ok {
-			ret[role.Name] = make([]string, 0, 10)
-		}
+// 		if !ok {
+// 			ret[role.Name] = make([]string, 0, 10)
+// 		}
 
-		ret[role.Name] = append(ret[role.Name], role.Permissions...)
-	}
+// 		ret[role.Name] = append(ret[role.Name], role.Permissions...)
+// 	}
 
-	return &ret, nil
+// 	return &ret, nil
 
-}
+// }
 
 func SetIsVerified(user string) error {
 	return instance.SetIsVerified(user)

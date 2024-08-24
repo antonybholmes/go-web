@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"net/mail"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -79,7 +78,7 @@ type RoleMap map[string][]string
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, permissions *[]string, secret *rsa.PrivateKey) (string, error) {
+func RefreshToken(c echo.Context, uuid string, permissions string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_REFRESH,
@@ -88,7 +87,7 @@ func RefreshToken(c echo.Context, uuid string, permissions *[]string, secret *rs
 		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, permissions *[]string, secret *rsa.PrivateKey) (string, error) {
+func AccessToken(c echo.Context, uuid string, permissions string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
 		uuid,
 		TOKEN_TYPE_ACCESS,
@@ -101,7 +100,7 @@ func AccessToken(c echo.Context, uuid string, permissions *[]string, secret *rsa
 func BaseAuthToken(c echo.Context,
 	uuid string,
 	tokenType TokenType,
-	permissions *[]string,
+	permissions string,
 
 	secret *rsa.PrivateKey) (string, error) {
 
@@ -109,7 +108,7 @@ func BaseAuthToken(c echo.Context,
 		Uuid: uuid,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
-		Scope:            strings.Join(*permissions, " "),
+		Scope:            permissions, //strings.Join(*permissions, " "),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
 	}
 

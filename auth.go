@@ -10,6 +10,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	PERMISSION_SU    = "su"
+	PERMISSION_ADMIN = "admin"
+	PERMISSION_LOGIN = "login"
+)
+
 type UrlReq struct {
 	Url string `json:"url"`
 }
@@ -29,23 +35,25 @@ type User struct {
 }
 
 type Permission struct {
-	Uuid string `json:"uuid" db:"uuid"`
-	Name string `json:"name" db:"name"`
+	Id          string `json:"-" db:"id"`
+	Uuid        string `json:"uuid" db:"uuid"`
+	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 }
 
 type Role struct {
-	Id   int    `json:"-"`
+	Id   int    `json:"-" db:"id"`
 	Uuid string `json:"uuid" db:"uuid"`
 	// A short simple lowercase name to represent the role to reduce packet sizes
-	PublicId    string       `json:"publicId"`
-	Name        string       `json:"name" db:"name"`
+	Name        string       `json:"name"`
+	Description string       `json:"description" db:"description"`
 	Permissions []Permission `json:"permissions"`
 }
 
-type PublicRole struct {
-	Name        string   `json:"name"`
-	Permissions []string `json:"permissions"`
-}
+// type PublicRole struct {
+// 	Name        string   `json:"name"`
+// 	Permissions []string `json:"permissions"`
+// }
 
 // type PublicUser struct {
 // 	Uuid      string `json:"uuid"`
@@ -62,10 +70,11 @@ type AuthUser struct {
 	LastName       string `json:"lastName" db:"last_name"`
 	Username       string `json:"username" db:"username"`
 	Email          string `json:"email" db:"email"`
+	Permissions    string `json:"permissions" db:"permissions"`
 	HashedPassword string `json:"-"`
 	EmailVerified  bool   `json:"-"`
-	CanSignIn      bool   `json:"-"`
-	Updated        uint64 `json:"-"`
+	//CanSignIn      bool   `json:"-"`
+	Updated uint64 `json:"-"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -85,7 +94,7 @@ func NewAuthUser(
 	email string,
 	hashedPassword string,
 	isVerified bool,
-	canSignIn bool,
+	//canSignIn bool,
 	updated uint64) *AuthUser {
 	return &AuthUser{
 		Id:             id,
@@ -96,8 +105,8 @@ func NewAuthUser(
 		Email:          email,
 		HashedPassword: hashedPassword,
 		EmailVerified:  isVerified,
-		CanSignIn:      canSignIn,
-		Updated:        updated}
+		//CanSignIn:      canSignIn,
+		Updated: updated}
 }
 
 func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
