@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/google/uuid"
@@ -64,15 +65,15 @@ type Role struct {
 // }
 
 type AuthUser struct {
-	Id             int    `json:"-"`
-	Uuid           string `json:"uuid" db:"uuid"`
-	FirstName      string `json:"firstName" db:"first_name"`
-	LastName       string `json:"lastName" db:"last_name"`
-	Username       string `json:"username" db:"username"`
-	Email          string `json:"email" db:"email"`
-	Permissions    string `json:"permissions" db:"permissions"`
-	HashedPassword string `json:"-"`
-	EmailVerified  bool   `json:"-"`
+	Id              int    `json:"-"`
+	Uuid            string `json:"uuid" db:"uuid"`
+	FirstName       string `json:"firstName" db:"first_name"`
+	LastName        string `json:"lastName" db:"last_name"`
+	Username        string `json:"username" db:"username"`
+	Email           string `json:"email" db:"email"`
+	Permissions     string `json:"permissions" db:"permissions"`
+	HashedPassword  string `json:"-"`
+	EmailIsVerified bool   `json:"-"`
 	//CanSignIn      bool   `json:"-"`
 	Updated uint64 `json:"-"`
 }
@@ -97,20 +98,48 @@ func NewAuthUser(
 	//canSignIn bool,
 	updated uint64) *AuthUser {
 	return &AuthUser{
-		Id:             id,
-		Uuid:           uuid,
-		FirstName:      firstName,
-		LastName:       lastName,
-		Username:       userName,
-		Email:          email,
-		HashedPassword: hashedPassword,
-		EmailVerified:  isVerified,
+		Id:              id,
+		Uuid:            uuid,
+		FirstName:       firstName,
+		LastName:        lastName,
+		Username:        userName,
+		Email:           email,
+		HashedPassword:  hashedPassword,
+		EmailIsVerified: isVerified,
 		//CanSignIn:      canSignIn,
 		Updated: updated}
 }
 
 func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
+}
+
+func (user *AuthUser) IsSU() bool {
+	return IsSU(user.Permissions)
+}
+
+func (user *AuthUser) IsAdmin() bool {
+	return IsAdmin(user.Permissions)
+}
+
+// Returns true if user is an admin or super, or is a member of
+// the login group
+func (user *AuthUser) CanLogin() bool {
+	return CanLogin(user.Permissions)
+}
+
+func CanLogin(permissions string) bool {
+	return IsAdmin(permissions) ||
+		strings.Contains(permissions, PERMISSION_LOGIN)
+}
+
+func IsSU(permissions string) bool {
+	return strings.Contains(permissions, PERMISSION_SU)
+}
+
+func IsAdmin(permissions string) bool {
+	return strings.Contains(permissions, PERMISSION_SU) ||
+		strings.Contains(permissions, PERMISSION_ADMIN)
 }
 
 // Returns user details suitable for a web app to display

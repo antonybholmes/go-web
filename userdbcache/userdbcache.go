@@ -71,6 +71,10 @@ func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 	return instance.UserPermissions(user)
 }
 
+func Users(offset int, records int) ([]*auth.AuthUser, error) {
+	return instance.Users(offset, records)
+}
+
 func PermissionList(user *auth.AuthUser) (*[]string, error) {
 
 	return instance.PermissionList(user)

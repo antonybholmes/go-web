@@ -38,10 +38,11 @@ const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
 const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
 
 type JwtCustomClaims struct {
-	Uuid  string `json:"uuid"`
-	Type  string `json:"type"`
-	Data  string `json:"data,omitempty"`
-	Otp   string `json:"otp,omitempty"`
+	Uuid string `json:"uuid"`
+	Type string `json:"type"`
+	Data string `json:"data,omitempty"`
+	Otp  string `json:"otp,omitempty"`
+	// map to empty string if missing
 	Scope string `json:"scope,omitempty"`
 	//permissions RoleMap `json:"permissions,omitempty"`
 	//Permissions string `json:"permissions,omitempty"`
