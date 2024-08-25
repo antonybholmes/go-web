@@ -15,58 +15,58 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const USERS_SQL string = `SELECT id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+const USERS_SQL string = `SELECT id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
 	OFFSET ?1
 	LIMIT ?2`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.id = ?1`
 
-const FIND_USER_BY_UUID_SQL string = `SELECT 
-	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
+	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
-	WHERE users.uuid = ?1`
+	WHERE users.public_id = ?1`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.email = ?1`
 
 const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.username = ?1`
 
-const ROLES_SQL string = `SELECT roles.uuid, roles.name, roles.description
+const ROLES_SQL string = `SELECT roles.public_id, roles.name, roles.description
 	FROM roles 
 	ORDER BY roles.name`
 
-// const USER_ROLE_PERMISSIONS_SQL string = `SELECT DISTINCT roles.uuid AS role_uuid, roles.name AS role_name, permissions.uuid AS permission_uuid, permissions.name AS permission_name
+// const USER_ROLE_PERMISSIONS_SQL string = `SELECT DISTINCT roles.public_id AS role_uuid, roles.name AS role_name, permissions.public_id AS permission_uuid, permissions.name AS permission_name
 // 	FROM user_roles, role_permissions, permissions
-// 	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.uuid = role_permissions.permission_uuid
+// 	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.public_id = role_permissions.permission_uuid
 // 	ORDER BY roles.name, permissions.name`
 
-const USER_PERMISSIONS string = `SELECT DISTINCT permissions.id, permissions.uuid, permissions.name, permissions.description
+const USER_PERMISSIONS string = `SELECT DISTINCT permissions.id, permissions.public_id, permissions.name, permissions.description
 	FROM users_roles, roles_permissions, permissions 
 	WHERE users_roles.user_id = ?1 AND roles_permissions.role_id = users_roles.role_id AND permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
-const USER_ROLES string = `SELECT DISTINCT roles.id, roles.uuid, roles.name, roles.description
+const USER_ROLES string = `SELECT DISTINCT roles.id, roles.public_id, roles.name, roles.description
 	FROM users_roles, roles 
 	WHERE users_roles.user_id = ?1 AND roles.id = users_roles.role_id 
 	ORDER BY roles.name`
 
-const CREATE_USER_SQL = `INSERT INTO users (uuid, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
+const CREATE_USER_SQL = `INSERT INTO users (public_id, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
 
-const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.uuid = ?`
-const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.uuid = ?`
-const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.uuid = ?`
-const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.uuid = ?`
-const SET_INFO_SQL = `UPDATE users SET username = ?2, first_name = ?3, last_name = ?4 WHERE users.uuid = ?1`
-const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.uuid = ?`
+const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.public_id = ?`
+const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
+const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.public_id = ?`
+const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.public_id = ?`
+const SET_INFO_SQL = `UPDATE users SET username = ?2, first_name = ?3, last_name = ?4 WHERE users.public_id = ?1`
+const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.public_id = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
@@ -74,20 +74,14 @@ const MIN_NAME_LENGTH int = 4
 const STANDARD_ROLE = "Standard"
 
 type UserDb struct {
-	file string
-	db   *sql.DB
-	//findUserByEmailStmt    *sql.Stmt
-	//findUserByUsernameStmt *sql.Stmt
-	//findUserByIdStmt       *sql.Stmt
-	//rolesStmt              *sql.Stmt
-	//permissionsStmt        *sql.Stmt
-	//createUserStmt       *sql.Stmt
+	db                   *sql.DB
 	setEmailVerifiedStmt *sql.Stmt
 	setPasswordStmt      *sql.Stmt
 	setUsernameStmt      *sql.Stmt
 	setNameStmt          *sql.Stmt
 	setInfoStmt          *sql.Stmt
 	setEmailStmt         *sql.Stmt
+	file                 string
 }
 
 var PASSWORD_REGEX *regexp.Regexp
@@ -151,7 +145,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 	for rows.Next() {
 		var authUser AuthUser
 		err := rows.Scan(&authUser.Id,
-			&authUser.Uuid,
+			&authUser.PublicId,
 			&authUser.FirstName,
 			&authUser.LastName,
 			&authUser.Username,
@@ -164,7 +158,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 			return nil, err
 		}
 
-		userdb.addPermissions(&authUser)
+		userdb.addRoles(&authUser)
 
 		authUsers = append(authUsers, &authUser)
 	}
@@ -227,7 +221,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 
 	var authUser AuthUser
 	err := db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
-		&authUser.Uuid,
+		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -240,7 +234,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		return nil, err
 	}
 
-	err = userdb.addPermissions(&authUser)
+	err = userdb.addRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -278,7 +272,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 
 	var authUser AuthUser
 	err = db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
-		&authUser.Uuid,
+		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -291,7 +285,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addPermissions(&authUser)
+	err = userdb.addRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -312,7 +306,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	var authUser AuthUser
 
 	err = db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
-		&authUser.Uuid,
+		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -325,7 +319,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addPermissions(&authUser)
+	err = userdb.addRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -334,7 +328,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
+func (userdb *UserDb) FindUserByPublicId(public_id string) (*AuthUser, error) {
 	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
 
 	if err != nil {
@@ -345,8 +339,8 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 
 	var authUser AuthUser
 
-	err = db.QueryRow(FIND_USER_BY_UUID_SQL, uuid).Scan(&authUser.Id,
-		&authUser.Uuid,
+	err = db.QueryRow(FIND_USER_BY_PUBLIC_ID_SQL, public_id).Scan(&authUser.Id,
+		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -359,7 +353,7 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addPermissions(&authUser)
+	err = userdb.addRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -368,19 +362,37 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) addPermissions(authUser *AuthUser) error {
+func (userdb *UserDb) addRoles(authUser *AuthUser) error {
 
-	permissions, err := userdb.PermissionList(authUser)
+	roles, err := userdb.RoleList(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	log.Debug().Msgf("ss perm %v", permissions)
+	log.Debug().Msgf("ss perm %v", roles)
 
-	authUser.Permissions = strings.Join(*permissions, ",")
+	authUser.Roles = roles
 
 	return nil
+}
+
+func (userdb *UserDb) RoleList(user *AuthUser) ([]string, error) {
+
+	roles, err := userdb.UserRoles(user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]string, len(*roles))
+
+	for ri, role := range *roles {
+		ret[ri] = role.Name
+	}
+
+	return ret, nil
+
 }
 
 func (userdb *UserDb) PermissionList(user *AuthUser) (*[]string, error) {
@@ -411,7 +423,7 @@ func (userdb *UserDb) QueryRow(query string, args ...any) *sql.Row {
 
 func (userdb *UserDb) Roles() (*[]Role, error) {
 
-	rows, err := userdb.Query("SELECT uuid, name FROM roles ORDER by roles.name")
+	rows, err := userdb.Query("SELECT public_id, name FROM roles ORDER by roles.name")
 
 	if err != nil {
 		return nil, err
@@ -423,7 +435,7 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 
 	for rows.Next() {
 		var role Role
-		err := rows.Scan(&role.Uuid, &role.Name)
+		err := rows.Scan(&role.PublicId, &role.Name)
 
 		if err != nil {
 			return nil, err
@@ -436,7 +448,7 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 
 func (userdb *UserDb) Role(name string) (*Role, error) {
 	var role Role
-	err := userdb.QueryRow("SELECT uuid, name FROM roles WHERE roles.name = ?", name).Scan(role.Uuid, role.Name)
+	err := userdb.QueryRow("SELECT public_id, name FROM roles WHERE roles.name = ?", name).Scan(role.PublicId, role.Name)
 
 	if err != nil {
 		return nil, err
@@ -455,7 +467,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 	defer db.Close()
 
-	rows, err := db.Query(USER_PERMISSIONS, user.Uuid)
+	rows, err := db.Query(USER_ROLES, user.Id)
 
 	if err != nil {
 		return nil, err
@@ -467,7 +479,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 	for rows.Next() {
 		var role Role
-		err := rows.Scan(&role.Id, &role.Uuid, &role.Name, &role.Description)
+		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
 
 		if err != nil {
 			return nil, err
@@ -500,7 +512,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
 	for rows.Next() {
 		var permission Permission
-		err := rows.Scan(&permission.Id, &permission.Uuid, &permission.Name, &permission.Description)
+		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
 
 		if err != nil {
 			return nil, err
@@ -513,7 +525,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
 // func (userdb *UserDb) PublicUserRolePermissions(user *AuthUser) (*[]PublicRole, error) {
 
-// 	rows, err := userdb.Query(USER_ROLE_PERMISSIONS_SQL, user.Uuid)
+// 	rows, err := userdb.Query(USER_ROLE_PERMISSIONS_SQL, user.PublicId)
 
 // 	if err != nil {
 // 		return nil, err
@@ -567,7 +579,7 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 	return nil
 }
 
-func (userdb *UserDb) SetPassword(uuid string, password string) error {
+func (userdb *UserDb) SetPassword(public_id string, password string) error {
 	err := CheckPassword(password)
 
 	if err != nil {
@@ -578,7 +590,7 @@ func (userdb *UserDb) SetPassword(uuid string, password string) error {
 
 	//log.Debug().Msgf("hash:%s:%s:", hash, password)
 
-	_, err = userdb.setPasswordStmt.Exec(hash, uuid)
+	_, err = userdb.setPasswordStmt.Exec(hash, public_id)
 
 	if err != nil {
 		return fmt.Errorf("could not update password")
@@ -587,7 +599,7 @@ func (userdb *UserDb) SetPassword(uuid string, password string) error {
 	return err
 }
 
-func (userdb *UserDb) SetUsername(uuid string, username string) error {
+func (userdb *UserDb) SetUsername(public_id string, username string) error {
 
 	err := CheckUsername(username)
 
@@ -595,7 +607,7 @@ func (userdb *UserDb) SetUsername(uuid string, username string) error {
 		return err
 	}
 
-	_, err = userdb.setUsernameStmt.Exec(username, uuid)
+	_, err = userdb.setUsernameStmt.Exec(username, public_id)
 
 	if err != nil {
 		return fmt.Errorf("could not update username")
@@ -604,7 +616,7 @@ func (userdb *UserDb) SetUsername(uuid string, username string) error {
 	return err
 }
 
-func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) error {
+func (userdb *UserDb) SetName(public_id string, firstName string, lastName string) error {
 	err := CheckName(firstName)
 
 	if err != nil {
@@ -617,7 +629,7 @@ func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) er
 		return err
 	}
 
-	_, err = userdb.setNameStmt.Exec(firstName, lastName, uuid)
+	_, err = userdb.setNameStmt.Exec(firstName, lastName, public_id)
 
 	if err != nil {
 		return fmt.Errorf("could not update name")
@@ -626,7 +638,7 @@ func (userdb *UserDb) SetName(uuid string, firstName string, lastName string) er
 	return err
 }
 
-func (userdb *UserDb) SetUserInfo(uuid string, username string, firstName string, lastName string) error {
+func (userdb *UserDb) SetUserInfo(public_id string, username string, firstName string, lastName string) error {
 
 	err := CheckUsername(username)
 
@@ -646,9 +658,9 @@ func (userdb *UserDb) SetUserInfo(uuid string, username string, firstName string
 		return err
 	}
 
-	log.Debug().Msgf("%s %s", uuid, username)
+	log.Debug().Msgf("%s %s", public_id, username)
 
-	_, err = userdb.setInfoStmt.Exec(uuid, username, firstName, lastName)
+	_, err = userdb.setInfoStmt.Exec(public_id, username, firstName, lastName)
 
 	log.Debug().Msgf("%s ", err)
 
@@ -659,19 +671,19 @@ func (userdb *UserDb) SetUserInfo(uuid string, username string, firstName string
 	return err
 }
 
-func (userdb *UserDb) SetEmail(uuid string, email string) error {
+func (userdb *UserDb) SetEmail(public_id string, email string) error {
 	address, err := mail.ParseAddress(email)
 
 	if err != nil {
 		return err
 	}
 
-	return userdb.SetEmailAddress(uuid, address)
+	return userdb.SetEmailAddress(public_id, address)
 }
 
-func (userdb *UserDb) SetEmailAddress(uuid string, address *mail.Address) error {
+func (userdb *UserDb) SetEmailAddress(public_id string, address *mail.Address) error {
 
-	_, err := userdb.setEmailStmt.Exec(address.Address, uuid)
+	_, err := userdb.setEmailStmt.Exec(address.Address, public_id)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -687,7 +699,7 @@ func (userdb *UserDb) AddUserRole(user *AuthUser, role string) error {
 		return fmt.Errorf("%s role not available", role)
 	}
 
-	_, err = userdb.db.Exec("INSERT INTO user_roles (user_uuid, role_uuid) VALUES(?, ?)", user.Uuid, r.Uuid)
+	_, err = userdb.db.Exec("INSERT INTO user_roles (user_uuid, role_uuid) VALUES(?, ?)", user.PublicId, r.PublicId)
 
 	if err != nil {
 		return fmt.Errorf("%s role not available", role)
@@ -730,12 +742,12 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 
 	// try to create user if user does not exist
 	if err != nil {
-		// Create a uuid for the user id
-		uuid := NanoId()
+		// Create a public_id for the user id
+		public_id := NanoId()
 
 		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 
-		_, err = db.Exec(CREATE_USER_SQL, uuid,
+		_, err = db.Exec(CREATE_USER_SQL, public_id,
 			user.FirstName,
 			user.LastName,
 			email.Address,
@@ -764,7 +776,7 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		err := userdb.SetPassword(authUser.Uuid, user.Password)
+		err := userdb.SetPassword(authUser.PublicId, user.Password)
 
 		if err != nil {
 			return nil, fmt.Errorf("user already registered:please sign up with another email address")

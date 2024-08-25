@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	PERMISSION_SU    = "SU"
-	PERMISSION_ADMIN = "Admin"
-	PERMISSION_LOGIN = "Login"
+	ROLE_SUPER = "Super"
+	ROLE_ADMIN = "Admin"
+	ROLE_LOGIN = "Login"
 )
 
 type UrlReq struct {
@@ -37,18 +37,17 @@ type User struct {
 
 type Permission struct {
 	Id          string `json:"-" db:"id"`
-	Uuid        string `json:"uuid" db:"uuid"`
+	PublicId    string `json:"publicId" db:"public_id"`
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
 }
 
 type Role struct {
-	Id   int    `json:"-" db:"id"`
-	Uuid string `json:"uuid" db:"uuid"`
-	// A short simple lowercase name to represent the role to reduce packet sizes
+	PublicId    string       `json:"publicId" db:"public_id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description" db:"description"`
 	Permissions []Permission `json:"permissions"`
+	Id          int          `json:"-" db:"id"`
 }
 
 // type PublicRole struct {
@@ -65,17 +64,16 @@ type Role struct {
 // }
 
 type AuthUser struct {
-	Id              int    `json:"-"`
-	Uuid            string `json:"uuid" db:"uuid"`
-	FirstName       string `json:"firstName" db:"first_name"`
-	LastName        string `json:"lastName" db:"last_name"`
-	Username        string `json:"username" db:"username"`
-	Email           string `json:"email" db:"email"`
-	Permissions     string `json:"permissions" db:"permissions"`
-	HashedPassword  string `json:"-"`
-	EmailIsVerified bool   `json:"-"`
-	//CanSignIn      bool   `json:"-"`
-	Updated uint64 `json:"-"`
+	PublicId        string   `json:"publicId" db:"public_id"`
+	FirstName       string   `json:"firstName" db:"first_name"`
+	LastName        string   `json:"lastName" db:"last_name"`
+	Username        string   `json:"username" db:"username"`
+	Email           string   `json:"email" db:"email"`
+	HashedPassword  string   `json:"-"`
+	Roles           []string `json:"roles" db:"role"`
+	Id              uint     `json:"-"`
+	Updated         uint64   `json:"-"`
+	EmailIsVerified bool     `json:"-"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -87,7 +85,7 @@ func init() {
 }
 
 func NewAuthUser(
-	id int,
+	id uint,
 	uuid string,
 	firstName string,
 	lastName string,
@@ -99,7 +97,7 @@ func NewAuthUser(
 	updated uint64) *AuthUser {
 	return &AuthUser{
 		Id:              id,
-		Uuid:            uuid,
+		PublicId:        uuid,
 		FirstName:       firstName,
 		LastName:        lastName,
 		Username:        userName,
@@ -114,32 +112,58 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
 }
 
-func (user *AuthUser) IsSU() bool {
-	return IsSU(user.Permissions)
+func (user *AuthUser) IsSuper() bool {
+	return IsSuper(user.Roles)
 }
 
 func (user *AuthUser) IsAdmin() bool {
-	return IsAdmin(user.Permissions)
+	return IsAdmin(user.Roles)
 }
 
 // Returns true if user is an admin or super, or is a member of
 // the login group
 func (user *AuthUser) CanLogin() bool {
-	return CanLogin(user.Permissions)
+	return CanLogin(user.Roles)
 }
 
-func CanLogin(permissions string) bool {
-	return IsAdmin(permissions) ||
-		strings.Contains(permissions, PERMISSION_LOGIN)
+func IsSuper(roles []string) bool {
+	for _, role := range roles {
+		if strings.Contains(role, ROLE_SUPER) {
+			return true
+		}
+	}
+
+	return false
 }
 
-func IsSU(permissions string) bool {
-	return strings.Contains(permissions, PERMISSION_SU)
+func IsAdmin(roles []string) bool {
+	if IsSuper(roles) {
+		return true
+	}
+
+	for _, role := range roles {
+		if strings.Contains(role, ROLE_ADMIN) {
+			return true
+		}
+	}
+
+	return false
+
 }
 
-func IsAdmin(permissions string) bool {
-	return strings.Contains(permissions, PERMISSION_SU) ||
-		strings.Contains(permissions, PERMISSION_ADMIN)
+func CanLogin(roles []string) bool {
+	if IsAdmin(roles) {
+		return true
+	}
+
+	for _, role := range roles {
+		if strings.Contains(role, ROLE_LOGIN) {
+			return true
+		}
+	}
+
+	return false
+
 }
 
 // Returns user details suitable for a web app to display

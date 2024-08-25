@@ -41,8 +41,8 @@ func FindUserById(id int) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
-	return instance.FindUserByUuid(uuid)
+func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
+	return instance.FindUserByPublicId(uuid)
 }
 
 func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
