@@ -11,13 +11,13 @@ func Uuid() string {
 	return uuid.New().String() // strings.ReplaceAll(u1.String(), "-", ""), nil
 }
 
-func EncodedUuid() string {
+func B64Uuid() string {
 	uuid := uuid.New()
 	b := (*[]byte)(unsafe.Pointer(&uuid))
 	return base64.RawURLEncoding.EncodeToString(*b)
 }
 
-func DecodeUuid(id string) (*uuid.UUID, error) {
+func DecodeB64Uuid(id string) (*uuid.UUID, error) {
 	dec, err := base64.RawURLEncoding.DecodeString(id)
 	if err != nil {
 		return nil, err

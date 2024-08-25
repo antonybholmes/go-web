@@ -36,10 +36,10 @@ type User struct {
 }
 
 type Permission struct {
-	Id          string `json:"-" db:"id"`
 	PublicId    string `json:"publicId" db:"public_id"`
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
+	Id          uint   `json:"-" db:"id"`
 }
 
 type Role struct {
@@ -47,7 +47,7 @@ type Role struct {
 	Name        string       `json:"name"`
 	Description string       `json:"description" db:"description"`
 	Permissions []Permission `json:"permissions"`
-	Id          int          `json:"-" db:"id"`
+	Id          uint         `json:"-" db:"id"`
 }
 
 // type PublicRole struct {
@@ -191,12 +191,13 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 	return nil
 }
 
-func CreateOtp(user *AuthUser) string {
+// Only to be used for database update events.
+func CreateOTP(user *AuthUser) string {
 	return HashPassword(strconv.FormatUint(user.Updated, 10))
 
 }
 
-func CheckOtpValid(user *AuthUser, otp string) error {
+func CheckOTPValid(user *AuthUser, otp string) error {
 	err := CheckPasswordsMatch(otp, strconv.FormatUint(user.Updated, 10))
 
 	if err != nil {

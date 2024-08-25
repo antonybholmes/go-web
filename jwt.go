@@ -3,7 +3,6 @@ package auth
 import (
 	"crypto/rsa"
 	"net/mail"
-	"sort"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -29,13 +28,16 @@ const (
 	TOKEN_TYPE_CHANGE_EMAIL   TokenType = "change_email"
 	TOKEN_TYPE_REFRESH        TokenType = "refresh"
 	TOKEN_TYPE_ACCESS         TokenType = "access"
+	TOKEN_TYPE_OTP            TokenType = "otp"
 )
 
-const TOKEN_TYPE_OTP string = "otp"
-
-const TOKEN_TYPE_REFRESH_TTL_HOURS time.Duration = time.Hour * 24
-const TOKEN_TYPE_ACCESS_TTL_HOURS time.Duration = time.Hour //time.Minute * 60
-const TOKEN_TYPE_SHORT_TIME_TTL_MINS time.Duration = time.Minute * 10
+const (
+	TOKEN_TTL_YEAR    time.Duration = time.Hour * 24 * 365
+	TOKEN_TTL_30_DAYS time.Duration = time.Hour * 24 * 30
+	TOKEN_TTL_DAY     time.Duration = time.Hour * 24
+	TOKEN_TTL_HOUR    time.Duration = time.Hour //time.Minute * 60
+	TOKEN_TTL_10_MINS time.Duration = time.Minute * 10
+)
 
 type JwtCustomClaims struct {
 	jwt.RegisteredClaims
@@ -47,7 +49,7 @@ type JwtCustomClaims struct {
 	Roles    []string `json:"roles,omitempty"`
 }
 
-type RoleMap map[string][]string
+//type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {
 // 	Username string `json:"username"`
@@ -76,100 +78,103 @@ type RoleMap map[string][]string
 // 	}
 // }
 
-func RefreshToken(c echo.Context, publicId string, roles []string, secret *rsa.PrivateKey) (string, error) {
-	return BaseAuthToken(c,
-		publicId,
-		TOKEN_TYPE_REFRESH,
-		roles,
-		secret)
+type JwtGen struct {
+	secret *rsa.PrivateKey
 }
 
-func AccessToken(c echo.Context, publicId string, roles []string, secret *rsa.PrivateKey) (string, error) {
-	return BaseAuthToken(c,
+func NewJwtGen(secret *rsa.PrivateKey) *JwtGen {
+	return &JwtGen{secret: secret}
+}
+
+func (tc *JwtGen) RefreshToken(c echo.Context, publicId string, roles []string) (string, error) {
+	return tc.BaseAuthToken(c,
+		publicId,
+		TOKEN_TYPE_REFRESH,
+		roles)
+}
+
+func (tc *JwtGen) AccessToken(c echo.Context, publicId string, roles []string) (string, error) {
+	return tc.BaseAuthToken(c,
 		publicId,
 		TOKEN_TYPE_ACCESS,
-		roles,
-		secret)
+		roles)
 }
 
 // token for all possible values
-func BaseAuthToken(c echo.Context,
+func (tc *JwtGen) BaseAuthToken(c echo.Context,
 	publicId string,
 	tokenType TokenType,
-	roles []string,
-	secret *rsa.PrivateKey) (string, error) {
+	roles []string) (string, error) {
 
 	claims := JwtCustomClaims{
 		PublicId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
 		Roles:            roles, //strings.Join(*permissions, " "),
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_ACCESS_TTL_HOURS))},
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_HOUR))},
 	}
 
-	return BaseJwtToken(claims, secret)
+	return tc.BaseJwtToken(claims)
 }
 
-func VerifyEmailToken(c echo.Context, publicId string, secret *rsa.PrivateKey) (string, error) {
-	return ShortTimeToken(c,
+func (tc *JwtGen) VerifyEmailToken(c echo.Context, publicId string) (string, error) {
+	return tc.ShortTimeToken(c,
 		publicId,
-		TOKEN_TYPE_VERIFY_EMAIL,
-		secret)
+		TOKEN_TYPE_VERIFY_EMAIL)
 }
 
-func ResetPasswordToken(c echo.Context, user *AuthUser, secret *rsa.PrivateKey) (string, error) {
+func (tc *JwtGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
 
 	claims := JwtCustomClaims{
 		PublicId:         user.PublicId,
 		Data:             user.Username,
 		Type:             TOKEN_TYPE_RESET_PASSWORD,
-		Otp:              CreateOtp(user),
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
+		Otp:              CreateOTP(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))}}
 
-	return BaseJwtToken(claims, secret)
+	return tc.BaseJwtToken(claims)
 
 }
 
-func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secret *rsa.PrivateKey) (string, error) {
+func (tc *JwtGen) ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := JwtCustomClaims{
 		PublicId:         user.PublicId,
 		Data:             email.Address,
 		Type:             TOKEN_TYPE_CHANGE_EMAIL,
-		Otp:              CreateOtp(user),
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))}}
+		Otp:              CreateOTP(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))}}
 
-	return BaseJwtToken(claims, secret)
+	return tc.BaseJwtToken(claims)
 
 }
 
-func PasswordlessToken(c echo.Context, publicId string, secret *rsa.PrivateKey) (string, error) {
-	return ShortTimeToken(c,
+func (tc *JwtGen) PasswordlessToken(c echo.Context, publicId string) (string, error) {
+	return tc.ShortTimeToken(c,
 		publicId,
-		TOKEN_TYPE_PASSWORDLESS,
-		secret)
+		TOKEN_TYPE_PASSWORDLESS)
 }
 
-func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
+func (tc *JwtGen) OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := JwtCustomClaims{
 		PublicId:         user.PublicId,
 		Type:             tokenType,
-		Otp:              CreateOtp(user),
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))},
+		Otp:              CreateOTP(user),
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))},
 	}
 
-	return BaseJwtToken(claims, secret)
+	return tc.BaseJwtToken(claims)
 }
 
 // Generate short lived tokens for one time passcode use.
-func ShortTimeToken(c echo.Context, publicId string, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
+func (tc *JwtGen) ShortTimeToken(c echo.Context, publicId string, tokenType TokenType) (string, error) {
 	claims := JwtCustomClaims{
 		PublicId:         publicId,
 		Type:             tokenType,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))},
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))},
 	}
 
-	return BaseJwtToken(claims, secret)
+	return tc.BaseJwtToken(claims)
 }
 
 // simple non otp token
@@ -182,14 +187,14 @@ func ShortTimeToken(c echo.Context, publicId string, tokenType TokenType, secret
 // 	return BasicJwtToken(c, uuid, tokenType, permissions, "", secret, expires)
 // }
 
-func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
+func (tc *JwtGen) BaseJwtToken(claims jwt.Claims) (string, error) {
 
 	// Create token with claims
 	//token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString(secret)
+	t, err := token.SignedString(tc.secret)
 
 	if err != nil {
 		return "", err
@@ -202,7 +207,7 @@ func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
 
 // Get the unique permissions associated with a user based
 // on their jwt permissions
-func RolesToPermissions(roleMap *RoleMap) []string {
+/* func RolesToPermissions(roleMap *RoleMap) []string {
 	permissionSet := make(map[string]struct{})
 
 	for role := range *roleMap {
@@ -226,4 +231,4 @@ func RolesToPermissions(roleMap *RoleMap) []string {
 	sort.Strings(ret)
 
 	return ret
-}
+} */
