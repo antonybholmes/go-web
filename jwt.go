@@ -76,17 +76,17 @@ type RoleMap map[string][]string
 // 	}
 // }
 
-func RefreshToken(c echo.Context, uuid string, roles []string, secret *rsa.PrivateKey) (string, error) {
+func RefreshToken(c echo.Context, publicId string, roles []string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
-		uuid,
+		publicId,
 		TOKEN_TYPE_REFRESH,
 		roles,
 		secret)
 }
 
-func AccessToken(c echo.Context, uuid string, roles []string, secret *rsa.PrivateKey) (string, error) {
+func AccessToken(c echo.Context, publicId string, roles []string, secret *rsa.PrivateKey) (string, error) {
 	return BaseAuthToken(c,
-		uuid,
+		publicId,
 		TOKEN_TYPE_ACCESS,
 		roles,
 		secret)
@@ -110,9 +110,9 @@ func BaseAuthToken(c echo.Context,
 	return BaseJwtToken(claims, secret)
 }
 
-func VerifyEmailToken(c echo.Context, uuid string, secret *rsa.PrivateKey) (string, error) {
+func VerifyEmailToken(c echo.Context, publicId string, secret *rsa.PrivateKey) (string, error) {
 	return ShortTimeToken(c,
-		uuid,
+		publicId,
 		TOKEN_TYPE_VERIFY_EMAIL,
 		secret)
 }
@@ -143,9 +143,9 @@ func ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address, secre
 
 }
 
-func PasswordlessToken(c echo.Context, uuid string, secret *rsa.PrivateKey) (string, error) {
+func PasswordlessToken(c echo.Context, publicId string, secret *rsa.PrivateKey) (string, error) {
 	return ShortTimeToken(c,
-		uuid,
+		publicId,
 		TOKEN_TYPE_PASSWORDLESS,
 		secret)
 }
@@ -162,9 +162,9 @@ func OneTimeToken(c echo.Context, user *AuthUser, tokenType TokenType, secret *r
 }
 
 // Generate short lived tokens for one time passcode use.
-func ShortTimeToken(c echo.Context, uuid string, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
+func ShortTimeToken(c echo.Context, publicId string, tokenType TokenType, secret *rsa.PrivateKey) (string, error) {
 	claims := JwtCustomClaims{
-		PublicId:         uuid,
+		PublicId:         publicId,
 		Type:             tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TYPE_SHORT_TIME_TTL_MINS))},
 	}
@@ -194,6 +194,8 @@ func BaseJwtToken(claims jwt.Claims, secret *rsa.PrivateKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	//log.Debug().Msgf("token %s", t)
 
 	return t, nil
 }

@@ -166,16 +166,6 @@ func CanLogin(roles []string) bool {
 
 }
 
-// Returns user details suitable for a web app to display
-// func (user *AuthUser) ToPublicUser() *PublicUser {
-// 	log.Debug().Msgf("here")
-// 	return &PublicUser{Uuid: user.Uuid,
-// 		FirstName: user.FirstName,
-// 		LastName:  user.LastName,
-// 		Username:  user.Username,
-// 		Email:     user.Email.Address}
-// }
-
 // Generate a one time code
 func RandCode() string {
 	return randomstring.CookieFriendlyString(32)

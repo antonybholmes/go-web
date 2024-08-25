@@ -15,10 +15,11 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const USERS_SQL string = `SELECT id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+const USERS_SQL string = `SELECT 
+	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
 	FROM users 
-	OFFSET ?1
-	LIMIT ?2`
+	LIMIT ?2
+	OFFSET ?1`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
 	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
@@ -121,6 +122,26 @@ func (userdb *UserDb) Close() {
 	if userdb.db != nil {
 		userdb.db.Close()
 	}
+}
+
+func (userdb *UserDb) NumUsers() (uint, error) {
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer db.Close()
+
+	var n uint
+
+	err = db.QueryRow("SELECT COUNT(ID) FROM users").Scan(&n)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }
 
 func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
