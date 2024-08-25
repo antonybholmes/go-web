@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/antonybholmes/go-sys"
-	"github.com/google/uuid"
+	gonanoid "github.com/matoous/go-nanoid"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -157,10 +157,6 @@ func RandCode() string {
 	return randomstring.CookieFriendlyString(32)
 }
 
-func Uuid() string {
-	return uuid.New().String() // strings.ReplaceAll(u1.String(), "-", ""), nil
-}
-
 func HashPassword(password string) string {
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
 }
@@ -194,4 +190,15 @@ func CheckOtpValid(user *AuthUser, otp string) error {
 	}
 
 	return nil
+}
+
+func NanoId() string {
+	// good enough for Planetscale https://planetscale.com/blog/why-we-chose-nanoids-for-planetscales-api
+	id, err := gonanoid.Generate("0123456789abcdefghijklmnopqrstuvwxyz", 12)
+
+	if err != nil {
+		id = ""
+	}
+
+	return id
 }

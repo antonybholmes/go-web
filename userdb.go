@@ -731,7 +731,7 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 	// try to create user if user does not exist
 	if err != nil {
 		// Create a uuid for the user id
-		uuid := Uuid()
+		uuid := NanoId()
 
 		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 
