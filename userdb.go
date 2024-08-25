@@ -296,11 +296,14 @@ func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
 }
 
 func (userdb *UserDb) addPermissions(authUser *AuthUser) error {
+	log.Debug().Msgf("add perm %v", authUser)
 	permissions, err := userdb.PermissionList(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
+
+	log.Debug().Msgf("ss perm %v", permissions)
 
 	authUser.Permissions = strings.Join(*permissions, ",")
 
@@ -412,7 +415,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
 	defer db.Close()
 
-	rows, err := db.Query(USER_PERMISSIONS, user.Uuid)
+	rows, err := db.Query(USER_PERMISSIONS, user.Id)
 
 	if err != nil {
 		return nil, err

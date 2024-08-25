@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	PERMISSION_SU    = "su"
-	PERMISSION_ADMIN = "admin"
-	PERMISSION_LOGIN = "login"
+	PERMISSION_SU    = "SU"
+	PERMISSION_ADMIN = "Admin"
+	PERMISSION_LOGIN = "Login"
 )
 
 type UrlReq struct {
