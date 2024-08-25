@@ -20,9 +20,25 @@ const USERS_SQL string = `SELECT id, uuid, first_name, last_name, username, emai
 	OFFSET ?1
 	LIMIT ?2`
 
-const FIND_USER_BY_UUID_SQL string = `SELECT id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.uuid = ?1`
-const FIND_USER_BY_EMAIL_SQL string = `SELECT id, uuid, first_name, last_name, username, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.email = ?1`
-const FIND_USER_BY_USERNAME_SQL string = `SELECT id, uuid, first_name, last_name, email, password, email_verified, strftime('%s', updated_on) FROM users WHERE users.username = ?1`
+const FIND_USER_BY_ID_SQL string = `SELECT 
+	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	FROM users 
+	WHERE users.id = ?1`
+
+const FIND_USER_BY_UUID_SQL string = `SELECT 
+	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	FROM users 
+	WHERE users.uuid = ?1`
+
+const FIND_USER_BY_EMAIL_SQL string = `SELECT 
+	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	FROM users 
+	WHERE users.email = ?1`
+
+const FIND_USER_BY_USERNAME_SQL string = `SELECT 
+	id, uuid, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	FROM users 
+	WHERE users.username = ?1`
 
 const ROLES_SQL string = `SELECT roles.uuid, roles.name, roles.description
 	FROM roles 
@@ -58,14 +74,14 @@ const MIN_NAME_LENGTH int = 4
 const STANDARD_ROLE = "Standard"
 
 type UserDb struct {
-	file                   string
-	db                     *sql.DB
-	findUserByEmailStmt    *sql.Stmt
-	findUserByUsernameStmt *sql.Stmt
-	findUserByIdStmt       *sql.Stmt
+	file string
+	db   *sql.DB
+	//findUserByEmailStmt    *sql.Stmt
+	//findUserByUsernameStmt *sql.Stmt
+	//findUserByIdStmt       *sql.Stmt
 	//rolesStmt              *sql.Stmt
 	//permissionsStmt        *sql.Stmt
-	createUserStmt       *sql.Stmt
+	//createUserStmt       *sql.Stmt
 	setEmailVerifiedStmt *sql.Stmt
 	setPasswordStmt      *sql.Stmt
 	setUsernameStmt      *sql.Stmt
@@ -76,11 +92,13 @@ type UserDb struct {
 
 var PASSWORD_REGEX *regexp.Regexp
 var USERNAME_REGEX *regexp.Regexp
+var EMAIL_REGEX *regexp.Regexp
 var NAME_REGEX *regexp.Regexp
 
 func init() {
 	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d\@\$\!\%\*\#\?\&\.\~\^\-]*$`)
-	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
+	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
+	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.]+$`)
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
 
@@ -89,17 +107,17 @@ func NewUserDB(file string) *UserDb {
 	db := sys.Must(sql.Open("sqlite3", file))
 
 	return &UserDb{file: file,
-		db:                     db,
-		findUserByEmailStmt:    sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL)),
-		findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
-		findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL)),
-		createUserStmt:         sys.Must(db.Prepare(CREATE_USER_SQL)),
-		setEmailVerifiedStmt:   sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL)),
-		setPasswordStmt:        sys.Must(db.Prepare(SET_PASSWORD_SQL)),
-		setUsernameStmt:        sys.Must(db.Prepare(SET_USERNAME_SQL)),
-		setNameStmt:            sys.Must(db.Prepare(SET_NAME_SQL)),
-		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
-		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
+		db: db,
+		//findUserByEmailStmt:    sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL)),
+		//findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
+		//findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL)),
+		//createUserStmt:       sys.Must(db.Prepare(CREATE_USER_SQL)),
+		setEmailVerifiedStmt: sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL)),
+		setPasswordStmt:      sys.Must(db.Prepare(SET_PASSWORD_SQL)),
+		setUsernameStmt:      sys.Must(db.Prepare(SET_USERNAME_SQL)),
+		setNameStmt:          sys.Must(db.Prepare(SET_NAME_SQL)),
+		setInfoStmt:          sys.Must(db.Prepare(SET_INFO_SQL)),
+		setEmailStmt:         sys.Must(db.Prepare(SET_EMAIL_SQL)),
 		//rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
 		//permissionsStmt:        sys.Must(db.Prepare(USER_PERMISSIONS))
 	}
@@ -137,6 +155,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 			&authUser.FirstName,
 			&authUser.LastName,
 			&authUser.Username,
+			&authUser.Email,
 			&authUser.HashedPassword,
 			&authUser.EmailIsVerified,
 			&authUser.Updated)
@@ -153,150 +172,204 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 	return authUsers, nil
 }
 
-func (userdb *UserDb) FindUserById(id string) (*AuthUser, error) {
-	authUser, err := userdb.FindUserByUsername(id)
+// func (userdb *UserDb) FindUserByUsernameOrEmail(id string) (*AuthUser, error) {
+// 	authUser, err := userdb.FindUserByUsername(id)
 
-	if err == nil {
-		return authUser, nil
-	}
+// 	if err == nil {
+// 		return authUser, nil
+// 	}
 
-	// try finding by email
+// 	// try finding by email
 
-	email, err := mail.ParseAddress(id)
+// 	email, err := mail.ParseAddress(id)
 
-	if err == nil {
-		// also check if username is valid email and try to login
-		// with that
-		authUser, err = userdb.FindUserByEmail(email)
+// 	if err == nil {
+// 		// also check if username is valid email and try to login
+// 		// with that
+// 		authUser, err = userdb.FindUserByEmail(email)
 
-		if err == nil {
-			return authUser, nil
-		}
-	}
+// 		if err == nil {
+// 			return authUser, nil
+// 		}
+// 	}
 
-	authUser, err = userdb.FindUserByUuid(id)
+// 	authUser, err = userdb.FindUserByUuid(id)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	err = userdb.addPermissions((authUser))
+// 	err = userdb.addPermissions((authUser))
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return authUser, nil
-}
+// 	return authUser, nil
+// }
 
-func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
-	var id int
-	var uuid string
-	var firstName string
-	var lastName string
-	var username string
-	var hashedPassword string
-	var isVerified bool
-	//var canSignIn bool
-	var updated uint64
+func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUser, error) {
+	// e, err := mail.ParseAddress(email)
 
-	if email == nil {
-		return nil, fmt.Errorf("no email address")
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	err := userdb.findUserByEmailStmt.QueryRow(email.Address).
-		Scan(&id, &uuid, &firstName, &lastName, &username, &hashedPassword, &isVerified, &updated)
-
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
-
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email.Address, hashedPassword, isVerified, updated)
-
-	err = userdb.addPermissions(authUser)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return authUser, nil
-}
-
-func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
-	var id int
-	var uuid string
-	var firstName string
-	var lastName string
-	var email string
-	var hashedPassword string
-	var isVerified bool
-	//var canSignIn bool
-	var updated uint64
-
-	err := CheckUsername(username)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = userdb.findUserByUsernameStmt.QueryRow(username).
-		Scan(&id, &uuid, &firstName, &lastName, &email, &hashedPassword, &isVerified, &updated)
-
-	if err != nil {
-
-		e, err := mail.ParseAddress(username)
+	if db == nil {
+		db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
 
 		if err != nil {
 			return nil, err
 		}
 
-		return userdb.FindUserByEmail(e)
+		defer db.Close()
 	}
 
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, updated)
-
-	err = userdb.addPermissions(authUser)
+	var authUser AuthUser
+	err := db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
+		&authUser.Uuid,
+		&authUser.FirstName,
+		&authUser.LastName,
+		&authUser.Username,
+		&authUser.Email,
+		&authUser.HashedPassword,
+		&authUser.EmailIsVerified,
+		&authUser.Updated)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return authUser, nil
+	err = userdb.addPermissions(&authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &authUser, nil
+}
+
+func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	if strings.Contains(username, "@") {
+		email, err := mail.ParseAddress(username)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return userdb.FindUserByEmail(email, db)
+	}
+
+	err = CheckUsername(username)
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug().Msgf("did we call %s", username)
+
+	var authUser AuthUser
+	err = db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
+		&authUser.Uuid,
+		&authUser.FirstName,
+		&authUser.LastName,
+		&authUser.Username,
+		&authUser.Email,
+		&authUser.HashedPassword,
+		&authUser.EmailIsVerified,
+		&authUser.Updated)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = userdb.addPermissions(&authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &authUser, nil
+}
+
+func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	var authUser AuthUser
+
+	err = db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
+		&authUser.Uuid,
+		&authUser.FirstName,
+		&authUser.LastName,
+		&authUser.Username,
+		&authUser.Email,
+		&authUser.HashedPassword,
+		&authUser.EmailIsVerified,
+		&authUser.Updated)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = userdb.addPermissions(&authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &authUser, nil
 }
 
 func (userdb *UserDb) FindUserByUuid(uuid string) (*AuthUser, error) {
-	var id int
-	var firstName string
-	var lastName string
-	var username string
-	var email string
-	var hashedPassword string
-	var isVerified bool
-	//var canSignIn bool
-	var updated uint64
-
-	err := userdb.findUserByIdStmt.QueryRow(uuid).
-		Scan(&id, &firstName, &lastName, &username, &email, &hashedPassword, &isVerified, &updated)
-
-	if err != nil {
-		return nil, err //fmt.Errorf("there was an error with the database query")
-	}
-
-	authUser := NewAuthUser(id, uuid, firstName, lastName, username, email, hashedPassword, isVerified, updated)
-
-	err = userdb.addPermissions(authUser)
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
 
 	if err != nil {
 		return nil, err
 	}
 
-	// check password hash matches hash in database
+	defer db.Close()
 
-	return authUser, nil
+	var authUser AuthUser
+
+	err = db.QueryRow(FIND_USER_BY_UUID_SQL, uuid).Scan(&authUser.Id,
+		&authUser.Uuid,
+		&authUser.FirstName,
+		&authUser.LastName,
+		&authUser.Username,
+		&authUser.Email,
+		&authUser.HashedPassword,
+		&authUser.EmailIsVerified,
+		&authUser.Updated)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = userdb.addPermissions(&authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &authUser, nil
 }
 
 func (userdb *UserDb) addPermissions(authUser *AuthUser) error {
-	log.Debug().Msgf("add perm %v", authUser)
+
 	permissions, err := userdb.PermissionList(authUser)
 
 	if err != nil {
@@ -587,7 +660,7 @@ func (userdb *UserDb) SetUserInfo(uuid string, username string, firstName string
 }
 
 func (userdb *UserDb) SetEmail(uuid string, email string) error {
-	address, err := CheckEmailIsWellFormed(email)
+	address, err := mail.ParseAddress(email)
 
 	if err != nil {
 		return err
@@ -642,10 +715,18 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 		return nil, err
 	}
 
+	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
-	authUser, err := userdb.FindUserByEmail(email)
+	authUser, err := userdb.FindUserByEmail(email, db)
 
 	// try to create user if user does not exist
 	if err != nil {
@@ -654,7 +735,7 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 
 		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 
-		_, err = userdb.createUserStmt.Exec(uuid,
+		_, err = db.Exec(CREATE_USER_SQL, uuid,
 			user.FirstName,
 			user.LastName,
 			email.Address,
@@ -666,7 +747,7 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 		}
 
 		// Call function again to get the user details
-		authUser, err = userdb.FindUserByEmail(email)
+		authUser, err = userdb.FindUserByEmail(email, db)
 
 		if err != nil {
 			return nil, err
@@ -742,16 +823,17 @@ func CheckName(name string) error {
 	return nil
 }
 
-func CheckEmailIsWellFormed(email string) (*mail.Address, error) {
-	if !USERNAME_REGEX.MatchString(email) {
-		return nil, fmt.Errorf("invalid email address")
-	}
+// func CheckEmailIsWellFormed(email string) (*mail.Address, error) {
+// 	log.Debug().Msgf("validate %s", email)
+// 	if !EMAIL_REGEX.MatchString(email) {
+// 		return nil, fmt.Errorf("invalid email address")
+// 	}
 
-	address, err := mail.ParseAddress(email)
+// 	address, err := mail.ParseAddress(email)
 
-	if err != nil {
-		return nil, fmt.Errorf("could not parse email")
-	}
+// 	if err != nil {
+// 		return nil, fmt.Errorf("could not parse email")
+// 	}
 
-	return address, nil
-}
+// 	return address, nil
+// }

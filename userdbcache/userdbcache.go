@@ -25,16 +25,20 @@ func CreateStandardUser(user *auth.SignupReq) (*auth.AuthUser, error) {
 	return instance.CreateStandardUser(user)
 }
 
-func FindUserById(id string) (*auth.AuthUser, error) {
-	return instance.FindUserById(id)
-}
+// func FindUserByUsernameOrEmail(id string) (*auth.AuthUser, error) {
+// 	return instance.FindUserByUsernameOrEmail(id)
+// }
 
 func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return instance.FindUserByEmail(email)
+	return instance.FindUserByEmail(email, nil)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
 	return instance.FindUserByUsername(username)
+}
+
+func FindUserById(id int) (*auth.AuthUser, error) {
+	return instance.FindUserById(id)
 }
 
 func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
