@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rsa"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -39,14 +40,17 @@ const (
 	TOKEN_TTL_10_MINS time.Duration = time.Minute * 10
 )
 
+const JWT_CLAIM_SEP = " "
+
 type JwtCustomClaims struct {
 	jwt.RegisteredClaims
-	PublicId string   `json:"publicId"`
-	Type     string   `json:"type"`
-	Data     string   `json:"data,omitempty"`
-	Otp      string   `json:"otp,omitempty"`
-	Scope    string   `json:"scope,omitempty"`
-	Roles    []string `json:"roles,omitempty"`
+	PublicId string `json:"publicId"`
+	Type     string `json:"type"`
+	Data     string `json:"data,omitempty"`
+	Otp      string `json:"otp,omitempty"`
+	Scope    string `json:"scope,omitempty"`
+	//Roles    []string `json:"roles,omitempty"`
+	Roles string `json:"roles,omitempty"`
 }
 
 //type RoleMap map[string][]string
@@ -78,6 +82,10 @@ type JwtCustomClaims struct {
 // 	}
 // }
 
+func MakeClaim(claims []string) string {
+	return strings.Join(claims, JWT_CLAIM_SEP)
+}
+
 type JwtGen struct {
 	secret *rsa.PrivateKey
 }
@@ -86,14 +94,14 @@ func NewJwtGen(secret *rsa.PrivateKey) *JwtGen {
 	return &JwtGen{secret: secret}
 }
 
-func (tc *JwtGen) RefreshToken(c echo.Context, publicId string, roles []string) (string, error) {
+func (tc *JwtGen) RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
 	return tc.BaseAuthToken(c,
 		publicId,
 		TOKEN_TYPE_REFRESH,
 		roles)
 }
 
-func (tc *JwtGen) AccessToken(c echo.Context, publicId string, roles []string) (string, error) {
+func (tc *JwtGen) AccessToken(c echo.Context, publicId string, roles string) (string, error) {
 	return tc.BaseAuthToken(c,
 		publicId,
 		TOKEN_TYPE_ACCESS,
@@ -104,13 +112,13 @@ func (tc *JwtGen) AccessToken(c echo.Context, publicId string, roles []string) (
 func (tc *JwtGen) BaseAuthToken(c echo.Context,
 	publicId string,
 	tokenType TokenType,
-	roles []string) (string, error) {
+	roles string) (string, error) {
 
 	claims := JwtCustomClaims{
 		PublicId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             tokenType,
-		Roles:            roles, //strings.Join(*permissions, " "),
+		Roles:            roles,
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_HOUR))},
 	}
 
@@ -124,10 +132,10 @@ func (tc *JwtGen) VerifyEmailToken(c echo.Context, publicId string) (string, err
 }
 
 func (tc *JwtGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
-
 	claims := JwtCustomClaims{
-		PublicId:         user.PublicId,
-		Data:             user.Username,
+		PublicId: user.PublicId,
+		// include first name to personalize reset
+		Data:             user.FirstName,
 		Type:             TOKEN_TYPE_RESET_PASSWORD,
 		Otp:              CreateOTP(user),
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))}}

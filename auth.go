@@ -6,15 +6,15 @@ import (
 	"strings"
 
 	"github.com/antonybholmes/go-sys"
-	gonanoid "github.com/matoous/go-nanoid"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	ROLE_SUPER = "Super"
-	ROLE_ADMIN = "Admin"
-	ROLE_LOGIN = "Login"
+	ROLE_SUPER = "super"
+	ROLE_ADMIN = "admin"
+	ROLE_LOGIN = "login"
 )
 
 type UrlReq struct {
@@ -113,63 +113,36 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 }
 
 func (user *AuthUser) IsSuper() bool {
-	return IsSuper(user.Roles)
+	return IsSuper(MakeClaim(user.Roles))
 }
 
 func (user *AuthUser) IsAdmin() bool {
-	return IsAdmin(user.Roles)
+	return IsAdmin(MakeClaim(user.Roles))
 }
 
 // Returns true if user is an admin or super, or is a member of
 // the login group
 func (user *AuthUser) CanLogin() bool {
-	return CanLogin(user.Roles)
+	return CanLogin(MakeClaim(user.Roles))
 }
 
-func IsSuper(roles []string) bool {
-	for _, role := range roles {
-		if strings.Contains(role, ROLE_SUPER) {
-			return true
-		}
-	}
-
-	return false
+func IsSuper(roles string) bool {
+	return strings.Contains(roles, ROLE_SUPER)
 }
 
-func IsAdmin(roles []string) bool {
-	if IsSuper(roles) {
-		return true
-	}
-
-	for _, role := range roles {
-		if strings.Contains(role, ROLE_ADMIN) {
-			return true
-		}
-	}
-
-	return false
+func IsAdmin(roles string) bool {
+	return IsSuper(roles) || strings.Contains(roles, ROLE_ADMIN)
 
 }
 
-func CanLogin(roles []string) bool {
-	if IsAdmin(roles) {
-		return true
-	}
-
-	for _, role := range roles {
-		if strings.Contains(role, ROLE_LOGIN) {
-			return true
-		}
-	}
-
-	return false
-
+func CanLogin(roles string) bool {
+	return IsAdmin(roles) || strings.Contains(roles, ROLE_LOGIN)
 }
 
-// Generate a one time code
-func RandCode() string {
-	return randomstring.CookieFriendlyString(32)
-}
+// // Generate a one time code
+// func RandCode() string {
+// 	return randomstring.CookieFriendlyString(32)
+// }
 
 func HashPassword(password string) string {
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
