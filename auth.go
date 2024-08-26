@@ -14,6 +14,7 @@ import (
 const (
 	ROLE_SUPER = "super"
 	ROLE_ADMIN = "admin"
+	ROLE_USER  = "user"
 	ROLE_LOGIN = "login"
 )
 
@@ -43,11 +44,11 @@ type Permission struct {
 }
 
 type Role struct {
-	PublicId    string       `json:"publicId" db:"public_id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description" db:"description"`
-	Permissions []Permission `json:"permissions"`
-	Id          uint         `json:"-" db:"id"`
+	PublicId    string `json:"publicId" db:"public_id"`
+	Name        string `json:"name"`
+	Description string `json:"description" db:"description"`
+	//Permissions []Permission `json:"permissions"`
+	Id uint `json:"-" db:"id"`
 }
 
 // type PublicRole struct {

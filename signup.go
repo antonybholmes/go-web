@@ -2,8 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"net/mail"
-	"strings"
 )
 
 // type SignupUser struct {
@@ -31,18 +29,18 @@ func (user *SignupReq) String() string {
 
 // Returns the hash of the password suitable for storing in a db.
 // We allow empty passwords for passwordless login
-func (user *SignupReq) HashedPassword() string {
-	return HashPassword(user.Password)
-}
+// func (user *SignupReq) HashedPassword() string {
+// 	return HashPassword(user.Password)
+// }
 
-func (user *SignupReq) Address() (*mail.Address, error) {
-	email, err := mail.ParseAddress(user.Email)
+// func (user *SignupReq) Address() (*mail.Address, error) {
+// 	email, err := mail.ParseAddress(user.Email)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	email.Name = strings.TrimSpace(fmt.Sprintf("%s %s", user.FirstName, user.LastName))
+// 	email.Name = strings.TrimSpace(fmt.Sprintf("%s %s", user.FirstName, user.LastName))
 
-	return email, nil
-}
+// 	return email, nil
+// }

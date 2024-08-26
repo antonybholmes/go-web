@@ -16,28 +16,28 @@ import (
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
 const USERS_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
 	FROM users 
 	LIMIT ?2
 	OFFSET ?1`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.id = ?1`
 
 const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.public_id = ?1`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.email = ?1`
 
 const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
 	FROM users 
 	WHERE users.username = ?1`
 
@@ -50,7 +50,8 @@ const ROLES_SQL string = `SELECT roles.public_id, roles.name, roles.description
 // 	WHERE user_roles.user_uuid = ?1 AND role_permissions.role_uuid = user_roles.role_uuid AND permissions.public_id = role_permissions.permission_uuid
 // 	ORDER BY roles.name, permissions.name`
 
-const USER_PERMISSIONS string = `SELECT DISTINCT permissions.id, permissions.public_id, permissions.name, permissions.description
+const USER_PERMISSIONS string = `SELECT DISTINCT 
+	permissions.id, permissions.public_id, permissions.name, permissions.description
 	FROM users_roles, roles_permissions, permissions 
 	WHERE users_roles.user_id = ?1 AND roles_permissions.role_id = users_roles.role_id AND permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
@@ -60,9 +61,10 @@ const USER_ROLES string = `SELECT DISTINCT roles.id, roles.public_id, roles.name
 	WHERE users_roles.user_id = ?1 AND roles.id = users_roles.role_id 
 	ORDER BY roles.name`
 
-const CREATE_USER_SQL = `INSERT INTO users (public_id, first_name, last_name, username, email, password) VALUES(?, ?, ?, ?, ?, ?)`
+const CREATE_USER_SQL = `INSERT INTO users (public_id, username, email, password, first_name, last_name, email_is_verified) 
+	VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)`
 
-const SET_EMAIL_VERIFIED_SQL = `UPDATE users SET email_verified = 1 WHERE users.public_id = ?`
+const SET_email_is_verified_SQL = `UPDATE users SET email_is_verified = 1 WHERE users.public_id = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.public_id = ?`
 const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.public_id = ?`
@@ -71,8 +73,6 @@ const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.public_id = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
-
-const STANDARD_ROLE = "Standard"
 
 type UserDb struct {
 	db                   *sql.DB
@@ -107,7 +107,7 @@ func NewUserDB(file string) *UserDb {
 		//findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
 		//findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_UUID_SQL)),
 		//createUserStmt:       sys.Must(db.Prepare(CREATE_USER_SQL)),
-		setEmailVerifiedStmt: sys.Must(db.Prepare(SET_EMAIL_VERIFIED_SQL)),
+		setEmailVerifiedStmt: sys.Must(db.Prepare(SET_email_is_verified_SQL)),
 		setPasswordStmt:      sys.Must(db.Prepare(SET_PASSWORD_SQL)),
 		setUsernameStmt:      sys.Must(db.Prepare(SET_USERNAME_SQL)),
 		setNameStmt:          sys.Must(db.Prepare(SET_NAME_SQL)),
@@ -179,7 +179,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 			return nil, err
 		}
 
-		userdb.addRoles(&authUser)
+		userdb.addRolesToUser(&authUser)
 
 		authUsers = append(authUsers, &authUser)
 	}
@@ -255,7 +255,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		return nil, err
 	}
 
-	err = userdb.addRoles(&authUser)
+	err = userdb.addRolesToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -306,7 +306,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRoles(&authUser)
+	err = userdb.addRolesToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -340,7 +340,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRoles(&authUser)
+	err = userdb.addRolesToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -374,7 +374,7 @@ func (userdb *UserDb) FindUserByPublicId(public_id string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRoles(&authUser)
+	err = userdb.addRolesToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -383,15 +383,13 @@ func (userdb *UserDb) FindUserByPublicId(public_id string) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) addRoles(authUser *AuthUser) error {
+func (userdb *UserDb) addRolesToUser(authUser *AuthUser) error {
 
 	roles, err := userdb.RoleList(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
-
-	log.Debug().Msgf("ss perm %v", roles)
 
 	authUser.Roles = roles
 
@@ -434,17 +432,36 @@ func (userdb *UserDb) PermissionList(user *AuthUser) (*[]string, error) {
 
 }
 
-func (userdb *UserDb) Query(query string, args ...any) (*sql.Rows, error) {
-	return userdb.db.Query(query, args...)
+func (userdb *UserDb) Conn() (*sql.DB, error) {
+	return sql.Open("sqlite3", userdb.file)
+
 }
 
-func (userdb *UserDb) QueryRow(query string, args ...any) *sql.Row {
-	return userdb.db.QueryRow(query, args...)
-}
+// func (userdb *UserDb) Query(query string, args ...any) (*sql.Rows, error) {
+// 	return userdb.db.Query(query, args...)
+// }
+
+// func (userdb *UserDb) QueryRow(query string, args ...any) *sql.Row {
+// 	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	defer db.Close()
+// 	return userdb.db.QueryRow(query, args...)
+// }
 
 func (userdb *UserDb) Roles() (*[]Role, error) {
+	db, err := userdb.Conn()
 
-	rows, err := userdb.Query("SELECT public_id, name FROM roles ORDER by roles.name")
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id, public_id, name, description FROM roles ORDER by roles.name")
 
 	if err != nil {
 		return nil, err
@@ -456,7 +473,10 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 
 	for rows.Next() {
 		var role Role
-		err := rows.Scan(&role.PublicId, &role.Name)
+		err := rows.Scan(&role.Id,
+			&role.PublicId,
+			&role.Name,
+			&role.Description)
 
 		if err != nil {
 			return nil, err
@@ -468,8 +488,19 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 }
 
 func (userdb *UserDb) Role(name string) (*Role, error) {
+	db, err := userdb.Conn()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
 	var role Role
-	err := userdb.QueryRow("SELECT public_id, name FROM roles WHERE roles.name = ?", name).Scan(role.PublicId, role.Name)
+	err = db.QueryRow("SELECT id, public_id, name, description FROM roles WHERE roles.name = ?", name).Scan(&role.Id,
+		&role.PublicId,
+		&role.Name,
+		&role.Description)
 
 	if err != nil {
 		return nil, err
@@ -720,7 +751,7 @@ func (userdb *UserDb) AddUserRole(user *AuthUser, role string) error {
 		return fmt.Errorf("%s role not available", role)
 	}
 
-	_, err = userdb.db.Exec("INSERT INTO user_roles (user_uuid, role_uuid) VALUES(?, ?)", user.PublicId, r.PublicId)
+	_, err = userdb.db.Exec("INSERT INTO users_roles (user_id, role_id) VALUES(?, ?)", user.Id, r.Id)
 
 	if err != nil {
 		return fmt.Errorf("%s role not available", role)
@@ -735,20 +766,37 @@ func (userdb *UserDb) AddUserRole(user *AuthUser, role string) error {
 // 	return err
 // }
 
-func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
-	err := CheckPassword(user.Password)
-
-	if err != nil {
-		return nil, err
-	}
-
+func (userdb *UserDb) CreateUserFromSignup(user *SignupReq) (*AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
 
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+	// The default username is email address unless a username is provided
+	userName := email.Address
+
+	if user.UserName != "" {
+		userName = user.UserName
+	}
+
+	// assume email is not verified
+	return userdb.CreateUser(userName, email, user.Password, user.FirstName, user.LastName, false)
+}
+
+func (userdb *UserDb) CreateUser(userName string,
+	email *mail.Address,
+	password string,
+	firstName string,
+	lastName string,
+	emailIsVerified bool) (*AuthUser, error) {
+	err := CheckPassword(password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := userdb.Conn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return nil, err
@@ -766,14 +814,31 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 		// Create a public_id for the user id
 		public_id := NanoId()
 
-		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
+		hash := ""
 
-		_, err = db.Exec(CREATE_USER_SQL, public_id,
-			user.FirstName,
-			user.LastName,
+		// empty passwords indicate passwordless
+		if password != "" {
+			hash = HashPassword(password)
+		}
+
+		// verified := 0
+
+		// if emailIsVerified {
+		// 	verified = 1
+		// }
+
+		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
+		//public_id, username, email, password, first_name, last_name
+
+		_, err = db.Exec(CREATE_USER_SQL,
+			public_id,
+			userName,
 			email.Address,
-			email.Address,
-			user.HashedPassword())
+			hash,
+			firstName,
+			lastName,
+			emailIsVerified,
+		)
 
 		if err != nil {
 			return nil, err
@@ -797,16 +862,16 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		err := userdb.SetPassword(authUser.PublicId, user.Password)
+		err := userdb.SetPassword(authUser.PublicId, password)
 
 		if err != nil {
 			return nil, fmt.Errorf("user already registered:please sign up with another email address")
 		}
 	}
 
-	// Give user standard role
-
-	userdb.AddUserRole(authUser, STANDARD_ROLE)
+	// Give user standard role and ability to login
+	userdb.AddUserRole(authUser, ROLE_USER)
+	userdb.AddUserRole(authUser, ROLE_LOGIN)
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 
@@ -819,7 +884,13 @@ func (userdb *UserDb) CreateStandardUser(user *SignupReq) (*AuthUser, error) {
 
 // Make sure password meets requirements
 func CheckPassword(password string) error {
-	if password != "" && len(password) < MIN_PASSWORD_LENGTH {
+	// empty passwords are a special case used to indicate
+	// passwordless only login
+	if password == "" {
+		return nil
+	}
+
+	if len(password) < MIN_PASSWORD_LENGTH {
 		return fmt.Errorf("password must be at least %d characters", MIN_PASSWORD_LENGTH)
 	}
 

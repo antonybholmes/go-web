@@ -21,20 +21,16 @@ func InitCache(file string) {
 
 }
 
-func CreateStandardUser(user *auth.SignupReq) (*auth.AuthUser, error) {
-	return instance.CreateStandardUser(user)
+func NumUsers() (uint, error) {
+	return instance.NumUsers()
 }
 
-// func FindUserByUsernameOrEmail(id string) (*auth.AuthUser, error) {
-// 	return instance.FindUserByUsernameOrEmail(id)
-// }
-
-func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return instance.FindUserByEmail(email, nil)
+func Users(offset int, records int) ([]*auth.AuthUser, error) {
+	return instance.Users(offset, records)
 }
 
-func FindUserByUsername(username string) (*auth.AuthUser, error) {
-	return instance.FindUserByUsername(username)
+func CreateUserFromSignup(user *auth.SignupReq) (*auth.AuthUser, error) {
+	return instance.CreateUserFromSignup(user)
 }
 
 func FindUserById(id int) (*auth.AuthUser, error) {
@@ -43,6 +39,14 @@ func FindUserById(id int) (*auth.AuthUser, error) {
 
 func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
 	return instance.FindUserByPublicId(uuid)
+}
+
+func FindUserByUsername(username string) (*auth.AuthUser, error) {
+	return instance.FindUserByUsername(username)
+}
+
+func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
+	return instance.FindUserByEmail(email, nil)
 }
 
 func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
@@ -73,14 +77,6 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 
 func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
 	return instance.UserPermissions(user)
-}
-
-func NumUsers() (uint, error) {
-	return instance.NumUsers()
-}
-
-func Users(offset int, records int) ([]*auth.AuthUser, error) {
-	return instance.Users(offset, records)
 }
 
 func PermissionList(user *auth.AuthUser) (*[]string, error) {
