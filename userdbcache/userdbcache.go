@@ -37,8 +37,8 @@ func FindUserById(id int) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
-	return instance.FindUserByPublicId(uuid)
+func FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
+	return instance.FindUserByPublicId(publicId)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
@@ -121,26 +121,26 @@ func SetIsVerified(user string) error {
 	return instance.SetIsVerified(user)
 }
 
-func SetPassword(uuid string, password string) error {
-	return instance.SetPassword(uuid, password)
+func SetPassword(publicId string, password string) error {
+	return instance.SetPassword(publicId, password)
 }
 
-func SetUsername(uuid string, username string) error {
-	return instance.SetUsername(uuid, username)
+func SetUsername(publicId string, username string) error {
+	return instance.SetUsername(publicId, username)
 }
 
-func SetName(uuid string, firstName string, lastName string) error {
-	return instance.SetName(uuid, firstName, lastName)
+func SetName(publicId string, firstName string, lastName string) error {
+	return instance.SetName(publicId, firstName, lastName)
 }
 
-func SetUserInfo(uuid string, username string, firstName string, lastName string) error {
-	return instance.SetUserInfo(uuid, username, firstName, lastName)
+func SetUserInfo(publicId string, username string, firstName string, lastName string) error {
+	return instance.SetUserInfo(publicId, username, firstName, lastName)
 }
 
-func SetEmail(uuid string, email string) error {
-	return instance.SetEmail(uuid, email)
+func SetEmail(publicId string, email string) error {
+	return instance.SetEmail(publicId, email)
 }
 
-func SetEmailAddress(uuid string, address *mail.Address) error {
-	return instance.SetEmailAddress(uuid, address)
+func SetEmailAddress(publicId string, address *mail.Address) error {
+	return instance.SetEmailAddress(publicId, address)
 }

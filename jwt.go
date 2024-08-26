@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 // type TokenType = uint8
@@ -132,6 +133,7 @@ func (tc *JwtGen) VerifyEmailToken(c echo.Context, publicId string) (string, err
 }
 
 func (tc *JwtGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
+
 	claims := JwtCustomClaims{
 		PublicId: user.PublicId,
 		// include first name to personalize reset
@@ -141,7 +143,6 @@ func (tc *JwtGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, er
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))}}
 
 	return tc.BaseJwtToken(claims)
-
 }
 
 func (tc *JwtGen) ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
@@ -185,16 +186,6 @@ func (tc *JwtGen) ShortTimeToken(c echo.Context, publicId string, tokenType Toke
 	return tc.BaseJwtToken(claims)
 }
 
-// simple non otp token
-// func JwtToken(c echo.Context,
-// 	uuid string,
-// 	tokenType TokenType,
-// 	permissions string,
-// 	secret *rsa.PrivateKey,
-// 	expires *jwt.NumericDate) (string, error) {
-// 	return BasicJwtToken(c, uuid, tokenType, permissions, "", secret, expires)
-// }
-
 func (tc *JwtGen) BaseJwtToken(claims jwt.Claims) (string, error) {
 
 	// Create token with claims
@@ -208,7 +199,7 @@ func (tc *JwtGen) BaseJwtToken(claims jwt.Claims) (string, error) {
 		return "", err
 	}
 
-	//log.Debug().Msgf("token %s", t)
+	log.Debug().Msgf("token %s", t)
 
 	return t, nil
 }

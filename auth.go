@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	ROLE_SUPER = "super"
-	ROLE_ADMIN = "admin"
-	ROLE_USER  = "user"
-	ROLE_LOGIN = "login"
+	ROLE_SUPER = "Super"
+	ROLE_ADMIN = "Admin"
+	ROLE_USER  = "User"
+	ROLE_LOGIN = "Login"
+	ROLE_RDF   = "RDF"
 )
 
 type UrlReq struct {
@@ -51,19 +52,6 @@ type Role struct {
 	Id uint `json:"-" db:"id"`
 }
 
-// type PublicRole struct {
-// 	Name        string   `json:"name"`
-// 	Permissions []string `json:"permissions"`
-// }
-
-// type PublicUser struct {
-// 	Uuid      string `json:"uuid"`
-// 	FirstName string `json:"firstName"`
-// 	LastName  string `json:"lastName"`
-// 	Username  string `json:"username"`
-// 	Email     string `json:"email"`
-// }
-
 type AuthUser struct {
 	PublicId        string   `json:"publicId" db:"public_id"`
 	FirstName       string   `json:"firstName" db:"first_name"`
@@ -87,7 +75,7 @@ func init() {
 
 func NewAuthUser(
 	id uint,
-	uuid string,
+	publicId string,
 	firstName string,
 	lastName string,
 	userName string,
@@ -98,7 +86,7 @@ func NewAuthUser(
 	updated uint64) *AuthUser {
 	return &AuthUser{
 		Id:              id,
-		PublicId:        uuid,
+		PublicId:        publicId,
 		FirstName:       firstName,
 		LastName:        lastName,
 		Username:        userName,
