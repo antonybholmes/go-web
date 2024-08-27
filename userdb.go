@@ -63,10 +63,10 @@ const INSERT_USER_SQL = `INSERT INTO users
 const DELETE_USER_ROLES_SQL = "DELETE FROM users_roles WHERE user_id = ?1"
 const INSERT_USER_ROLE_SQL = "INSERT INTO users_roles (user_id, role_id) VALUES(?1, ?2) ON CONFLICT DO NOTHING"
 
-const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_is_verified = 1 WHERE users.public_id = ?`
-const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
-const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.public_id = ?`
-const SET_NAME_SQL = `UPDATE users SET first_name = ?, last_name = ? WHERE users.public_id = ?`
+const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_is_verified = 1 WHERE users.public_id = ?1`
+const SET_PASSWORD_SQL = `UPDATE users SET password = ?2 WHERE users.public_id = ?1`
+const SET_USERNAME_SQL = `UPDATE users SET username = ?2 WHERE users.public_id = ?1`
+const SET_NAME_SQL = `UPDATE users SET first_name = ?2, last_name = ?3 WHERE users.public_id = ?1`
 const SET_INFO_SQL = `UPDATE users SET username = ?2, first_name = ?3, last_name = ?4 WHERE users.public_id = ?1`
 const SET_EMAIL_SQL = `UPDATE users SET email = ?2 WHERE users.public_id = ?1`
 
@@ -566,7 +566,7 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 	return nil
 }
 
-func (userdb *UserDb) SetPassword(public_id string, password string) error {
+func (userdb *UserDb) SetPassword(publicId string, password string, db *sql.DB) error {
 	err := CheckPassword(password)
 
 	if err != nil {
@@ -575,15 +575,17 @@ func (userdb *UserDb) SetPassword(public_id string, password string) error {
 
 	hash := HashPassword(password)
 
-	db, err := userdb.NewConn() //not clear on what is needed for the user and password
+	if db == nil {
+		db, err := userdb.NewConn()
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+
+		defer db.Close()
 	}
 
-	defer db.Close()
-
-	_, err = db.Exec(SET_PASSWORD_SQL, hash, public_id)
+	_, err = db.Exec(SET_PASSWORD_SQL, publicId, hash)
 
 	if err != nil {
 		return fmt.Errorf("could not update password")
@@ -592,60 +594,60 @@ func (userdb *UserDb) SetPassword(public_id string, password string) error {
 	return err
 }
 
-func (userdb *UserDb) SetUsername(public_id string, username string) error {
+// func (userdb *UserDb) SetUsername(publicId string, username string) error {
 
-	err := CheckUsername(username)
+// 	err := CheckUsername(username)
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	db, err := userdb.NewConn() //not clear on what is needed for the user and password
+// 	db, err := userdb.NewConn()
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	defer db.Close()
+// 	defer db.Close()
 
-	_, err = db.Exec(SET_USERNAME_SQL, username, public_id)
+// 	_, err = db.Exec(SET_USERNAME_SQL, publicId, username)
 
-	if err != nil {
-		return fmt.Errorf("could not update username")
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("could not update username")
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
-func (userdb *UserDb) SetName(public_id string, firstName string, lastName string) error {
-	err := CheckName(firstName)
+// func (userdb *UserDb) SetName(publicId string, firstName string, lastName string) error {
+// 	err := CheckName(firstName)
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	err = CheckName(lastName)
+// 	err = CheckName(lastName)
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	db, err := userdb.NewConn() //not clear on what is needed for the user and password
+// 	db, err := userdb.NewConn()
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	defer db.Close()
+// 	defer db.Close()
 
-	_, err = db.Exec(SET_NAME_SQL, firstName, lastName, public_id)
+// 	_, err = db.Exec(SET_NAME_SQL, publicId, firstName, lastName)
 
-	if err != nil {
-		return fmt.Errorf("could not update name")
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("could not update name")
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
 func (userdb *UserDb) SetUserInfo(publicId string, username string, firstName string, lastName string, db *sql.DB) error {
 
@@ -873,7 +875,7 @@ func (userdb *UserDb) CreateUser(userName string,
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		err := userdb.SetPassword(authUser.PublicId, password)
+		err := userdb.SetPassword(authUser.PublicId, password, db)
 
 		if err != nil {
 			return nil, fmt.Errorf("user already registered:please sign up with another email address")

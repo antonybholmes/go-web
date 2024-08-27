@@ -132,17 +132,17 @@ func SetIsVerified(user string) error {
 	return instance.SetIsVerified(user)
 }
 
-func SetPassword(publicId string, password string) error {
-	return instance.SetPassword(publicId, password)
+func SetPassword(publicId string, password string, db *sql.DB) error {
+	return instance.SetPassword(publicId, password, db)
 }
 
-func SetUsername(publicId string, username string) error {
-	return instance.SetUsername(publicId, username)
-}
+// func SetUsername(publicId string, username string) error {
+// 	return instance.SetUsername(publicId, username)
+// }
 
-func SetName(publicId string, firstName string, lastName string) error {
-	return instance.SetName(publicId, firstName, lastName)
-}
+// func SetName(publicId string, firstName string, lastName string) error {
+// 	return instance.SetName(publicId, firstName, lastName)
+// }
 
 func SetUserInfo(publicId string, username string, firstName string, lastName string, db *sql.DB) error {
 	return instance.SetUserInfo(publicId, username, firstName, lastName, db)
