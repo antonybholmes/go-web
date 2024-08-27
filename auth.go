@@ -12,6 +12,12 @@ import (
 )
 
 const (
+	MAX_AGE_YEAR_SECS    = 31536000
+	MAX_AGE_30_DAYS_SECS = 2592000
+	MAX_AGE_DAY_SECS     = 86400
+)
+
+const (
 	ROLE_SUPER = "Super"
 	ROLE_ADMIN = "Admin"
 	ROLE_USER  = "User"

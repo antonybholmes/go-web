@@ -25,6 +25,10 @@ func NumUsers() (uint, error) {
 	return instance.NumUsers()
 }
 
+func Roles() ([]*auth.Role, error) {
+	return instance.Roles()
+}
+
 func Users(offset int, records int) ([]*auth.AuthUser, error) {
 	return instance.Users(offset, records)
 }
@@ -49,11 +53,11 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return instance.FindUserByEmail(email, nil)
 }
 
-func UserRoles(user *auth.AuthUser) (*[]auth.Role, error) {
+func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
 	return instance.UserRoles(user)
 }
 
-func RoleList(user *auth.AuthUser) (*[]string, error) {
+func RoleList(user *auth.AuthUser) ([]string, error) {
 
 	roles, err := instance.UserRoles(user)
 
@@ -61,13 +65,13 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 		return nil, err
 	}
 
-	ret := make([]string, len(*roles))
+	ret := make([]string, len(roles))
 
-	for ri, role := range *roles {
+	for ri, role := range roles {
 		ret[ri] = role.Name
 	}
 
-	return &ret, nil
+	return ret, nil
 
 	//ret := strings.Join(tokens, ",")
 
@@ -75,14 +79,12 @@ func RoleList(user *auth.AuthUser) (*[]string, error) {
 
 }
 
-func UserPermissions(user *auth.AuthUser) (*[]auth.Permission, error) {
+func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {
 	return instance.UserPermissions(user)
 }
 
-func PermissionList(user *auth.AuthUser) (*[]string, error) {
-
+func PermissionList(user *auth.AuthUser) ([]string, error) {
 	return instance.PermissionList(user)
-
 }
 
 // func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {

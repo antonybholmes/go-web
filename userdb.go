@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antonybholmes/go-sys"
 	"github.com/rs/zerolog/log"
 )
 
@@ -41,7 +40,8 @@ const FIND_USER_BY_USERNAME_SQL string = `SELECT
 	FROM users 
 	WHERE users.username = ?1`
 
-const ROLES_SQL string = `SELECT roles.public_id, roles.name, roles.description
+const ROLES_SQL string = `SELECT 
+	roles.id, roles.public_id, roles.name, roles.description
 	FROM roles 
 	ORDER BY roles.name`
 
@@ -51,15 +51,17 @@ const USER_PERMISSIONS string = `SELECT DISTINCT
 	WHERE users_roles.user_id = ?1 AND roles_permissions.role_id = users_roles.role_id AND permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
-const USER_ROLES string = `SELECT DISTINCT roles.id, roles.public_id, roles.name, roles.description
+const USER_ROLES string = `SELECT DISTINCT 
+	roles.id, roles.public_id, roles.name, roles.description
 	FROM users_roles, roles 
 	WHERE users_roles.user_id = ?1 AND roles.id = users_roles.role_id 
 	ORDER BY roles.name`
 
-const CREATE_USER_SQL = `INSERT INTO users (public_id, username, email, password, first_name, last_name, email_is_verified) 
-	VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+const INSERT_USER_SQL = `INSERT INTO users 
+	(public_id, username, email, password, first_name, last_name, email_is_verified) 
+	VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT DO NOTHING`
 
-const CREATE_USER_ROLE_SQL = "INSERT INTO users_roles (user_id, role_id) VALUES(?1, ?2)"
+const INSERT_USER_ROLE_SQL = "INSERT INTO users_roles (user_id, role_id) VALUES(?1, ?2) ON CONFLICT DO NOTHING"
 
 const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_is_verified = 1 WHERE users.public_id = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
@@ -72,7 +74,7 @@ const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
 
 type UserDb struct {
-	db *sql.DB
+	//db *sql.DB
 	//setEmailVerifiedStmt *sql.Stmt
 	//setPasswordStmt      *sql.Stmt
 	//setUsernameStmt      *sql.Stmt
@@ -96,18 +98,14 @@ func init() {
 
 func NewUserDB(file string) *UserDb {
 
-	db := sys.Must(sql.Open("sqlite3", file))
-
-	return &UserDb{file: file,
-		db: db,
-	}
+	return &UserDb{file: file}
 }
 
-func (userdb *UserDb) Close() {
-	if userdb.db != nil {
-		userdb.db.Close()
-	}
-}
+// func (userdb *UserDb) Close() {
+// 	if userdb.db != nil {
+// 		userdb.db.Close()
+// 	}
+// }
 
 func (userdb *UserDb) NumUsers() (uint, error) {
 	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
@@ -164,7 +162,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 			return nil, err
 		}
 
-		userdb.addRolesToUser(&authUser)
+		userdb.updateUserRoles(&authUser)
 
 		authUsers = append(authUsers, &authUser)
 	}
@@ -204,7 +202,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		return nil, err
 	}
 
-	err = userdb.addRolesToUser(&authUser)
+	err = userdb.updateUserRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -255,7 +253,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRolesToUser(&authUser)
+	err = userdb.updateUserRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -289,7 +287,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRolesToUser(&authUser)
+	err = userdb.updateUserRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -323,7 +321,7 @@ func (userdb *UserDb) FindUserByPublicId(public_id string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.addRolesToUser(&authUser)
+	err = userdb.updateUserRoles(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -332,7 +330,7 @@ func (userdb *UserDb) FindUserByPublicId(public_id string) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) addRolesToUser(authUser *AuthUser) error {
+func (userdb *UserDb) updateUserRoles(authUser *AuthUser) error {
 
 	roles, err := userdb.RoleList(authUser)
 
@@ -353,9 +351,9 @@ func (userdb *UserDb) RoleList(user *AuthUser) ([]string, error) {
 		return nil, err
 	}
 
-	ret := make([]string, len(*roles))
+	ret := make([]string, len(roles))
 
-	for ri, role := range *roles {
+	for ri, role := range roles {
 		ret[ri] = role.Name
 	}
 
@@ -363,7 +361,7 @@ func (userdb *UserDb) RoleList(user *AuthUser) ([]string, error) {
 
 }
 
-func (userdb *UserDb) PermissionList(user *AuthUser) (*[]string, error) {
+func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
 
 	permissions, err := userdb.UserPermissions(user)
 
@@ -371,17 +369,17 @@ func (userdb *UserDb) PermissionList(user *AuthUser) (*[]string, error) {
 		return nil, err
 	}
 
-	ret := make([]string, len(*permissions))
+	ret := make([]string, len(permissions))
 
-	for pi, permission := range *permissions {
+	for pi, permission := range permissions {
 		ret[pi] = permission.Name
 	}
 
-	return &ret, nil
+	return ret, nil
 
 }
 
-func (userdb *UserDb) Conn() (*sql.DB, error) {
+func (userdb *UserDb) NewConn() (*sql.DB, error) {
 	return sql.Open("sqlite3", userdb.file)
 
 }
@@ -401,8 +399,8 @@ func (userdb *UserDb) Conn() (*sql.DB, error) {
 // 	return userdb.db.QueryRow(query, args...)
 // }
 
-func (userdb *UserDb) Roles() (*[]Role, error) {
-	db, err := userdb.Conn()
+func (userdb *UserDb) Roles() ([]*Role, error) {
+	db, err := userdb.NewConn()
 
 	if err != nil {
 		return nil, err
@@ -410,7 +408,7 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 
 	defer db.Close()
 
-	rows, err := db.Query("SELECT id, public_id, name, description FROM roles ORDER by roles.name")
+	rows, err := db.Query(ROLES_SQL)
 
 	if err != nil {
 		return nil, err
@@ -418,7 +416,7 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 
 	defer rows.Close()
 
-	var roles []Role
+	var roles []*Role
 
 	for rows.Next() {
 		var role Role
@@ -430,14 +428,14 @@ func (userdb *UserDb) Roles() (*[]Role, error) {
 		if err != nil {
 			return nil, err
 		}
-		roles = append(roles, role)
+		roles = append(roles, &role)
 	}
 
-	return &roles, nil
+	return roles, nil
 }
 
 func (userdb *UserDb) Role(name string) (*Role, error) {
-	db, err := userdb.Conn()
+	db, err := userdb.NewConn()
 
 	if err != nil {
 		return nil, err
@@ -458,9 +456,9 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 	return &role, err
 }
 
-func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
+func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 
-	db, err := sql.Open("sqlite3", userdb.file) //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return nil, err
@@ -476,7 +474,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 
 	defer rows.Close()
 
-	var roles []Role
+	roles := make([]*Role, 0, 10)
 
 	for rows.Next() {
 		var role Role
@@ -485,15 +483,15 @@ func (userdb *UserDb) UserRoles(user *AuthUser) (*[]Role, error) {
 		if err != nil {
 			return nil, err
 		}
-		roles = append(roles, role)
+		roles = append(roles, &role)
 	}
 
-	return &roles, nil
+	return roles, nil
 }
 
-func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
+func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return nil, err
@@ -509,7 +507,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 
 	defer rows.Close()
 
-	var permissions []Permission
+	permissions := make([]*Permission, 0, 10)
 
 	for rows.Next() {
 		var permission Permission
@@ -518,15 +516,15 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) (*[]Permission, error) {
 		if err != nil {
 			return nil, err
 		}
-		permissions = append(permissions, permission)
+		permissions = append(permissions, &permission)
 	}
 
-	return &permissions, nil
+	return permissions, nil
 }
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return err
@@ -558,7 +556,7 @@ func (userdb *UserDb) SetPassword(public_id string, password string) error {
 
 	hash := HashPassword(password)
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return err
@@ -583,7 +581,7 @@ func (userdb *UserDb) SetUsername(public_id string, username string) error {
 		return err
 	}
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return err
@@ -613,7 +611,7 @@ func (userdb *UserDb) SetName(public_id string, firstName string, lastName strin
 		return err
 	}
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return err
@@ -650,7 +648,7 @@ func (userdb *UserDb) SetUserInfo(publicId string, username string, firstName st
 		return err
 	}
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return err
@@ -680,7 +678,7 @@ func (userdb *UserDb) SetEmail(publicId string, email string) error {
 }
 
 func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) error {
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn()
 
 	if err != nil {
 		return err
@@ -704,10 +702,18 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string) error {
 		return err
 	}
 
-	_, err = userdb.db.Exec(CREATE_USER_ROLE_SQL, user.Id, role.Id)
+	db, err := userdb.NewConn()
 
 	if err != nil {
-		return fmt.Errorf("could not add %s role not available, possibly this a duplicate entry", roleName)
+		return err
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec(INSERT_USER_ROLE_SQL, user.Id, role.Id)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -749,7 +755,7 @@ func (userdb *UserDb) CreateUser(userName string,
 		return nil, err
 	}
 
-	db, err := userdb.Conn() //not clear on what is needed for the user and password
+	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
 	if err != nil {
 		return nil, err
@@ -783,7 +789,7 @@ func (userdb *UserDb) CreateUser(userName string,
 		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 		//public_id, username, email, password, first_name, last_name
 
-		_, err = db.Exec(CREATE_USER_SQL,
+		_, err = db.Exec(INSERT_USER_SQL,
 			public_id,
 			userName,
 			email.Address,
