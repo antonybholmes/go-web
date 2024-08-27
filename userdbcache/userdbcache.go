@@ -1,6 +1,7 @@
 package userdbcache
 
 import (
+	"database/sql"
 	"net/mail"
 	"sync"
 
@@ -19,6 +20,14 @@ func InitCache(file string) {
 		instance = auth.NewUserDB(file)
 	})
 
+}
+
+func Instance() *auth.UserDb {
+	return instance
+}
+
+func NewConn() (*sql.DB, error) {
+	return instance.NewConn()
 }
 
 func NumUsers() (uint, error) {
@@ -135,14 +144,22 @@ func SetName(publicId string, firstName string, lastName string) error {
 	return instance.SetName(publicId, firstName, lastName)
 }
 
-func SetUserInfo(publicId string, username string, firstName string, lastName string) error {
-	return instance.SetUserInfo(publicId, username, firstName, lastName)
+func SetUserInfo(publicId string, username string, firstName string, lastName string, db *sql.DB) error {
+	return instance.SetUserInfo(publicId, username, firstName, lastName, db)
 }
 
 func SetEmail(publicId string, email string) error {
 	return instance.SetEmail(publicId, email)
 }
 
-func SetEmailAddress(publicId string, address *mail.Address) error {
-	return instance.SetEmailAddress(publicId, address)
+func SetEmailAddress(publicId string, address *mail.Address, db *sql.DB) error {
+	return instance.SetEmailAddress(publicId, address, db)
+}
+
+func SetUserRoles(user *auth.AuthUser, roles []string, db *sql.DB) error {
+	return instance.SetUserRoles(user, roles, db)
+}
+
+func DeleteUser(publicId string) error {
+	return instance.DeleteUser(publicId)
 }

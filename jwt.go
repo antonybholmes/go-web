@@ -8,30 +8,31 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog/log"
 )
 
-// type TokenType = uint8
-
-// const (
-// 	TOKEN_TYPE_VERIFY_EMAIL TokenType = iota
-// 	TOKEN_TYPE_PASSWORDLESS
-// 	TOKEN_TYPE_RESET_PASSWORD
-// 	TOKEN_TYPE_REFRESH
-// 	TOKEN_TYPE_ACCESS
-// )
-
-type TokenType = string
+type TokenType = uint
 
 const (
-	TOKEN_TYPE_VERIFY_EMAIL   TokenType = "verify_email"
-	TOKEN_TYPE_PASSWORDLESS   TokenType = "passwordless"
-	TOKEN_TYPE_RESET_PASSWORD TokenType = "reset_password"
-	TOKEN_TYPE_CHANGE_EMAIL   TokenType = "change_email"
-	TOKEN_TYPE_REFRESH        TokenType = "refresh"
-	TOKEN_TYPE_ACCESS         TokenType = "access"
-	TOKEN_TYPE_OTP            TokenType = "otp"
+	TOKEN_TYPE_VERIFY_EMAIL   TokenType = 1
+	TOKEN_TYPE_PASSWORDLESS   TokenType = 2
+	TOKEN_TYPE_RESET_PASSWORD TokenType = 3
+	TOKEN_TYPE_CHANGE_EMAIL   TokenType = 4
+	TOKEN_TYPE_REFRESH        TokenType = 5
+	TOKEN_TYPE_ACCESS         TokenType = 6
+	TOKEN_TYPE_OTP            TokenType = 7
 )
+
+// type TokenType = string
+
+// const (
+// 	TOKEN_TYPE_VERIFY_EMAIL   TokenType = "verify_email"
+// 	TOKEN_TYPE_PASSWORDLESS   TokenType = "passwordless"
+// 	TOKEN_TYPE_RESET_PASSWORD TokenType = "reset_password"
+// 	TOKEN_TYPE_CHANGE_EMAIL   TokenType = "change_email"
+// 	TOKEN_TYPE_REFRESH        TokenType = "refresh"
+// 	TOKEN_TYPE_ACCESS         TokenType = "access"
+// 	TOKEN_TYPE_OTP            TokenType = "otp"
+// )
 
 const (
 	TOKEN_TTL_YEAR    time.Duration = time.Hour * 24 * 365
@@ -45,11 +46,11 @@ const JWT_CLAIM_SEP = " "
 
 type JwtCustomClaims struct {
 	jwt.RegisteredClaims
-	PublicId string `json:"publicId"`
-	Type     string `json:"type"`
-	Data     string `json:"data,omitempty"`
-	Otp      string `json:"otp,omitempty"`
-	Scope    string `json:"scope,omitempty"`
+	PublicId string    `json:"publicId"`
+	Type     TokenType `json:"type"`
+	Data     string    `json:"data,omitempty"`
+	Otp      string    `json:"otp,omitempty"`
+	Scope    string    `json:"scope,omitempty"`
 	//Roles    []string `json:"roles,omitempty"`
 	Roles string `json:"roles,omitempty"`
 }
@@ -199,7 +200,7 @@ func (tc *JwtGen) BaseJwtToken(claims jwt.Claims) (string, error) {
 		return "", err
 	}
 
-	log.Debug().Msgf("token %s", t)
+	//log.Debug().Msgf("token %s", t)
 
 	return t, nil
 }

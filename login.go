@@ -36,13 +36,16 @@ type NewPasswordReq struct {
 }
 
 type LoginReq struct {
+	PublicId        string   `json:"publicId"`
+	Username        string   `json:"username"`
+	Email           string   `json:"email"`
+	Password        string   `json:"password"`
+	FirstName       string   `json:"firstName"`
+	LastName        string   `json:"lastName"`
+	Roles           []string `json:"roles"`
+	EmailIsVerified bool     `json:"emailIsVerified"`
+	StaySignedIn    bool     `json:"staySignedIn"`
 	UrlCallbackReq
-	Username     string `json:"username"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	FirstName    string `json:"firstName"`
-	LastName     string `json:"lastName"`
-	StaySignedIn bool   `json:"staySignedIn"`
 }
 
 // type LoginUser struct {
