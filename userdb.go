@@ -132,7 +132,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
+func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUser, error) {
 	db, err := userdb.NewConn()
 
 	if err != nil {
@@ -149,7 +149,7 @@ func (userdb *UserDb) Users(offset int, records int) ([]*AuthUser, error) {
 
 	defer rows.Close()
 
-	var authUsers []*AuthUser
+	authUsers := make([]*AuthUser, 0, records)
 
 	for rows.Next() {
 		var authUser AuthUser

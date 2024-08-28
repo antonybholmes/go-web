@@ -38,7 +38,7 @@ func Roles() ([]*auth.Role, error) {
 	return instance.Roles()
 }
 
-func Users(offset int, records int) ([]*auth.AuthUser, error) {
+func Users(offset uint, records uint) ([]*auth.AuthUser, error) {
 	return instance.Users(offset, records)
 }
 
