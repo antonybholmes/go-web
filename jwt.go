@@ -39,6 +39,7 @@ const (
 	TOKEN_TTL_30_DAYS time.Duration = time.Hour * 24 * 30
 	TOKEN_TTL_DAY     time.Duration = time.Hour * 24
 	TOKEN_TTL_HOUR    time.Duration = time.Hour //time.Minute * 60
+	TOKEN_TTL_20_MINS time.Duration = time.Minute * 20
 	TOKEN_TTL_10_MINS time.Duration = time.Minute * 10
 )
 
@@ -153,7 +154,7 @@ func (tc *JwtGen) ChangeEmailToken(c echo.Context, user *AuthUser, email *mail.A
 		Data:             email.Address,
 		Type:             TOKEN_TYPE_CHANGE_EMAIL,
 		Otp:              CreateOTP(user),
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_10_MINS))}}
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_TTL_20_MINS))}}
 
 	return tc.BaseJwtToken(claims)
 

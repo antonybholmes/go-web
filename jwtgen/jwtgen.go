@@ -34,7 +34,7 @@ func ResetPasswordToken(c echo.Context, user *auth.AuthUser) (string, error) {
 	return tc.ResetPasswordToken(c, user)
 }
 
-func ChangeEmailToken(c echo.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
+func ResetEmailToken(c echo.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
 	return tc.ChangeEmailToken(c, user, email)
 }
 

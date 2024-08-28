@@ -200,8 +200,10 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 	// 	return nil, err
 	// }
 
+	var err error
+
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return nil, err
@@ -211,7 +213,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 	}
 
 	var authUser AuthUser
-	err := db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
+	err = db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -452,8 +454,10 @@ func (userdb *UserDb) Roles() ([]*Role, error) {
 
 func (userdb *UserDb) Role(name string, db *sql.DB) (*Role, error) {
 
+	var err error
+
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return nil, err
@@ -463,7 +467,7 @@ func (userdb *UserDb) Role(name string, db *sql.DB) (*Role, error) {
 	}
 
 	var role Role
-	err := db.QueryRow("SELECT id, public_id, name, description FROM roles WHERE roles.name = ?", name).Scan(&role.Id,
+	err = db.QueryRow("SELECT id, public_id, name, description FROM roles WHERE roles.name = ?", name).Scan(&role.Id,
 		&role.PublicId,
 		&role.Name,
 		&role.Description)
@@ -567,7 +571,9 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 }
 
 func (userdb *UserDb) SetPassword(publicId string, password string, db *sql.DB) error {
-	err := CheckPassword(password)
+	var err error
+
+	err = CheckPassword(password)
 
 	if err != nil {
 		return err
@@ -576,7 +582,7 @@ func (userdb *UserDb) SetPassword(publicId string, password string, db *sql.DB) 
 	hash := HashPassword(password)
 
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return err
@@ -670,7 +676,7 @@ func (userdb *UserDb) SetUserInfo(publicId string, username string, firstName st
 	}
 
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return err
@@ -699,8 +705,10 @@ func (userdb *UserDb) SetEmail(publicId string, email string) error {
 }
 
 func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address, db *sql.DB) error {
+	var err error
+
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return err
@@ -709,7 +717,7 @@ func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address, db
 		defer db.Close()
 	}
 
-	_, err := db.Exec(SET_EMAIL_SQL, publicId, address.Address)
+	_, err = db.Exec(SET_EMAIL_SQL, publicId, address.Address)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -719,8 +727,10 @@ func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address, db
 }
 
 func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, db *sql.DB) error {
+	var err error
+
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return err
@@ -730,14 +740,14 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, db *sql.DB) e
 	}
 
 	// remove existing roles,
-	_, err := db.Exec(DELETE_USER_ROLES_SQL, user.Id)
+	_, err = db.Exec(DELETE_USER_ROLES_SQL, user.Id)
 
 	if err != nil {
 		return err
 	}
 
 	for _, role := range roles {
-		err := userdb.AddRoleToUser(user, role, db)
+		err = userdb.AddRoleToUser(user, role, db)
 
 		if err != nil {
 			return err
@@ -748,8 +758,10 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, db *sql.DB) e
 }
 
 func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, db *sql.DB) error {
+	var err error
+
 	if db == nil {
-		db, err := userdb.NewConn()
+		db, err = userdb.NewConn()
 
 		if err != nil {
 			return err
@@ -758,7 +770,9 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, db *sql.DB)
 		defer db.Close()
 	}
 
-	role, err := userdb.Role(roleName, db)
+	var role *Role
+
+	role, err = userdb.Role(roleName, db)
 
 	if err != nil {
 		return err
