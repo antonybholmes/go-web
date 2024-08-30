@@ -7,12 +7,11 @@ replace github.com/antonybholmes/go-mailer => ../go-mailer
 replace github.com/antonybholmes/go-sys => ../go-sys
 
 require (
-	github.com/antonybholmes/go-sys v0.0.0-20240801224521-3bed2c519a83
+	github.com/antonybholmes/go-sys v0.0.0-20240825181411-a5bc491d0736
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/matoous/go-nanoid/v2 v2.1.0
-	github.com/rs/zerolog v1.33.0
 	github.com/xyproto/randomstring v1.0.5
 	golang.org/x/crypto v0.26.0
 )
