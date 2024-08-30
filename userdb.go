@@ -132,7 +132,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUser, error) {
+func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, error) {
 	db, err := userdb.NewConn()
 
 	if err != nil {
@@ -149,10 +149,10 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUser, error) {
 
 	defer rows.Close()
 
-	authUsers := make([]*AuthUser, 0, records)
+	authUsers := make([]*AuthUserAdminView, 0, records)
 
 	for rows.Next() {
-		var authUser AuthUser
+		var authUser AuthUserAdminView
 		err := rows.Scan(&authUser.Id,
 			&authUser.PublicId,
 			&authUser.FirstName,
@@ -227,11 +227,11 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		return nil, err
 	}
 
-	err = userdb.updateUserRoles(&authUser)
+	//err = userdb.updateUserRoles(&authUser)
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &authUser, nil
 }
@@ -276,11 +276,11 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.updateUserRoles(&authUser)
+	// err = userdb.updateUserRoles(&authUser)
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &authUser, nil
 }
@@ -310,11 +310,11 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.updateUserRoles(&authUser)
+	// err = userdb.updateUserRoles(&authUser)
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &authUser, nil
 }
@@ -344,31 +344,31 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	err = userdb.updateUserRoles(&authUser)
+	// err = userdb.updateUserRoles(&authUser)
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &authUser, nil
 }
 
-func (userdb *UserDb) updateUserRoles(authUser *AuthUser) error {
+func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
 
-	roles, err := userdb.RoleList(authUser)
+	roles, err := userdb.RoleList(authUser.Id)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser.Roles = MakeClaim(roles)
+	authUser.Roles = roles
 
 	return nil
 }
 
-func (userdb *UserDb) RoleList(user *AuthUser) ([]string, error) {
+func (userdb *UserDb) RoleList(userId uint) ([]string, error) {
 
-	roles, err := userdb.UserRoles(user)
+	roles, err := userdb.UserRoles(userId)
 
 	if err != nil {
 		return nil, err
@@ -479,7 +479,7 @@ func (userdb *UserDb) Role(name string, db *sql.DB) (*Role, error) {
 	return &role, err
 }
 
-func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
+func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 
 	db, err := userdb.NewConn() //not clear on what is needed for the user and password
 
@@ -489,7 +489,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 
 	defer db.Close()
 
-	rows, err := db.Query(USER_ROLES, user.Id)
+	rows, err := db.Query(USER_ROLES, userId)
 
 	if err != nil {
 		return nil, err

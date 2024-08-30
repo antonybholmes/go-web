@@ -60,16 +60,27 @@ type Role struct {
 }
 
 type AuthUser struct {
-	PublicId        string `json:"publicId" db:"public_id"`
-	FirstName       string `json:"firstName" db:"first_name"`
-	LastName        string `json:"lastName" db:"last_name"`
-	Username        string `json:"username" db:"username"`
-	Email           string `json:"email" db:"email"`
-	HashedPassword  string `json:"-"`
-	Roles           string `json:"roles" db:"role"`
+	PublicId       string `json:"publicId" db:"public_id"`
+	FirstName      string `json:"firstName" db:"first_name"`
+	LastName       string `json:"lastName" db:"last_name"`
+	Username       string `json:"username" db:"username"`
+	Email          string `json:"email" db:"email"`
+	HashedPassword string `json:"-"`
+	//Roles           string `json:"roles" db:"role"`
 	Id              uint   `json:"-"`
 	Updated         uint64 `json:"-"`
 	EmailIsVerified bool   `json:"-"`
+}
+
+// The admin view adds roles to each user as it is assumed this
+// will be used for listing users for an admin dashboard where you
+// may need to know every user's roles. A standard user view does not
+// include roles and these are instead expected to be derived from
+// the access jwt assigned to the user since this contains their
+// encoded roles and is more resilient to tampering
+type AuthUserAdminView struct {
+	AuthUser
+	Roles []string `json:"roles" db:"role"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -108,19 +119,19 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
 }
 
-func (user *AuthUser) IsSuper() bool {
-	return IsSuper(user.Roles)
-}
+// func (user *AuthUser) IsSuper() bool {
+// 	return IsSuper(user.Roles)
+// }
 
-func (user *AuthUser) IsAdmin() bool {
-	return IsAdmin(user.Roles)
-}
+// func (user *AuthUser) IsAdmin() bool {
+// 	return IsAdmin(user.Roles)
+// }
 
-// Returns true if user is an admin or super, or is a member of
-// the login group
-func (user *AuthUser) CanLogin() bool {
-	return CanLogin(user.Roles)
-}
+// // Returns true if user is an admin or super, or is a member of
+// // the login group
+// func (user *AuthUser) CanLogin() bool {
+// 	return CanLogin(user.Roles)
+// }
 
 func IsSuper(roles string) bool {
 	return strings.Contains(roles, ROLE_SUPER)
