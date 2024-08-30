@@ -361,7 +361,7 @@ func (userdb *UserDb) updateUserRoles(authUser *AuthUser) error {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser.Roles = roles
+	authUser.Roles = MakeClaim(roles)
 
 	return nil
 }

@@ -85,6 +85,8 @@ type JwtCustomClaims struct {
 // 	}
 // }
 
+// Claims are space separated strings to match
+// the scope spec and reduce jwt complexity
 func MakeClaim(claims []string) string {
 	return strings.Join(claims, JWT_CLAIM_SEP)
 }

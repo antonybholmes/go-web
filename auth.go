@@ -60,16 +60,16 @@ type Role struct {
 }
 
 type AuthUser struct {
-	PublicId        string   `json:"publicId" db:"public_id"`
-	FirstName       string   `json:"firstName" db:"first_name"`
-	LastName        string   `json:"lastName" db:"last_name"`
-	Username        string   `json:"username" db:"username"`
-	Email           string   `json:"email" db:"email"`
-	HashedPassword  string   `json:"-"`
-	Roles           []string `json:"roles" db:"role"`
-	Id              uint     `json:"-"`
-	Updated         uint64   `json:"-"`
-	EmailIsVerified bool     `json:"-"`
+	PublicId        string `json:"publicId" db:"public_id"`
+	FirstName       string `json:"firstName" db:"first_name"`
+	LastName        string `json:"lastName" db:"last_name"`
+	Username        string `json:"username" db:"username"`
+	Email           string `json:"email" db:"email"`
+	HashedPassword  string `json:"-"`
+	Roles           string `json:"roles" db:"role"`
+	Id              uint   `json:"-"`
+	Updated         uint64 `json:"-"`
+	EmailIsVerified bool   `json:"-"`
 }
 
 // func (user *AuthUser) Address() *mail.Address {
@@ -109,17 +109,17 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 }
 
 func (user *AuthUser) IsSuper() bool {
-	return IsSuper(MakeClaim(user.Roles))
+	return IsSuper(user.Roles)
 }
 
 func (user *AuthUser) IsAdmin() bool {
-	return IsAdmin(MakeClaim(user.Roles))
+	return IsAdmin(user.Roles)
 }
 
 // Returns true if user is an admin or super, or is a member of
 // the login group
 func (user *AuthUser) CanLogin() bool {
-	return CanLogin(MakeClaim(user.Roles))
+	return CanLogin(user.Roles)
 }
 
 func IsSuper(roles string) bool {
