@@ -669,11 +669,11 @@ func (userdb *UserDb) SetUserInfo(publicId string, username string, firstName st
 		return err
 	}
 
-	err = CheckName(lastName)
+	// err = CheckName(lastName)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
 	if db == nil {
 		db, err = userdb.NewConn()
@@ -941,7 +941,6 @@ func CheckUsername(username string) error {
 	return nil
 }
 
-// Make sure password meets requirements
 func CheckName(name string) error {
 	if len(name) < MIN_NAME_LENGTH {
 		return fmt.Errorf("name must be at least %d characters", MIN_NAME_LENGTH)
