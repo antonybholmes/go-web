@@ -81,11 +81,6 @@ func UserRoleList(user *auth.AuthUser) ([]string, error) {
 	}
 
 	return ret, nil
-
-	//ret := strings.Join(tokens, ",")
-
-	//return ret, nil
-
 }
 
 func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {

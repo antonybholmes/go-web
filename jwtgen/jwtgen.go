@@ -18,30 +18,30 @@ func Init(secret *rsa.PrivateKey) {
 	})
 }
 
-func RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
-	return tc.RefreshToken(c, publicId, roles)
+func RefreshJwt(c echo.Context, publicId string, roles string) (string, error) {
+	return tc.RefreshJwt(c, publicId, roles)
 }
 
-func AccessToken(c echo.Context, publicId string, roles string) (string, error) {
-	return tc.AccessToken(c, publicId, roles)
+func AccessJwt(c echo.Context, publicId string, roles string) (string, error) {
+	return tc.AccessJwt(c, publicId, roles)
 }
 
-func VerifyEmailToken(c echo.Context, publicId string) (string, error) {
-	return tc.VerifyEmailToken(c, publicId)
+func VerifyEmailJwt(c echo.Context, publicId string) (string, error) {
+	return tc.VerifyEmailJwt(c, publicId)
 }
 
-func ResetPasswordToken(c echo.Context, user *auth.AuthUser) (string, error) {
-	return tc.ResetPasswordToken(c, user)
+func ResetPasswordJwt(c echo.Context, user *auth.AuthUser) (string, error) {
+	return tc.ResetPasswordJwt(c, user)
 }
 
-func ResetEmailToken(c echo.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
-	return tc.ChangeEmailToken(c, user, email)
+func ResetEmailJwt(c echo.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
+	return tc.ResetEmailJwt(c, user, email)
 }
 
-func PasswordlessToken(c echo.Context, publicId string) (string, error) {
-	return tc.PasswordlessToken(c, publicId)
+func PasswordlessJwt(c echo.Context, publicId string) (string, error) {
+	return tc.PasswordlessJwt(c, publicId)
 }
 
-func OneTimeToken(c echo.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {
-	return tc.OneTimeToken(c, user, tokenType)
+func OneTimeJwt(c echo.Context, user *auth.AuthUser, tokenType auth.JwtType) (string, error) {
+	return tc.OneTimeJwt(c, user, tokenType)
 }
