@@ -101,8 +101,8 @@ type TokenGen struct {
 
 func NewTokenGen(secret *rsa.PrivateKey) *TokenGen {
 	return &TokenGen{secret: secret,
-		accessTokenTTL: env.GetMin("ACCESS_TOKEN_TTL_MIN", TTL_15_MINS),
-		otpTokenTTL:    env.GetMin("OTP_TOKEN_TTL_MIN", TTL_20_MINS)}
+		accessTokenTTL: env.GetMin("ACCESS_TOKEN_TTL_MINS", TTL_15_MINS),
+		otpTokenTTL:    env.GetMin("OTP_TOKEN_TTL_MINS", TTL_20_MINS)}
 }
 
 func (tc *TokenGen) SetAccessTokenTTL(ttl time.Duration) *TokenGen {
@@ -184,11 +184,16 @@ func (tc *TokenGen) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType
 }
 
 // Generate short lived tokens for one time passcode use.
-func (tc *TokenGen) ShortTimeToken(c echo.Context, publicId string, tokenType TokenType) (string, error) {
+func (tc *TokenGen) ShortTimeToken(c echo.Context,
+	publicId string,
+	tokenType TokenType) (string, error) {
 	return tc.BasicToken(c, publicId, tokenType, TTL_10_MINS)
 }
 
-func (tc *TokenGen) BasicToken(c echo.Context, publicId string, tokenType TokenType, ttl time.Duration) (string, error) {
+func (tc *TokenGen) BasicToken(c echo.Context,
+	publicId string,
+	tokenType TokenType,
+	ttl time.Duration) (string, error) {
 	claims := TokenClaims{
 		PublicId:         publicId,
 		Type:             tokenType,

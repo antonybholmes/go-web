@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/antonybholmes/go-sys"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -67,9 +68,9 @@ type AuthUser struct {
 	Email          string `json:"email" db:"email"`
 	HashedPassword string `json:"-"`
 	//Roles           string `json:"roles" db:"role"`
-	Id              uint   `json:"-"`
-	Updated         uint64 `json:"-"`
-	EmailIsVerified bool   `json:"-"`
+	Id              uint          `json:"-"`
+	UpdatedAt       time.Duration `json:"-"`
+	EmailIsVerified bool          `json:"-"`
 }
 
 // The admin view adds roles to each user as it is assumed this
@@ -91,29 +92,29 @@ func init() {
 	randomstring.Seed()
 }
 
-func NewAuthUser(
-	id uint,
-	publicId string,
-	firstName string,
-	lastName string,
-	userName string,
-	email string,
-	hashedPassword string,
-	isVerified bool,
-	//canSignIn bool,
-	updated uint64) *AuthUser {
-	return &AuthUser{
-		Id:              id,
-		PublicId:        publicId,
-		FirstName:       firstName,
-		LastName:        lastName,
-		Username:        userName,
-		Email:           email,
-		HashedPassword:  hashedPassword,
-		EmailIsVerified: isVerified,
-		//CanSignIn:      canSignIn,
-		Updated: updated}
-}
+// func NewAuthUser(
+// 	id uint,
+// 	publicId string,
+// 	firstName string,
+// 	lastName string,
+// 	userName string,
+// 	email string,
+// 	hashedPassword string,
+// 	isVerified bool,
+// 	//canSignIn bool,
+// 	updated uint64) *AuthUser {
+// 	return &AuthUser{
+// 		Id:              id,
+// 		PublicId:        publicId,
+// 		FirstName:       firstName,
+// 		LastName:        lastName,
+// 		Username:        userName,
+// 		Email:           email,
+// 		HashedPassword:  hashedPassword,
+// 		EmailIsVerified: isVerified,
+// 		//CanSignIn:      canSignIn,
+// 		UpdatedAt: updated}
+// }
 
 func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
@@ -173,12 +174,12 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 
 // Only to be used for database update events.
 func CreateOTP(user *AuthUser) string {
-	return HashPassword(strconv.FormatUint(user.Updated, 10))
+	return HashPassword(strconv.FormatInt(user.UpdatedAt.Nanoseconds(), 10))
 
 }
 
 func CheckOTPValid(user *AuthUser, otp string) error {
-	err := CheckPasswordsMatch(otp, strconv.FormatUint(user.Updated, 10))
+	err := CheckPasswordsMatch(otp, strconv.FormatInt(user.UpdatedAt.Nanoseconds(), 10))
 
 	if err != nil {
 		return fmt.Errorf("one time code has expired")

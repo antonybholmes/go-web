@@ -6,6 +6,7 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
@@ -13,28 +14,28 @@ import (
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
 const USERS_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_at) 
 	FROM users 
 	LIMIT ?2
 	OFFSET ?1`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_at) 
 	FROM users 
 	WHERE users.id = ?1`
 
 const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_at) 
 	FROM users 
 	WHERE users.public_id = ?1`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_at) 
 	FROM users 
 	WHERE users.email = ?1`
 
 const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_on) 
+	id, public_id, first_name, last_name, username, email, password, email_is_verified, strftime('%s', updated_at) 
 	FROM users 
 	WHERE users.username = ?1`
 
@@ -161,7 +162,7 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 			&authUser.Email,
 			&authUser.HashedPassword,
 			&authUser.EmailIsVerified,
-			&authUser.Updated)
+			&authUser.UpdatedAt)
 
 		if err != nil {
 			return nil, err
@@ -221,7 +222,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.Updated)
+		&authUser.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -270,7 +271,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.Updated)
+		&authUser.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -304,7 +305,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.Updated)
+		&authUser.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -329,6 +330,8 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 	defer db.Close()
 
 	var authUser AuthUser
+	var updatedAt int64
+	//var createdAt int64
 
 	err = db.QueryRow(FIND_USER_BY_PUBLIC_ID_SQL, publicId).Scan(&authUser.Id,
 		&authUser.PublicId,
@@ -338,7 +341,10 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.Updated)
+
+		&updatedAt)
+
+	authUser.UpdatedAt = time.Duration(updatedAt)
 
 	if err != nil {
 		return nil, err
