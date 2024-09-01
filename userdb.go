@@ -799,7 +799,7 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, db *sql.DB)
 // 	return err
 // }
 
-func (userdb *UserDb) CreateUserFromSignup(user *SignupReq) (*AuthUser, error) {
+func (userdb *UserDb) CreateUserFromSignup(user *LoginReq) (*AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
 
 	if err != nil {
@@ -809,8 +809,8 @@ func (userdb *UserDb) CreateUserFromSignup(user *SignupReq) (*AuthUser, error) {
 	// The default username is email address unless a username is provided
 	userName := email.Address
 
-	if user.UserName != "" {
-		userName = user.UserName
+	if user.Username != "" {
+		userName = user.Username
 	}
 
 	// assume email is not verified

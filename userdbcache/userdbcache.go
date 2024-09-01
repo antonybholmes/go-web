@@ -42,7 +42,7 @@ func Users(offset uint, records uint) ([]*auth.AuthUserAdminView, error) {
 	return instance.Users(offset, records)
 }
 
-func CreateUserFromSignup(user *auth.SignupReq) (*auth.AuthUser, error) {
+func CreateUserFromSignup(user *auth.LoginReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
