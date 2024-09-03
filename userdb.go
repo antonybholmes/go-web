@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
@@ -261,6 +263,8 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debug().Msgf("what have we here %s", username)
 
 	var authUser AuthUser
 	err = db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
