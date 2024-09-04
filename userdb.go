@@ -497,6 +497,7 @@ func (userdb *UserDb) Roles() ([]*Role, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		roles = append(roles, &role)
 	}
 
@@ -709,7 +710,11 @@ func (userdb *UserDb) SetPassword(publicId string, password string, db *sql.DB) 
 // 	return err
 // }
 
-func (userdb *UserDb) SetUserInfo(publicId string, username string, firstName string, lastName string, db *sql.DB) error {
+func (userdb *UserDb) SetUserInfo(publicId string,
+	username string,
+	firstName string,
+	lastName string,
+	db *sql.DB) error {
 
 	err := CheckUsername(username)
 
