@@ -1,7 +1,6 @@
 package userdbcache
 
 import (
-	"database/sql"
 	"net/mail"
 	"sync"
 
@@ -26,9 +25,13 @@ func Instance() *auth.UserDb {
 	return instance
 }
 
-func NewConn() (*sql.DB, error) {
-	return instance.NewConn()
-}
+// func NewConn() (*sql.DB, error) {
+// 	return instance.NewConn()
+// }
+
+// func AutoConn(db *sql.DB) (*sql.DB, error) {
+// 	return instance.AutoConn(db)
+// }
 
 func NumUsers() (uint, error) {
 	return instance.NumUsers()
@@ -50,8 +53,8 @@ func FindUserById(id int) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByPublicId(publicId string, db *sql.DB) (*auth.AuthUser, error) {
-	return instance.FindUserByPublicId(publicId, db)
+func FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
+	return instance.FindUserByPublicId(publicId)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
@@ -59,16 +62,16 @@ func FindUserByUsername(username string) (*auth.AuthUser, error) {
 }
 
 func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return instance.FindUserByEmail(email, nil)
+	return instance.FindUserByEmail(email)
 }
 
 func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
-	return instance.UserRoles(user.Id, nil)
+	return instance.UserRoles(user.Id)
 }
 
 func UserRoleList(user *auth.AuthUser) ([]string, error) {
 
-	roles, err := instance.UserRoles(user.Id, nil)
+	roles, err := instance.UserRoles(user.Id)
 
 	if err != nil {
 		return nil, err
@@ -127,8 +130,8 @@ func SetIsVerified(user string) error {
 	return instance.SetIsVerified(user)
 }
 
-func SetPassword(publicId string, password string, db *sql.DB) error {
-	return instance.SetPassword(publicId, password, db)
+func SetPassword(publicId string, password string) error {
+	return instance.SetPassword(publicId, password)
 }
 
 // func SetUsername(publicId string, username string) error {
@@ -139,20 +142,20 @@ func SetPassword(publicId string, password string, db *sql.DB) error {
 // 	return instance.SetName(publicId, firstName, lastName)
 // }
 
-func SetUserInfo(publicId string, username string, firstName string, lastName string, db *sql.DB) error {
-	return instance.SetUserInfo(publicId, username, firstName, lastName, db)
+func SetUserInfo(publicId string, username string, firstName string, lastName string) error {
+	return instance.SetUserInfo(publicId, username, firstName, lastName)
 }
 
 func SetEmail(publicId string, email string) error {
 	return instance.SetEmail(publicId, email)
 }
 
-func SetEmailAddress(publicId string, address *mail.Address, db *sql.DB) error {
-	return instance.SetEmailAddress(publicId, address, db)
+func SetEmailAddress(publicId string, address *mail.Address) error {
+	return instance.SetEmailAddress(publicId, address)
 }
 
-func SetUserRoles(user *auth.AuthUser, roles []string, db *sql.DB) error {
-	return instance.SetUserRoles(user, roles, db)
+func SetUserRoles(user *auth.AuthUser, roles []string) error {
+	return instance.SetUserRoles(user, roles)
 }
 
 func DeleteUser(publicId string) error {
