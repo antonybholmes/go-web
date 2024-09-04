@@ -50,8 +50,8 @@ func FindUserById(id int) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
-	return instance.FindUserByPublicId(publicId)
+func FindUserByPublicId(publicId string, db *sql.DB) (*auth.AuthUser, error) {
+	return instance.FindUserByPublicId(publicId, db)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
@@ -63,12 +63,12 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 }
 
 func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
-	return instance.UserRoles(user.Id)
+	return instance.UserRoles(user.Id, nil)
 }
 
 func UserRoleList(user *auth.AuthUser) ([]string, error) {
 
-	roles, err := instance.UserRoles(user.Id)
+	roles, err := instance.UserRoles(user.Id, nil)
 
 	if err != nil {
 		return nil, err

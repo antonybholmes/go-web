@@ -170,7 +170,7 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 			return nil, err
 		}
 
-		userdb.updateUserRoles(&authUser)
+		userdb.updateUserRoles(&authUser, db)
 
 		authUsers = append(authUsers, &authUser)
 	}
@@ -186,6 +186,25 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 	}
 
 	defer db.Close()
+
+	authUser, err := userdb.FindUserByPublicId(publicId, db)
+
+	if err != nil {
+		return err
+	}
+
+	roles, err := userdb.RoleList(authUser.Id, db)
+
+	if err != nil {
+		return err
+	}
+
+	claim := MakeClaim(roles)
+
+	if strings.Contains(claim, ROLE_SUPER) {
+		log.Debug().Msgf("del super")
+		return fmt.Errorf("cannot delete superuser account")
+	}
 
 	_, err = db.Exec(DELETE_USER_SQL, publicId)
 
@@ -324,14 +343,20 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
-	db, err := userdb.NewConn() //not clear on what is needed for the user and password
+func (userdb *UserDb) FindUserByPublicId(publicId string, db *sql.DB) (*AuthUser, error) {
+	log.Debug().Msgf("zzzzzzzzzzzzz")
 
-	if err != nil {
-		return nil, err
+	var err error
+
+	if db == nil {
+		db, err = userdb.NewConn()
+
+		if err != nil {
+			return nil, err
+		}
+
+		defer db.Close()
 	}
-
-	defer db.Close()
 
 	var authUser AuthUser
 	var updatedAt int64
@@ -345,14 +370,17 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-
 		&updatedAt)
 
-	authUser.UpdatedAt = time.Duration(updatedAt)
+	log.Debug().Msgf("lllll %s", err)
 
 	if err != nil {
 		return nil, err
 	}
+
+	authUser.UpdatedAt = time.Duration(updatedAt)
+
+	log.Debug().Msgf("sdfjhdsfjkjkhsdf %v", authUser)
 
 	// err = userdb.updateUserRoles(&authUser)
 
@@ -363,9 +391,9 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
+func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView, db *sql.DB) error {
 
-	roles, err := userdb.RoleList(authUser.Id)
+	roles, err := userdb.RoleList(authUser.Id, db)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
@@ -376,9 +404,9 @@ func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
 	return nil
 }
 
-func (userdb *UserDb) RoleList(userId uint) ([]string, error) {
+func (userdb *UserDb) RoleList(userId uint, db *sql.DB) ([]string, error) {
 
-	roles, err := userdb.UserRoles(userId)
+	roles, err := userdb.UserRoles(userId, db)
 
 	if err != nil {
 		return nil, err
@@ -489,15 +517,18 @@ func (userdb *UserDb) Role(name string, db *sql.DB) (*Role, error) {
 	return &role, err
 }
 
-func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
+func (userdb *UserDb) UserRoles(userId uint, db *sql.DB) ([]*Role, error) {
+	var err error
 
-	db, err := userdb.NewConn() //not clear on what is needed for the user and password
+	if db == nil {
+		db, err = userdb.NewConn()
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		defer db.Close()
 	}
-
-	defer db.Close()
 
 	rows, err := db.Query(USER_ROLES, userId)
 
