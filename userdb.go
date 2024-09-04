@@ -154,8 +154,11 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 
 	authUsers := make([]*AuthUserAdminView, 0, records)
 
+	var authUser AuthUserAdminView
+	var updatedAt int64
+
 	for rows.Next() {
-		var authUser AuthUserAdminView
+
 		err := rows.Scan(&authUser.Id,
 			&authUser.PublicId,
 			&authUser.FirstName,
@@ -164,11 +167,13 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 			&authUser.Email,
 			&authUser.HashedPassword,
 			&authUser.EmailIsVerified,
-			&authUser.UpdatedAt)
+			&updatedAt)
 
 		if err != nil {
 			return nil, err
 		}
+
+		authUser.UpdatedAt = time.Duration(updatedAt)
 
 		userdb.updateUserRoles(&authUser, db)
 
@@ -235,6 +240,8 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 	}
 
 	var authUser AuthUser
+	var updatedAt int64
+
 	err = db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
@@ -243,11 +250,13 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address, db *sql.DB) (*AuthUse
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.UpdatedAt)
+		&updatedAt)
 
 	if err != nil {
 		return nil, err
 	}
+
+	authUser.UpdatedAt = time.Duration(updatedAt)
 
 	//err = userdb.updateUserRoles(&authUser)
 
@@ -286,6 +295,8 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	log.Debug().Msgf("what have we here %s", username)
 
 	var authUser AuthUser
+	var updatedAt int64
+
 	err = db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
@@ -294,11 +305,13 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.UpdatedAt)
+		&updatedAt)
 
 	if err != nil {
 		return nil, err
 	}
+
+	authUser.UpdatedAt = time.Duration(updatedAt)
 
 	// err = userdb.updateUserRoles(&authUser)
 
@@ -319,7 +332,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	defer db.Close()
 
 	var authUser AuthUser
-
+	var updatedAt int64
 	err = db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
@@ -328,11 +341,13 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 		&authUser.Email,
 		&authUser.HashedPassword,
 		&authUser.EmailIsVerified,
-		&authUser.UpdatedAt)
+		&updatedAt)
 
 	if err != nil {
 		return nil, err
 	}
+
+	authUser.UpdatedAt = time.Duration(updatedAt)
 
 	// err = userdb.updateUserRoles(&authUser)
 
@@ -344,8 +359,6 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 }
 
 func (userdb *UserDb) FindUserByPublicId(publicId string, db *sql.DB) (*AuthUser, error) {
-	log.Debug().Msgf("zzzzzzzzzzzzz")
-
 	var err error
 
 	if db == nil {
