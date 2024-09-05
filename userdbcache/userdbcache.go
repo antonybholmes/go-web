@@ -146,9 +146,9 @@ func SetUserInfo(publicId string, username string, firstName string, lastName st
 	return instance.SetUserInfo(publicId, username, firstName, lastName)
 }
 
-func SetEmail(publicId string, email string) error {
-	return instance.SetEmail(publicId, email)
-}
+// func SetEmail(publicId string, email string) error {
+// 	return instance.SetEmail(publicId, email)
+// }
 
 func SetEmailAddress(publicId string, address *mail.Address) error {
 	return instance.SetEmailAddress(publicId, address)

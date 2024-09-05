@@ -54,7 +54,7 @@ const USER_PERMISSIONS string = `SELECT DISTINCT
 	permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
-const USER_ROLES string = `SELECT DISTINCT 
+const USER_ROLES_SQL string = `SELECT DISTINCT 
 	roles.id, roles.public_id, roles.name, roles.description
 	FROM users_roles, roles 
 	WHERE users_roles.user_id = ?1 AND roles.id = users_roles.role_id 
@@ -76,6 +76,8 @@ const SET_EMAIL_SQL = `UPDATE users SET email = ?2 WHERE users.public_id = ?1`
 
 const DELETE_USER_SQL = `DELETE FROM users WHERE public_id = ?1`
 
+const ROLE_SQL = "SELECT id, public_id, name, description FROM roles WHERE roles.name = ?1"
+
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
 
@@ -85,32 +87,63 @@ type UserDb struct {
 	//setPasswordStmt      *sql.Stmt
 	//setUsernameStmt      *sql.Stmt
 	//setNameStmt  *sql.Stmt
-	//setInfoStmt  *sql.Stmt
+
 	//setEmailStmt *sql.Stmt
-	file    string
-	prepMap map[string]*sql.Stmt
+	file string
+	//prepMap map[string]*sql.Stmt
+	setInfoStmt            *sql.Stmt
+	setEmailStmt           *sql.Stmt
+	findUserByIdStmt       *sql.Stmt
+	findUserByPublicIdStmt *sql.Stmt
+	findUserByEmailStmt    *sql.Stmt
+	findUserByUsernameStmt *sql.Stmt
+	usersStmt              *sql.Stmt
+	userRolesStmt          *sql.Stmt
+	insertUserStmt         *sql.Stmt
+	insertUserRoleStmt     *sql.Stmt
+	rolesStmt              *sql.Stmt
+	roleStmt               *sql.Stmt
+	deleteUserStmt         *sql.Stmt
 }
 
 func NewUserDB(file string) *UserDb {
 	db := sys.Must(sql.Open("sqlite3", file))
 
-	return &UserDb{file: file, db: db, prepMap: make(map[string]*sql.Stmt)}
+	return &UserDb{
+		file:                   file,
+		db:                     db,
+		findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_ID_SQL)),
+		findUserByPublicIdStmt: sys.Must(db.Prepare(FIND_USER_BY_PUBLIC_ID_SQL)),
+		findUserByEmailStmt:    sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL)),
+		findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
+		setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
+		setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
+		usersStmt:              sys.Must(db.Prepare(USERS_SQL)),
+		userRolesStmt:          sys.Must(db.Prepare(USER_ROLES_SQL)),
+		insertUserStmt:         sys.Must(db.Prepare(INSERT_USER_SQL)),
+		insertUserRoleStmt:     sys.Must(db.Prepare(INSERT_USER_ROLE_SQL)),
+		rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
+		roleStmt:               sys.Must(db.Prepare(ROLE_SQL)),
+		deleteUserStmt:         sys.Must(db.Prepare(DELETE_USER_SQL))}
 }
 
 func (userdb *UserDb) Db() *sql.DB {
 	return userdb.db
 }
 
-func (userdb *UserDb) PrepStmt(sql string) *sql.Stmt {
-	stmt, ok := userdb.prepMap[sql]
+// func (userdb *UserDb) PrepStmt(sql string) *sql.Stmt {
+// 	stmt, ok := userdb.prepMap[sql]
 
-	if !ok {
-		stmt = sys.Must(userdb.db.Prepare(sql))
-		userdb.prepMap[sql] = stmt
-	}
+// 	if ok {
+// 		log.Debug().Msgf("cached stmt %s", sql)
+// 		return stmt
+// 	}
 
-	return stmt
-}
+// 	stmt = sys.Must(userdb.db.Prepare(sql))
+// 	userdb.prepMap[sql] = stmt
+
+// 	return stmt
+// }
 
 // func (userdb *UserDb) NewConn() (*sql.DB, error) {
 // 	return sql.Open("sqlite3", userdb.file)
@@ -167,7 +200,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 
 func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, error) {
 
-	rows, err := userdb.db.Query(USERS_SQL, offset, records)
+	rows, err := userdb.usersStmt.Query(offset, records)
 
 	if err != nil {
 		return nil, err
@@ -177,11 +210,10 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 
 	authUsers := make([]*AuthUserAdminView, 0, records)
 
-	var authUser AuthUserAdminView
 	var updatedAt int64
 
 	for rows.Next() {
-
+		var authUser AuthUserAdminView
 		err := rows.Scan(&authUser.Id,
 			&authUser.PublicId,
 			&authUser.FirstName,
@@ -223,11 +255,10 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 	claim := MakeClaim(roles)
 
 	if strings.Contains(claim, ROLE_SUPER) {
-		log.Debug().Msgf("del super")
 		return fmt.Errorf("cannot delete superuser account")
 	}
 
-	_, err = userdb.db.Exec(DELETE_USER_SQL, publicId)
+	_, err = userdb.deleteUserStmt.Exec(publicId)
 
 	if err != nil {
 		return err
@@ -237,16 +268,10 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 }
 
 func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
-	// e, err := mail.ParseAddress(email)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	var authUser AuthUser
 	var updatedAt int64
 
-	err := userdb.db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
+	err := userdb.findUserByEmailStmt.QueryRow(email.Address).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -289,12 +314,10 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	log.Debug().Msgf("what have we here %s", username)
-
 	var authUser AuthUser
 	var updatedAt int64
 
-	err = userdb.db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
+	err = userdb.findUserByUsernameStmt.QueryRow(username).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -324,7 +347,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	var authUser AuthUser
 	var updatedAt int64
 
-	err := userdb.db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
+	err := userdb.findUserByIdStmt.QueryRow(id).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -355,7 +378,7 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 	var updatedAt int64
 	//var createdAt int64
 
-	err := userdb.PrepStmt(FIND_USER_BY_PUBLIC_ID_SQL).QueryRow(publicId).Scan(&authUser.Id,
+	err := userdb.findUserByPublicIdStmt.QueryRow(publicId).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -446,7 +469,7 @@ func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
 
 func (userdb *UserDb) Roles() ([]*Role, error) {
 
-	rows, err := userdb.db.Query(ROLES_SQL)
+	rows, err := userdb.rolesStmt.Query()
 
 	if err != nil {
 		return nil, err
@@ -477,7 +500,7 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 
 	var role Role
 
-	err := userdb.db.QueryRow("SELECT id, public_id, name, description FROM roles WHERE roles.name = ?", name).Scan(&role.Id,
+	err := userdb.roleStmt.QueryRow(name).Scan(&role.Id,
 		&role.PublicId,
 		&role.Name,
 		&role.Description)
@@ -491,7 +514,7 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 
 func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 
-	rows, err := userdb.db.Query(USER_ROLES, userId)
+	rows, err := userdb.userRolesStmt.Query(userId)
 
 	if err != nil {
 		return nil, err
@@ -652,11 +675,8 @@ func (userdb *UserDb) SetUserInfo(publicId string,
 
 	// if err != nil {
 	// 	return err
-	// }
 
-	log.Debug().Msgf("cheese %s %s", publicId, lastName)
-
-	_, err = userdb.PrepStmt(SET_INFO_SQL).Exec(publicId, username, firstName, lastName)
+	_, err = userdb.setInfoStmt.Exec(publicId, username, firstName, lastName)
 
 	if err != nil {
 		log.Debug().Msgf("%s", err)
@@ -666,19 +686,19 @@ func (userdb *UserDb) SetUserInfo(publicId string,
 	return err
 }
 
-func (userdb *UserDb) SetEmail(publicId string, email string) error {
-	address, err := mail.ParseAddress(email)
+// func (userdb *UserDb) SetEmail(publicId string, email string) error {
+// 	address, err := mail.ParseAddress(email)
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return userdb.SetEmailAddress(publicId, address)
-}
+// 	return userdb.SetEmailAddress(publicId, address)
+// }
 
 func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) error {
 
-	_, err := userdb.db.Exec(SET_EMAIL_SQL, publicId, address.Address)
+	_, err := userdb.setEmailStmt.Exec(publicId, address.Address)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -717,7 +737,7 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string) error {
 		return err
 	}
 
-	_, err = userdb.db.Exec(INSERT_USER_ROLE_SQL, user.Id, role.Id)
+	_, err = userdb.insertUserRoleStmt.Exec(user.Id, role.Id)
 
 	if err != nil {
 		return err
@@ -788,7 +808,7 @@ func (userdb *UserDb) CreateUser(userName string,
 		//log.Debug().Msgf("%s %s", user.FirstName, user.Email)
 		//public_id, username, email, password, first_name, last_name
 
-		_, err = userdb.db.Exec(INSERT_USER_SQL,
+		_, err = userdb.insertUserStmt.Exec(
 			public_id,
 			userName,
 			email.Address,
