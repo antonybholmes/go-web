@@ -183,8 +183,16 @@ func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visit
 	// 	PASSWORDLESS_TOKEN)
 
 	claims := TokenClaims{
-		PublicId:         publicId,
-		Type:             PASSWORDLESS_TOKEN,
+		PublicId: publicId,
+		Type:     PASSWORDLESS_TOKEN,
+		// This is so the frontend can redirect itself to another page to make
+		// the workflow smoother. For example, if on mutations page and it
+		// requires sign in, we can pass the page url to the server as the visit
+		// url and then it can be encoded in the jwt that is sent back, which
+		// the frontend can read and once sign in is validated, it can then change
+		// to the visit page. This is so the user is not taken to a sign in or
+		// account page because then they have to click on the page they want again
+		// which is annoying UI.
 		Url:              visitUrl,
 		RegisteredClaims: makeClaims(tc.shortTTL),
 	}
