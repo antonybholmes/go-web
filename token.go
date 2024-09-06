@@ -49,11 +49,11 @@ const JWT_CLAIM_SEP = " "
 
 type TokenClaims struct {
 	jwt.RegisteredClaims
-	PublicId string    `json:"publicId"`
-	Type     TokenType `json:"type"`
-	Data     string    `json:"data,omitempty"`
-	Otp      string    `json:"otp,omitempty"`
-	Scope    string    `json:"scope,omitempty"`
+	PublicId        string    `json:"publicId"`
+	Type            TokenType `json:"type"`
+	Data            string    `json:"data,omitempty"`
+	OneTimePasscode string    `json:"otp,omitempty"`
+	Scope           string    `json:"scope,omitempty"`
 	//Roles    []string `json:"roles,omitempty"`
 	Roles string `json:"roles,omitempty"`
 	Url   string `json:"url,omitempty"`
@@ -122,7 +122,6 @@ func (tc *TokenGen) RefreshToken(c echo.Context, publicId string, roles string) 
 	return tc.BasicToken(c,
 		publicId,
 		REFRESH_TOKEN,
-
 		TTL_HOUR)
 }
 
@@ -159,7 +158,7 @@ func (tc *TokenGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, 
 		// include first name to personalize reset
 		Data:             user.FirstName,
 		Type:             RESET_PASSWORD_TOKEN,
-		Otp:              CreateOTP(user),
+		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeClaims(tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
@@ -171,7 +170,7 @@ func (tc *TokenGen) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.
 		PublicId:         user.PublicId,
 		Data:             email.Address,
 		Type:             CHANGE_EMAIL_TOKEN,
-		Otp:              CreateOTP(user),
+		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeClaims(tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
@@ -197,7 +196,7 @@ func (tc *TokenGen) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType
 	claims := TokenClaims{
 		PublicId:         user.PublicId,
 		Type:             tokenType,
-		Otp:              CreateOTP(user),
+		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeClaims(tc.shortTTL),
 	}
 
