@@ -26,8 +26,8 @@ func AccessToken(c echo.Context, publicId string, roles string) (string, error) 
 	return tc.AccessToken(c, publicId, roles)
 }
 
-func VerifyEmailToken(c echo.Context, publicId string) (string, error) {
-	return tc.VerifyEmailToken(c, publicId)
+func VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+	return tc.VerifyEmailToken(c, publicId, visitUrl)
 }
 
 func ResetPasswordToken(c echo.Context, user *auth.AuthUser) (string, error) {
@@ -38,8 +38,8 @@ func ResetEmailToken(c echo.Context, user *auth.AuthUser, email *mail.Address) (
 	return tc.ResetEmailToken(c, user, email)
 }
 
-func PasswordlessToken(c echo.Context, publicId string) (string, error) {
-	return tc.PasswordlessToken(c, publicId)
+func PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+	return tc.PasswordlessToken(c, publicId, visitUrl)
 }
 
 func OneTimeToken(c echo.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {

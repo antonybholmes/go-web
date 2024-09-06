@@ -56,6 +56,7 @@ type TokenClaims struct {
 	Scope    string    `json:"scope,omitempty"`
 	//Roles    []string `json:"roles,omitempty"`
 	Roles string `json:"roles,omitempty"`
+	Url   string `json:"url,omitempty"`
 }
 
 //type RoleMap map[string][]string
@@ -137,10 +138,19 @@ func (tc *TokenGen) AccessToken(c echo.Context, publicId string, roles string) (
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) VerifyEmailToken(c echo.Context, publicId string) (string, error) {
-	return tc.ShortTimeToken(c,
-		publicId,
-		VERIFY_EMAIL_TOKEN)
+func (tc *TokenGen) VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+	// return tc.ShortTimeToken(c,
+	// 	publicId,
+	// 	VERIFY_EMAIL_TOKEN)
+
+	claims := TokenClaims{
+		PublicId:         publicId,
+		Type:             VERIFY_EMAIL_TOKEN,
+		Url:              visitUrl,
+		RegisteredClaims: makeClaims(tc.shortTTL),
+	}
+
+	return tc.BaseToken(claims)
 }
 
 func (tc *TokenGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
@@ -168,10 +178,19 @@ func (tc *TokenGen) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.
 
 }
 
-func (tc *TokenGen) PasswordlessToken(c echo.Context, publicId string) (string, error) {
-	return tc.ShortTimeToken(c,
-		publicId,
-		PASSWORDLESS_TOKEN)
+func (tc *TokenGen) PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+	// return tc.ShortTimeToken(c,
+	// 	publicId,
+	// 	PASSWORDLESS_TOKEN)
+
+	claims := TokenClaims{
+		PublicId:         publicId,
+		Type:             PASSWORDLESS_TOKEN,
+		Url:              visitUrl,
+		RegisteredClaims: makeClaims(tc.shortTTL),
+	}
+
+	return tc.BaseToken(claims)
 }
 
 func (tc *TokenGen) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
