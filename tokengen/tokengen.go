@@ -9,12 +9,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var tc *auth.TokenGen
+var tc *auth.TokenCreator
 var once sync.Once
 
 func Init(secret *rsa.PrivateKey) {
 	once.Do(func() {
-		tc = auth.NewTokenGen(secret)
+		tc = auth.NewTokenCreator(secret)
 	})
 }
 

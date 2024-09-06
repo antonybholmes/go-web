@@ -94,38 +94,38 @@ func MakeClaim(claims []string) string {
 	return strings.Join(claims, JWT_CLAIM_SEP)
 }
 
-type TokenGen struct {
+type TokenCreator struct {
 	secret         *rsa.PrivateKey
 	accessTokenTTL time.Duration
 	otpTokenTTL    time.Duration
 	shortTTL       time.Duration
 }
 
-func NewTokenGen(secret *rsa.PrivateKey) *TokenGen {
-	return &TokenGen{secret: secret,
+func NewTokenCreator(secret *rsa.PrivateKey) *TokenCreator {
+	return &TokenCreator{secret: secret,
 		accessTokenTTL: env.GetMin("ACCESS_TOKEN_TTL_MINS", TTL_15_MINS),
 		otpTokenTTL:    env.GetMin("OTP_TOKEN_TTL_MINS", TTL_20_MINS),
 		shortTTL:       env.GetMin("SHORT_TTL_MINS", TTL_10_MINS)}
 }
 
-func (tc *TokenGen) SetAccessTokenTTL(ttl time.Duration) *TokenGen {
+func (tc *TokenCreator) SetAccessTokenTTL(ttl time.Duration) *TokenCreator {
 	tc.accessTokenTTL = ttl
 	return tc
 }
 
-func (tc *TokenGen) SetOTPTokenTTL(ttl time.Duration) *TokenGen {
+func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 	tc.otpTokenTTL = ttl
 	return tc
 }
 
-func (tc *TokenGen) RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
+func (tc *TokenCreator) RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
 	return tc.BasicToken(c,
 		publicId,
 		REFRESH_TOKEN,
 		TTL_HOUR)
 }
 
-func (tc *TokenGen) AccessToken(c echo.Context, publicId string, roles string) (string, error) {
+func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles string) (string, error) {
 
 	claims := TokenClaims{
 		PublicId: publicId,
@@ -137,7 +137,7 @@ func (tc *TokenGen) AccessToken(c echo.Context, publicId string, roles string) (
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+func (tc *TokenCreator) VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
@@ -152,7 +152,7 @@ func (tc *TokenGen) VerifyEmailToken(c echo.Context, publicId string, visitUrl s
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
 	claims := TokenClaims{
 		PublicId: user.PublicId,
 		// include first name to personalize reset
@@ -164,7 +164,7 @@ func (tc *TokenGen) ResetPasswordToken(c echo.Context, user *AuthUser) (string, 
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
+func (tc *TokenCreator) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := TokenClaims{
 		PublicId:         user.PublicId,
@@ -177,7 +177,7 @@ func (tc *TokenGen) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.
 
 }
 
-func (tc *TokenGen) PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
@@ -192,7 +192,7 @@ func (tc *TokenGen) PasswordlessToken(c echo.Context, publicId string, visitUrl 
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
+func (tc *TokenCreator) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := TokenClaims{
 		PublicId:         user.PublicId,
 		Type:             tokenType,
@@ -204,13 +204,13 @@ func (tc *TokenGen) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType
 }
 
 // Generate short lived tokens for one time passcode use.
-func (tc *TokenGen) ShortTimeToken(c echo.Context,
+func (tc *TokenCreator) ShortTimeToken(c echo.Context,
 	publicId string,
 	tokenType TokenType) (string, error) {
 	return tc.BasicToken(c, publicId, tokenType, tc.shortTTL)
 }
 
-func (tc *TokenGen) BasicToken(c echo.Context,
+func (tc *TokenCreator) BasicToken(c echo.Context,
 	publicId string,
 	tokenType TokenType,
 	ttl time.Duration) (string, error) {
@@ -223,7 +223,7 @@ func (tc *TokenGen) BasicToken(c echo.Context,
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenGen) BaseToken(claims jwt.Claims) (string, error) {
+func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
 
 	// Create token with claims
 	//token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
