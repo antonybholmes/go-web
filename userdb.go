@@ -126,8 +126,6 @@ func NewUserDB(file string) *UserDb {
 		AllowNativePasswords: true,
 	}
 
-	log.Debug().Msgf("%v", cfg)
-
 	db := sys.Must(sql.Open("mysql", cfg.FormatDSN()))
 
 	pingErr := db.Ping()
