@@ -118,11 +118,12 @@ func NewUserDB(file string) *UserDb {
 	//db := sys.Must(sql.Open("sqlite3", file))
 
 	cfg := mysql.Config{
-		User:   os.Getenv("MYSQL_USER"),
-		Passwd: os.Getenv("MYSQL_PASSWORD"),
-		Net:    "tcp",
-		Addr:   os.Getenv("MYSQL_ADDR"),
-		DBName: os.Getenv("MYSQL_DATABASE"),
+		User:                 os.Getenv("MYSQL_USER"),
+		Passwd:               os.Getenv("MYSQL_PASSWORD"),
+		Net:                  "tcp",
+		Addr:                 os.Getenv("MYSQL_ADDR"),
+		DBName:               os.Getenv("MYSQL_DATABASE"),
+		AllowNativePasswords: true,
 	}
 
 	log.Debug().Msgf("%v", cfg)
