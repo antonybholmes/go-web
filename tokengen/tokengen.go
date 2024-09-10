@@ -26,8 +26,8 @@ func AccessToken(c echo.Context, publicId string, roles string) (string, error) 
 	return tc.AccessToken(c, publicId, roles)
 }
 
-func VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
-	return tc.VerifyEmailToken(c, publicId, visitUrl)
+func VerifyEmailToken(c echo.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
+	return tc.VerifyEmailToken(c, authUser, visitUrl)
 }
 
 func ResetPasswordToken(c echo.Context, user *auth.AuthUser) (string, error) {

@@ -137,13 +137,14 @@ func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles strin
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) VerifyEmailToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
 
 	claims := TokenClaims{
-		PublicId:         publicId,
+		PublicId:         authUser.PublicId,
+		Data:             authUser.FirstName,
 		Type:             VERIFY_EMAIL_TOKEN,
 		Url:              visitUrl,
 		RegisteredClaims: makeClaims(tc.shortTTL),
