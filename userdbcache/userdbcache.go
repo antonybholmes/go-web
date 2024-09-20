@@ -11,12 +11,12 @@ import (
 var instance *auth.UserDb
 var once sync.Once
 
-func InitCache(file string) {
+func InitCache() {
 
 	//instance, err = auth.NewUserDB(file)
 
 	once.Do(func() {
-		instance = auth.NewUserDB(file)
+		instance = auth.NewUserDB()
 	})
 
 }
