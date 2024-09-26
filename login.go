@@ -36,6 +36,7 @@ type NewPasswordReq struct {
 }
 
 type LoginReq struct {
+	UrlCallbackReq
 	PublicId        string   `json:"publicId"`
 	Username        string   `json:"username"`
 	Email           string   `json:"email"`
@@ -45,7 +46,6 @@ type LoginReq struct {
 	Roles           []string `json:"roles"`
 	EmailIsVerified bool     `json:"emailIsVerified"`
 	StaySignedIn    bool     `json:"staySignedIn"`
-	UrlCallbackReq
 }
 
 // type LoginUser struct {

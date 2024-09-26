@@ -80,8 +80,8 @@ type AuthUser struct {
 // the access jwt assigned to the user since this contains their
 // encoded roles and is more resilient to tampering
 type AuthUserAdminView struct {
-	AuthUser
 	Roles []string `json:"roles" db:"role"`
+	AuthUser
 }
 
 // func (user *AuthUser) Address() *mail.Address {

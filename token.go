@@ -50,13 +50,12 @@ const JWT_CLAIM_SEP = " "
 type TokenClaims struct {
 	jwt.RegisteredClaims
 	PublicId        string    `json:"publicId"`
-	Type            TokenType `json:"type"`
 	Data            string    `json:"data,omitempty"`
 	OneTimePasscode string    `json:"otp,omitempty"`
 	Scope           string    `json:"scope,omitempty"`
-	//Roles    []string `json:"roles,omitempty"`
-	Roles string `json:"roles,omitempty"`
-	Url   string `json:"url,omitempty"`
+	Roles           string    `json:"roles,omitempty"`
+	Url             string    `json:"url,omitempty"`
+	Type            TokenType `json:"type"`
 }
 
 //type RoleMap map[string][]string
