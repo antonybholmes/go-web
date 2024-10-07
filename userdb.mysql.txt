@@ -97,7 +97,7 @@ type UserDb struct {
 	//setNameStmt  *sql.Stmt
 
 	//setEmailStmt *sql.Stmt
-	file string
+	//file string
 	//prepMap map[string]*sql.Stmt
 	setInfoStmt            *sql.Stmt
 	setEmailStmt           *sql.Stmt
@@ -114,18 +114,17 @@ type UserDb struct {
 	deleteUserStmt         *sql.Stmt
 }
 
-func NewUserDB(file string) *UserDb {
+func NewUserDB() *UserDb {
 	//db := sys.Must(sql.Open("sqlite3", file))
 
 	cfg := mysql.Config{
-		User:   os.Getenv("MYSQL_USER"),
-		Passwd: os.Getenv("MYSQL_PASSWORD"),
-		Net:    "tcp",
-		Addr:   os.Getenv("MYSQL_ADDR"),
-		DBName: os.Getenv("MYSQL_DATABASE"),
+		User:                 os.Getenv("MYSQL_USER"),
+		Passwd:               os.Getenv("MYSQL_PASSWORD"),
+		Net:                  "tcp",
+		Addr:                 os.Getenv("MYSQL_ADDR"),
+		DBName:               os.Getenv("MYSQL_DATABASE"),
+		AllowNativePasswords: true,
 	}
-
-	log.Debug().Msgf("%v", cfg)
 
 	db := sys.Must(sql.Open("mysql", cfg.FormatDSN()))
 
@@ -138,7 +137,7 @@ func NewUserDB(file string) *UserDb {
 	log.Debug().Msgf("Connected!")
 
 	return &UserDb{
-		file:                   file,
+		//file:                   file,
 		db:                     db,
 		findUserByIdStmt:       sys.Must(db.Prepare(FIND_USER_BY_ID_SQL)),
 		findUserByPublicIdStmt: sys.Must(db.Prepare(FIND_USER_BY_PUBLIC_ID_SQL)),

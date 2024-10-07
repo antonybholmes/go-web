@@ -70,7 +70,7 @@ type AuthUser struct {
 	//Roles           string `json:"roles" db:"role"`
 	Id              uint          `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`
-	EmailIsVerified bool          `json:"-"`
+	EmailVerifiedAt time.Duration `json:"-"`
 }
 
 // The admin view adds roles to each user as it is assumed this

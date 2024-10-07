@@ -58,6 +58,14 @@ type TokenClaims struct {
 	Type            TokenType `json:"type"`
 }
 
+const EMAIL_CLAIM = "https://edb.rdf-lab.org/email"
+
+type Auth0TokenClaims struct {
+	jwt.RegisteredClaims
+	Name  string `json:"https://edb.rdf-lab.org/name"`
+	Email string `json:"https://edb.rdf-lab.org/email"`
+}
+
 //type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {

@@ -49,6 +49,10 @@ func CreateUserFromSignup(user *auth.LoginReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
+func CreateUserFromAuth0(name string, email *mail.Address) (*auth.AuthUser, error) {
+	return instance.CreateUserFromAuth0(name, email)
+}
+
 func FindUserById(id int) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
