@@ -22,7 +22,7 @@ const USERS_SQL string = `SELECT
 	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
 	FROM users 
 	LIMIT $1
-	OFFSET $1`
+	OFFSET $2`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
 	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
@@ -216,9 +216,10 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, error) {
+func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, error) {
+	//log.Debug().Msgf("users %d %d", records, offset)
 
-	rows, err := userdb.db.Query(userdb.ctx, USERS_SQL, offset, records)
+	rows, err := userdb.db.Query(userdb.ctx, USERS_SQL, records, offset)
 
 	if err != nil {
 		return nil, err
@@ -229,6 +230,7 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 	authUsers := make([]*AuthUserAdminView, 0, records)
 
 	var updatedAt int64
+	var emailVerifiedAt int64
 
 	for rows.Next() {
 		var authUser AuthUserAdminView
@@ -239,14 +241,18 @@ func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, er
 			&authUser.Username,
 			&authUser.Email,
 			&authUser.HashedPassword,
-			&authUser.EmailVerifiedAt,
+			&emailVerifiedAt,
 			&updatedAt)
 
 		if err != nil {
+			log.Debug().Msgf("users err %s", err)
 			return nil, err
 		}
 
+		authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
 		authUser.UpdatedAt = time.Duration(updatedAt)
+
+		log.Debug().Msgf("this user err %v", authUser)
 
 		userdb.updateUserRoles(&authUser)
 
@@ -845,6 +851,8 @@ func (userdb *UserDb) CreateUser(userName string,
 			hash = HashPassword(password)
 		}
 
+		// default to unverified i.e. if time is epoch (1970) assume
+		// unverified
 		emailVerifiedAt := "epoch"
 
 		if emailIsVerified {

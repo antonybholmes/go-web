@@ -41,8 +41,8 @@ func Roles() ([]*auth.Role, error) {
 	return instance.Roles()
 }
 
-func Users(offset uint, records uint) ([]*auth.AuthUserAdminView, error) {
-	return instance.Users(offset, records)
+func Users(records uint, offset uint) ([]*auth.AuthUserAdminView, error) {
+	return instance.Users(records, offset)
 }
 
 func CreateUserFromSignup(user *auth.LoginReq) (*auth.AuthUser, error) {

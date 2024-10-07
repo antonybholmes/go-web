@@ -11,29 +11,29 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type TokenType = uint
-
-const (
-	VERIFY_EMAIL_TOKEN   TokenType = 1
-	PASSWORDLESS_TOKEN   TokenType = 2
-	RESET_PASSWORD_TOKEN TokenType = 3
-	CHANGE_EMAIL_TOKEN   TokenType = 4
-	REFRESH_TOKEN        TokenType = 5
-	ACCESS_TOKEN         TokenType = 6
-	OTP_TOKEN            TokenType = 7
-)
-
-// type TokenType = string
+// type TokenType = uint
 
 // const (
-// 	TOKEN_TYPE_VERIFY_EMAIL   TokenType = "verify_email"
-// 	TOKEN_TYPE_PASSWORDLESS   TokenType = "passwordless"
-// 	TOKEN_TYPE_RESET_PASSWORD TokenType = "reset_password"
-// 	TOKEN_TYPE_CHANGE_EMAIL   TokenType = "change_email"
-// 	TOKEN_TYPE_REFRESH        TokenType = "refresh"
-// 	TOKEN_TYPE_ACCESS         TokenType = "access"
-// 	TOKEN_TYPE_OTP            TokenType = "otp"
+// 	VERIFY_EMAIL_TOKEN   TokenType = 1
+// 	PASSWORDLESS_TOKEN   TokenType = 2
+// 	RESET_PASSWORD_TOKEN TokenType = 3
+// 	CHANGE_EMAIL_TOKEN   TokenType = 4
+// 	REFRESH_TOKEN        TokenType = 5
+// 	ACCESS_TOKEN         TokenType = 6
+// 	OTP_TOKEN            TokenType = 7
 // )
+
+type TokenType = string
+
+const (
+	VERIFY_EMAIL_TOKEN   TokenType = "verify_email"
+	PASSWORDLESS_TOKEN   TokenType = "passwordless"
+	RESET_PASSWORD_TOKEN TokenType = "reset_password"
+	CHANGE_EMAIL_TOKEN   TokenType = "change_email"
+	REFRESH_TOKEN        TokenType = "refresh"
+	ACCESS_TOKEN         TokenType = "access"
+	OTP_TOKEN            TokenType = "otp"
+)
 
 const (
 	TTL_YEAR    time.Duration = time.Hour * 24 * 365
