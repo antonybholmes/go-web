@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"net/mail"
 	"os"
@@ -10,39 +10,41 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog/log"
 )
+
+// MySQL version
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
 const USERS_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
-	LIMIT $1
-	OFFSET $2`
+	LIMIT ?
+	OFFSET ?`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
-	WHERE users.id = $1`
+	WHERE users.id = ?`
 
 const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
-	WHERE users.public_id = $1`
+	WHERE users.public_id = ?`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
-	WHERE users.email = $1`
+	WHERE users.email = ?`
 
 const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
-	WHERE users.username = $1`
+	WHERE users.username = ?`
 
 const ROLES_SQL string = `SELECT 
 	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
@@ -52,32 +54,32 @@ const ROLES_SQL string = `SELECT
 const USER_PERMISSIONS_SQL string = `SELECT DISTINCT 
 	permissions.id, permissions.public_id, permissions.name, permissions.description
 	FROM users_roles, roles_permissions, permissions 
-	WHERE users_roles.user_id = $1 AND roles_permissions.role_id = users_roles.role_id AND 
+	WHERE users_roles.user_id = ? AND roles_permissions.role_id = users_roles.role_id AND 
 	permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
 const USER_ROLES_SQL string = `SELECT DISTINCT 
 	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
 	FROM users_roles, user_roles 
-	WHERE users_roles.user_id = $1 AND user_roles.id = users_roles.role_id 
+	WHERE users_roles.user_id = ? AND user_roles.id = users_roles.role_id 
 	ORDER BY user_roles.name`
 
-const INSERT_USER_SQL = `INSERT INTO users 
+const INSERT_USER_SQL = `INSERT IGNORE INTO users 
 	(public_id, username, email, password, first_name, last_name, email_verified_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`
+	VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-const DELETE_USER_ROLES_SQL = "DELETE FROM users_roles WHERE user_id = $1"
-const INSERT_USER_ROLE_SQL = "INSERT INTO users_roles (user_id, role_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
+const DELETE_USER_ROLES_SQL = "DELETE FROM users_roles WHERE user_id = ?"
+const INSERT_USER_ROLE_SQL = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
 
-const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_verified_at = now() WHERE users.public_id = $1`
-const SET_PASSWORD_SQL = `UPDATE users SET password = $1 WHERE users.public_id = $2`
-const SET_USERNAME_SQL = `UPDATE users SET username = $1 WHERE users.public_id = $2`
+const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_verified_at = now() WHERE users.public_id = ?`
+const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
+const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.public_id = ?`
 
-// const SET_NAME_SQL = `UPDATE users SET first_name = $1, last_name = $1 WHERE users.public_id = $1`
-const SET_INFO_SQL = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.public_id = $4`
-const SET_EMAIL_SQL = `UPDATE users SET email = $1 WHERE users.public_id = $2`
+// const SET_NAME_SQL = `UPDATE users SET first_name = 1, last_name = 1 WHERE users.public_id = 1`
+const SET_INFO_SQL = `UPDATE users SET username = ?, first_name = ?, last_name = ? WHERE users.public_id = ?`
+const SET_EMAIL_SQL = `UPDATE users SET email = ? WHERE users.public_id = ?`
 
-const DELETE_USER_SQL = `DELETE FROM users WHERE public_id = $1`
+const DELETE_USER_SQL = `DELETE FROM users WHERE public_id = ?`
 
 const COUNT_USERS_SQL = `SELECT COUNT(ID) FROM users`
 
@@ -86,14 +88,14 @@ const ROLE_SQL = `SELECT
 	user_roles.public_id, 
 	user_roles.name,
 	user_roles.description 
-	FROM user_roles WHERE user_roles.name = $1`
+	FROM user_roles WHERE user_roles.name = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
 
 type UserDb struct {
-	db  *pgxpool.Pool
-	ctx context.Context
+	db *sql.DB
+	//ctx context.Context
 	//setEmailVerifiedStmt *sql.Stmt
 	//setPasswordStmt      *sql.Stmt
 	//setUsernameStmt      *sql.Stmt
@@ -119,17 +121,20 @@ type UserDb struct {
 
 func NewUserDB() *UserDb {
 	//db := sys.Must(sql.Open("sqlite3", file))
-	ctx := context.Background()
+	cfg := mysql.Config{
+		User:                 os.Getenv("MYSQL_USER"),
+		Passwd:               os.Getenv("MYSQL_PASSWORD"),
+		Net:                  "tcp",
+		Addr:                 os.Getenv("MYSQL_ADDR"),
+		DBName:               os.Getenv("MYSQL_DATABASE"),
+		AllowNativePasswords: true,
+	}
 
-	log.Debug().Msgf("conn %s", os.Getenv("DATABASE_URL"))
-
-	db := sys.Must(pgxpool.New(ctx, os.Getenv("DATABASE_URL")))
-
-	log.Debug().Msgf("Connected!")
+	db := sys.Must(sql.Open("mysql", cfg.FormatDSN()))
 
 	return &UserDb{
-		db:  db,
-		ctx: ctx,
+		db: db,
+		//ctx: ctx,
 		// findUserByPublicIdStmt: sys.Must(db.Prepare(FIND_USER_BY_PUBLIC_ID_SQL)),
 		// findUserByEmailStmt:    sys.Must(db.Prepare(FIND_USER_BY_EMAIL_SQL)),
 		// findUserByUsernameStmt: sys.Must(db.Prepare(FIND_USER_BY_USERNAME_SQL)),
@@ -145,7 +150,7 @@ func NewUserDB() *UserDb {
 	}
 }
 
-func (userdb *UserDb) Db() *pgxpool.Pool {
+func (userdb *UserDb) Db() *sql.DB {
 	return userdb.db
 }
 
@@ -191,7 +196,7 @@ var EMAIL_REGEX *regexp.Regexp
 var NAME_REGEX *regexp.Regexp
 
 func init() {
-	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d\@\$\!\%\*\#\$1\&\.\~\^\-]*$`)
+	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d\@\$\!\%\*\#\$\&\.\~\^\-]*$`)
 	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
 	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.]+$`)
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
@@ -207,7 +212,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 
 	var n uint
 
-	err := userdb.db.QueryRow(userdb.ctx, COUNT_USERS_SQL).Scan(&n)
+	err := userdb.db.QueryRow(COUNT_USERS_SQL).Scan(&n)
 
 	if err != nil {
 		return 0, err
@@ -219,7 +224,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, error) {
 	//log.Debug().Msgf("users %d %d", records, offset)
 
-	rows, err := userdb.db.Query(userdb.ctx, USERS_SQL, records, offset)
+	rows, err := userdb.db.Query(USERS_SQL, records, offset)
 
 	if err != nil {
 		return nil, err
@@ -282,7 +287,7 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 		return fmt.Errorf("cannot delete superuser account")
 	}
 
-	_, err = userdb.db.Exec(userdb.ctx, DELETE_USER_SQL, publicId)
+	_, err = userdb.db.Exec(DELETE_USER_SQL, publicId)
 
 	if err != nil {
 		return err
@@ -295,7 +300,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 	var authUser AuthUser
 	var updatedAt int64
 
-	err := userdb.db.QueryRow(userdb.ctx, FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
+	err := userdb.db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -341,7 +346,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	var authUser AuthUser
 	var updatedAt int64
 
-	err = userdb.db.QueryRow(userdb.ctx, FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
+	err = userdb.db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -372,7 +377,7 @@ func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
 	var authUser AuthUser
 	var updatedAt int64
 
-	err := userdb.db.QueryRow(userdb.ctx, FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
+	err := userdb.db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -403,7 +408,7 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 	var updatedAt int64
 	//var createdAt int64
 
-	err := userdb.db.QueryRow(userdb.ctx, FIND_USER_BY_PUBLIC_ID_SQL, publicId).Scan(&authUser.Id,
+	err := userdb.db.QueryRow(FIND_USER_BY_PUBLIC_ID_SQL, publicId).Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -494,7 +499,7 @@ func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
 
 func (userdb *UserDb) Roles() ([]*Role, error) {
 
-	rows, err := userdb.db.Query(userdb.ctx, ROLES_SQL)
+	rows, err := userdb.db.Query(ROLES_SQL)
 
 	if err != nil {
 		return nil, err
@@ -525,7 +530,7 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 
 	var role Role
 
-	err := userdb.db.QueryRow(userdb.ctx, ROLE_SQL, name).Scan(&role.Id,
+	err := userdb.db.QueryRow(ROLE_SQL, name).Scan(&role.Id,
 		&role.PublicId,
 		&role.Name,
 		&role.Description)
@@ -539,7 +544,7 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 
 func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 
-	rows, err := userdb.db.Query(userdb.ctx, USER_ROLES_SQL, userId)
+	rows, err := userdb.db.Query(USER_ROLES_SQL, userId)
 
 	if err != nil {
 		return nil, err
@@ -564,7 +569,7 @@ func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 
 func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
-	rows, err := userdb.db.Query(userdb.ctx, USER_PERMISSIONS_SQL, user.Id)
+	rows, err := userdb.db.Query(USER_PERMISSIONS_SQL, user.Id)
 
 	if err != nil {
 		return nil, err
@@ -589,7 +594,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
 func (userdb *UserDb) SetIsVerified(userId string) error {
 
-	_, err := userdb.db.Exec(userdb.ctx, SET_EMAIL_IS_VERIFIED_SQL, userId)
+	_, err := userdb.db.Exec(SET_EMAIL_IS_VERIFIED_SQL, userId)
 
 	if err != nil {
 		return err
@@ -615,7 +620,7 @@ func (userdb *UserDb) SetPassword(publicId string, password string) error {
 
 	hash := HashPassword(password)
 
-	_, err = userdb.db.Exec(userdb.ctx, SET_PASSWORD_SQL, hash, publicId)
+	_, err = userdb.db.Exec(SET_PASSWORD_SQL, hash, publicId)
 
 	if err != nil {
 		return fmt.Errorf("could not update password")
@@ -701,7 +706,7 @@ func (userdb *UserDb) SetUserInfo(publicId string,
 	// if err != nil {
 	// 	return err
 
-	_, err = userdb.db.Exec(userdb.ctx, SET_INFO_SQL, username, firstName, lastName, publicId)
+	_, err = userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, publicId)
 
 	if err != nil {
 		log.Debug().Msgf("%s", err)
@@ -723,7 +728,7 @@ func (userdb *UserDb) SetUserInfo(publicId string,
 
 func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) error {
 
-	_, err := userdb.db.Exec(userdb.ctx, SET_EMAIL_SQL, address.Address, publicId)
+	_, err := userdb.db.Exec(SET_EMAIL_SQL, address.Address, publicId)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -735,7 +740,7 @@ func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) er
 func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string) error {
 
 	// remove existing roles,
-	_, err := userdb.db.Exec(userdb.ctx, DELETE_USER_ROLES_SQL, user.Id)
+	_, err := userdb.db.Exec(DELETE_USER_ROLES_SQL, user.Id)
 
 	if err != nil {
 		return err
@@ -762,7 +767,7 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string) error {
 		return err
 	}
 
-	_, err = userdb.db.Exec(userdb.ctx, INSERT_USER_ROLE_SQL, user.Id, role.Id)
+	_, err = userdb.db.Exec(INSERT_USER_ROLE_SQL, user.Id, role.Id)
 
 	if err != nil {
 		return err
@@ -853,15 +858,15 @@ func (userdb *UserDb) CreateUser(userName string,
 
 		// default to unverified i.e. if time is epoch (1970) assume
 		// unverified
-		emailVerifiedAt := "epoch"
+		emailVerifiedAt := "1000-01-01"
 
 		if emailIsVerified {
-			emailVerifiedAt = "now()"
+			emailVerifiedAt = "UTC_TIMESTAMP()"
 		}
 
 		log.Debug().Msgf("%s %s %s", publicId, email.Address, emailVerifiedAt)
 
-		_, err = userdb.db.Exec(userdb.ctx,
+		_, err = userdb.db.Exec(
 			INSERT_USER_SQL,
 			publicId,
 			userName,
