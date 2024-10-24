@@ -92,6 +92,7 @@ const ROLE_SQL = `SELECT
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
+const EMAIL_NOT_VERIFIED_TIME_S time.Duration = 31556995200
 
 type UserDb struct {
 	db *sql.DB
