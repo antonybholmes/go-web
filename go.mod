@@ -10,7 +10,7 @@ require (
 	github.com/antonybholmes/go-sys v0.0.0-20241021142915-13ff92cbbcdc
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
-	github.com/labstack/echo/v4 v4.13.2
+	github.com/labstack/echo/v4 v4.13.3
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/rs/zerolog v1.33.0
 	github.com/xyproto/randomstring v1.2.0
