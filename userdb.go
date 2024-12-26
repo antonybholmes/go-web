@@ -21,18 +21,18 @@ import (
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
 const USERS_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
+	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
 	LIMIT ?
 	OFFSET ?`
 
 const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
+	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
 	WHERE users.id = ?`
 
 const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
+	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
 	WHERE users.public_id = ?`
 
@@ -42,12 +42,12 @@ const FIND_USER_BY_API_KEY_SQL string = `SELECT
 	WHERE api_key = ?`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
+	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
 	WHERE users.email = ?`
 
 const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
+	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
 	WHERE users.username = ?`
 
@@ -251,6 +251,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, er
 			&authUser.LastName,
 			&authUser.Username,
 			&authUser.Email,
+			&authUser.IsLocked,
 			&authUser.HashedPassword,
 			&emailVerifiedAt,
 			&updatedAt)
@@ -312,6 +313,7 @@ func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
 		&authUser.LastName,
 		&authUser.Username,
 		&authUser.Email,
+		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
 		&updatedAt)
@@ -358,6 +360,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		&authUser.LastName,
 		&authUser.Username,
 		&authUser.Email,
+		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
 		&updatedAt)
@@ -389,6 +392,7 @@ func (userdb *UserDb) FindUserById(id uint) (*AuthUser, error) {
 		&authUser.LastName,
 		&authUser.Username,
 		&authUser.Email,
+		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
 		&updatedAt)
@@ -420,6 +424,7 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 		&authUser.LastName,
 		&authUser.Username,
 		&authUser.Email,
+		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
 		&updatedAt)
@@ -712,10 +717,14 @@ func (userdb *UserDb) SetPassword(publicId string, password string) error {
 // 	return err
 // }
 
-func (userdb *UserDb) SetUserInfo(publicId string,
+func (userdb *UserDb) SetUserInfo(user *AuthUser,
 	username string,
 	firstName string,
 	lastName string) error {
+
+	if user.IsLocked {
+		return fmt.Errorf("account locked")
+	}
 
 	err := CheckUsername(username)
 
@@ -734,7 +743,7 @@ func (userdb *UserDb) SetUserInfo(publicId string,
 	// if err != nil {
 	// 	return err
 
-	_, err = userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, publicId)
+	_, err = userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, user.PublicId)
 
 	if err != nil {
 		log.Debug().Msgf("%s", err)
@@ -936,7 +945,7 @@ func (userdb *UserDb) CreateUser(userName string,
 
 	// Give user standard role and ability to login
 	userdb.AddRoleToUser(authUser, ROLE_USER)
-	userdb.AddRoleToUser(authUser, ROLE_LOGIN)
+	userdb.AddRoleToUser(authUser, ROLE_SIGNIN)
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 

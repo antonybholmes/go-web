@@ -21,11 +21,11 @@ const (
 )
 
 const (
-	ROLE_SUPER = "Super"
-	ROLE_ADMIN = "Admin"
-	ROLE_USER  = "User"
-	ROLE_LOGIN = "Login"
-	ROLE_RDF   = "RDF"
+	ROLE_SUPER  = "Super"
+	ROLE_ADMIN  = "Admin"
+	ROLE_USER   = "User"
+	ROLE_SIGNIN = "Signin"
+	ROLE_RDF    = "RDF"
 )
 
 type UrlReq struct {
@@ -67,7 +67,9 @@ type AuthUser struct {
 	LastName       string `json:"lastName" db:"last_name"`
 	Username       string `json:"username" db:"username"`
 	Email          string `json:"email" db:"email"`
+	IsLocked       bool   `json:"-"`
 	HashedPassword string `json:"-"`
+
 	//Roles           string `json:"roles" db:"role"`
 	Id              uint          `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`
@@ -144,8 +146,8 @@ func IsAdmin(roles string) bool {
 
 }
 
-func CanLogin(roles string) bool {
-	return IsAdmin(roles) || strings.Contains(roles, ROLE_LOGIN)
+func CanSignin(roles string) bool {
+	return IsAdmin(roles) || strings.Contains(roles, ROLE_SIGNIN)
 }
 
 // // Generate a one time code

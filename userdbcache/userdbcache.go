@@ -152,8 +152,8 @@ func SetPassword(publicId string, password string) error {
 // 	return instance.SetName(publicId, firstName, lastName)
 // }
 
-func SetUserInfo(publicId string, username string, firstName string, lastName string) error {
-	return instance.SetUserInfo(publicId, username, firstName, lastName)
+func SetUserInfo(user *auth.AuthUser, username string, firstName string, lastName string) error {
+	return instance.SetUserInfo(user, username, firstName, lastName)
 }
 
 // func SetEmail(publicId string, email string) error {
