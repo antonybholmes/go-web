@@ -35,7 +35,13 @@ type NewPasswordReq struct {
 	NewPassword string `json:"newPassword"`
 }
 
-type LoginReq struct {
+type ApiKeyLoginReq struct {
+	Key string `json:"key"`
+}
+
+// When user is logging in, they may supply some or
+// all of these as part of the authentication process
+type LoginBodyReq struct {
 	UrlCallbackReq
 	PublicId        string   `json:"publicId"`
 	Username        string   `json:"username"`

@@ -45,7 +45,7 @@ func Users(records uint, offset uint) ([]*auth.AuthUserAdminView, error) {
 	return instance.Users(records, offset)
 }
 
-func CreateUserFromSignup(user *auth.LoginReq) (*auth.AuthUser, error) {
+func CreateUserFromSignup(user *auth.LoginBodyReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
@@ -53,7 +53,7 @@ func CreateUserFromAuth0(name string, email *mail.Address) (*auth.AuthUser, erro
 	return instance.CreateUserFromAuth0(name, email)
 }
 
-func FindUserById(id int) (*auth.AuthUser, error) {
+func FindUserById(id uint) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
@@ -65,6 +65,10 @@ func FindUserByUsername(username string) (*auth.AuthUser, error) {
 	return instance.FindUserByUsername(username)
 }
 
+func FindUserByApiKey(key string) (*auth.AuthUser, error) {
+	return instance.FindUserByApiKey(key)
+}
+
 func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return instance.FindUserByEmail(email)
 }
@@ -73,6 +77,7 @@ func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
 	return instance.UserRoles(user.Id)
 }
 
+// returns a string list of a user's roles
 func UserRoleList(user *auth.AuthUser) ([]string, error) {
 
 	roles, err := instance.UserRoles(user.Id)
@@ -81,6 +86,7 @@ func UserRoleList(user *auth.AuthUser) ([]string, error) {
 		return nil, err
 	}
 
+	// map roles to strings
 	ret := make([]string, len(roles))
 
 	for ri, role := range roles {

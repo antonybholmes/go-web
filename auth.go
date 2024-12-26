@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
@@ -197,4 +198,9 @@ func NanoId() string {
 	}
 
 	return id
+}
+
+func IsValidUUID(u string) bool {
+	_, err := uuid.Parse(u)
+	return err == nil
 }

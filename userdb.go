@@ -36,6 +36,11 @@ const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT
 	FROM users 
 	WHERE users.public_id = ?`
 
+const FIND_USER_BY_API_KEY_SQL string = `SELECT 
+	id, user_id, api_key
+	FROM api_keys, 
+	WHERE api_key = ?`
+
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
 	id, public_id, first_name, last_name, username, email, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
 	FROM users 
@@ -373,7 +378,7 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) FindUserById(id int) (*AuthUser, error) {
+func (userdb *UserDb) FindUserById(id uint) (*AuthUser, error) {
 
 	var authUser AuthUser
 	var updatedAt int64
@@ -432,6 +437,26 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 	// }
 
 	return &authUser, nil
+}
+
+func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
+
+	if !IsValidUUID(key) {
+		return nil, fmt.Errorf("api key is not in valid format")
+	}
+
+	var id uint
+	var user_id uint
+	//var createdAt int64
+
+	err := userdb.db.QueryRow(FIND_USER_BY_API_KEY_SQL, key).Scan(&id,
+		&user_id, &key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return userdb.FindUserById(user_id)
 }
 
 func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
@@ -783,7 +808,7 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string) error {
 // 	return err
 // }
 
-func (userdb *UserDb) CreateUserFromSignup(user *LoginReq) (*AuthUser, error) {
+func (userdb *UserDb) CreateUserFromSignup(user *LoginBodyReq) (*AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
 
 	if err != nil {

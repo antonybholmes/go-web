@@ -139,7 +139,7 @@ func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles strin
 		//IpAddr:           ipAddr,
 		Type:             ACCESS_TOKEN,
 		Roles:            roles,
-		RegisteredClaims: makeClaims(tc.accessTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
 
 	return tc.BaseToken(claims)
 }
@@ -154,7 +154,7 @@ func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, vis
 		Data:             authUser.FirstName,
 		Type:             VERIFY_EMAIL_TOKEN,
 		Url:              visitUrl,
-		RegisteredClaims: makeClaims(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -167,7 +167,7 @@ func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (stri
 		Data:             user.FirstName,
 		Type:             RESET_PASSWORD_TOKEN,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeClaims(tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
 }
@@ -179,7 +179,7 @@ func (tc *TokenCreator) ResetEmailToken(c echo.Context, user *AuthUser, email *m
 		Data:             email.Address,
 		Type:             CHANGE_EMAIL_TOKEN,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeClaims(tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
 
@@ -202,7 +202,7 @@ func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visit
 		// account page because then they have to click on the page they want again
 		// which is annoying UI.
 		Url:              visitUrl,
-		RegisteredClaims: makeClaims(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -213,7 +213,7 @@ func (tc *TokenCreator) OTPToken(c echo.Context, user *AuthUser, tokenType Token
 		PublicId:         user.PublicId,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeClaims(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -233,7 +233,7 @@ func (tc *TokenCreator) BasicToken(c echo.Context,
 	claims := TokenClaims{
 		PublicId:         publicId,
 		Type:             tokenType,
-		RegisteredClaims: makeClaims(ttl),
+		RegisteredClaims: makeDefaultClaimsWithTTL(ttl),
 	}
 
 	return tc.BaseToken(claims)
@@ -257,7 +257,7 @@ func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
 	return t, nil
 }
 
-func makeClaims(ttl time.Duration) jwt.RegisteredClaims {
+func makeDefaultClaimsWithTTL(ttl time.Duration) jwt.RegisteredClaims {
 	return jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
 }
 
