@@ -38,7 +38,7 @@ const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT
 
 const FIND_USER_BY_API_KEY_SQL string = `SELECT 
 	id, user_id, api_key
-	FROM api_keys, 
+	FROM api_keys 
 	WHERE api_key = ?`
 
 const FIND_USER_BY_EMAIL_SQL string = `SELECT 
@@ -449,6 +449,8 @@ func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
 	var user_id uint
 	//var createdAt int64
 
+	log.Debug().Msgf("key %s", key)
+
 	err := userdb.db.QueryRow(FIND_USER_BY_API_KEY_SQL, key).Scan(&id,
 		&user_id, &key)
 
@@ -573,7 +575,7 @@ func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 	rows, err := userdb.db.Query(USER_ROLES_SQL, userId)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("user roles not found")
 	}
 
 	defer rows.Close()
@@ -585,7 +587,7 @@ func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
 		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("user roles not found")
 		}
 		roles = append(roles, &role)
 	}
