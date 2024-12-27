@@ -642,7 +642,11 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 	return nil
 }
 
-func (userdb *UserDb) SetPassword(publicId string, password string) error {
+func (userdb *UserDb) SetPassword(user *AuthUser, password string) error {
+	if user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
+	}
+
 	var err error
 
 	err = CheckPassword(password)
@@ -653,7 +657,7 @@ func (userdb *UserDb) SetPassword(publicId string, password string) error {
 
 	hash := HashPassword(password)
 
-	_, err = userdb.db.Exec(SET_PASSWORD_SQL, hash, publicId)
+	_, err = userdb.db.Exec(SET_PASSWORD_SQL, hash, user.PublicId)
 
 	if err != nil {
 		return fmt.Errorf("could not update password")
@@ -720,10 +724,11 @@ func (userdb *UserDb) SetPassword(publicId string, password string) error {
 func (userdb *UserDb) SetUserInfo(user *AuthUser,
 	username string,
 	firstName string,
-	lastName string) error {
+	lastName string,
+	adminMode bool) error {
 
-	if user.IsLocked {
-		return fmt.Errorf("account locked")
+	if !adminMode && user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
 	err := CheckUsername(username)
@@ -763,9 +768,13 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 // 	return userdb.SetEmailAddress(publicId, address)
 // }
 
-func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) error {
+func (userdb *UserDb) SetEmailAddress(user *AuthUser, address *mail.Address, adminMode bool) error {
 
-	_, err := userdb.db.Exec(SET_EMAIL_SQL, address.Address, publicId)
+	if !adminMode && user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
+	}
+
+	_, err := userdb.db.Exec(SET_EMAIL_SQL, address.Address, user.PublicId)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -774,7 +783,10 @@ func (userdb *UserDb) SetEmailAddress(publicId string, address *mail.Address) er
 	return err
 }
 
-func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string) error {
+func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, adminMode bool) error {
+	if !adminMode && user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
+	}
 
 	// remove existing roles,
 	_, err := userdb.db.Exec(DELETE_USER_ROLES_SQL, user.Id)
@@ -784,7 +796,7 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string) error {
 	}
 
 	for _, role := range roles {
-		err = userdb.AddRoleToUser(user, role)
+		err = userdb.AddRoleToUser(user, role, adminMode)
 
 		if err != nil {
 			return err
@@ -794,7 +806,10 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string) error {
 	return nil
 }
 
-func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string) error {
+func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, adminMode bool) error {
+	if !adminMode && user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
+	}
 
 	var role *Role
 
@@ -936,7 +951,7 @@ func (userdb *UserDb) CreateUser(userName string,
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		err := userdb.SetPassword(password, authUser.PublicId)
+		err := userdb.SetPassword(authUser, password)
 
 		if err != nil {
 			return nil, fmt.Errorf("user already registered:please sign up with another email address")
@@ -944,8 +959,8 @@ func (userdb *UserDb) CreateUser(userName string,
 	}
 
 	// Give user standard role and ability to login
-	userdb.AddRoleToUser(authUser, ROLE_USER)
-	userdb.AddRoleToUser(authUser, ROLE_SIGNIN)
+	userdb.AddRoleToUser(authUser, ROLE_USER, true)
+	userdb.AddRoleToUser(authUser, ROLE_SIGNIN, true)
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 

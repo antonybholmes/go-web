@@ -140,8 +140,8 @@ func SetIsVerified(user string) error {
 	return instance.SetIsVerified(user)
 }
 
-func SetPassword(publicId string, password string) error {
-	return instance.SetPassword(publicId, password)
+func SetPassword(user *auth.AuthUser, password string) error {
+	return instance.SetPassword(user, password)
 }
 
 // func SetUsername(publicId string, username string) error {
@@ -152,20 +152,20 @@ func SetPassword(publicId string, password string) error {
 // 	return instance.SetName(publicId, firstName, lastName)
 // }
 
-func SetUserInfo(user *auth.AuthUser, username string, firstName string, lastName string) error {
-	return instance.SetUserInfo(user, username, firstName, lastName)
+func SetUserInfo(user *auth.AuthUser, username string, firstName string, lastName string, adminMode bool) error {
+	return instance.SetUserInfo(user, username, firstName, lastName, adminMode)
 }
 
 // func SetEmail(publicId string, email string) error {
 // 	return instance.SetEmail(publicId, email)
 // }
 
-func SetEmailAddress(publicId string, address *mail.Address) error {
-	return instance.SetEmailAddress(publicId, address)
+func SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error {
+	return instance.SetEmailAddress(user, address, adminMode)
 }
 
-func SetUserRoles(user *auth.AuthUser, roles []string) error {
-	return instance.SetUserRoles(user, roles)
+func SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error {
+	return instance.SetUserRoles(user, roles, adminMode)
 }
 
 func DeleteUser(publicId string) error {
