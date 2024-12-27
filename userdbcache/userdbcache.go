@@ -41,7 +41,7 @@ func Roles() ([]*auth.Role, error) {
 	return instance.Roles()
 }
 
-func Users(records uint, offset uint) ([]*auth.AuthUserAdminView, error) {
+func Users(records uint, offset uint) ([]*auth.AuthUser, error) {
 	return instance.Users(records, offset)
 }
 
@@ -74,13 +74,13 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 }
 
 func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
-	return instance.UserRoles(user.Id)
+	return instance.UserRoles(user)
 }
 
 // returns a string list of a user's roles
 func UserRoleList(user *auth.AuthUser) ([]string, error) {
 
-	roles, err := instance.UserRoles(user.Id)
+	roles, err := instance.UserRoles(user)
 
 	if err != nil {
 		return nil, err

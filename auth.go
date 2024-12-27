@@ -70,8 +70,9 @@ type AuthUser struct {
 	IsLocked       bool   `json:"-"`
 	HashedPassword string `json:"-"`
 
-	//Roles           string `json:"roles" db:"role"`
+	Roles           []string      `json:"roles" db:"role"`
 	Id              uint          `json:"-"`
+	CreatedAt       time.Duration `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`
 	EmailVerifiedAt time.Duration `json:"-"`
 }
@@ -82,10 +83,10 @@ type AuthUser struct {
 // include roles and these are instead expected to be derived from
 // the access jwt assigned to the user since this contains their
 // encoded roles and is more resilient to tampering
-type AuthUserAdminView struct {
-	Roles []string `json:"roles" db:"role"`
-	AuthUser
-}
+// type AuthUserAdminView struct {
+// 	Roles []string `json:"roles" db:"role"`
+// 	AuthUser
+// }
 
 // func (user *AuthUser) Address() *mail.Address {
 // 	return &mail.Address{Name: user.Name, Address: user.Email}

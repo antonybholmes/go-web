@@ -20,36 +20,34 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-const USERS_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
-	FROM users 
-	LIMIT ?
-	OFFSET ?`
+const SELECT_USERS_SQL string = `SELECT 
+	id, 
+	public_id, 
+	first_name, 
+	last_name, 
+	username, 
+	email, 
+	is_locked, 
+	password, 
+	TO_SECONDS(email_verified_at) as email_verified_at, 
+	TO_SECONDS(created_at) as created_at, 
+	TO_SECONDS(updated_at) as updated_at
+	FROM users`
 
-const FIND_USER_BY_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
-	FROM users 
-	WHERE users.id = ?`
+const USERS_SQL string = SELECT_USERS_SQL + ` ORDER BY first_name, last_name, email LIMIT ? OFFSET ?`
 
-const FIND_USER_BY_PUBLIC_ID_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
-	FROM users 
-	WHERE users.public_id = ?`
+const FIND_USER_BY_ID_SQL string = SELECT_USERS_SQL + ` WHERE users.id = ?`
+
+const FIND_USER_BY_PUBLIC_ID_SQL string = SELECT_USERS_SQL + ` WHERE users.public_id = ?`
+
+const FIND_USER_BY_EMAIL_SQL string = SELECT_USERS_SQL + ` WHERE users.email = ?`
+
+const FIND_USER_BY_USERNAME_SQL string = SELECT_USERS_SQL + ` WHERE users.username = ?`
 
 const FIND_USER_BY_API_KEY_SQL string = `SELECT 
 	id, user_id, api_key
 	FROM api_keys 
 	WHERE api_key = ?`
-
-const FIND_USER_BY_EMAIL_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
-	FROM users 
-	WHERE users.email = ?`
-
-const FIND_USER_BY_USERNAME_SQL string = `SELECT 
-	id, public_id, first_name, last_name, username, email, is_locked, password, TO_SECONDS(email_verified_at) as email_verified_at, TO_SECONDS(updated_at) as updated_at
-	FROM users 
-	WHERE users.username = ?`
 
 const ROLES_SQL string = `SELECT 
 	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
@@ -227,7 +225,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, error) {
+func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 	//log.Debug().Msgf("users %d %d", records, offset)
 
 	rows, err := userdb.db.Query(USERS_SQL, records, offset)
@@ -238,13 +236,14 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, er
 
 	defer rows.Close()
 
-	authUsers := make([]*AuthUserAdminView, 0, records)
+	authUsers := make([]*AuthUser, 0, records)
 
-	var updatedAt int64
-	var emailVerifiedAt int64
+	//var createdAt time.Duration
+	//var updatedAt time.Duration
+	//var emailVerifiedAt int64
 
 	for rows.Next() {
-		var authUser AuthUserAdminView
+		var authUser AuthUser
 		err := rows.Scan(&authUser.Id,
 			&authUser.PublicId,
 			&authUser.FirstName,
@@ -253,20 +252,25 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUserAdminView, er
 			&authUser.Email,
 			&authUser.IsLocked,
 			&authUser.HashedPassword,
-			&emailVerifiedAt,
-			&updatedAt)
+			&authUser.EmailVerifiedAt,
+			&authUser.CreatedAt,
+			&authUser.UpdatedAt)
 
 		if err != nil {
 			log.Debug().Msgf("users err %s", err)
 			return nil, err
 		}
 
-		authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
-		authUser.UpdatedAt = time.Duration(updatedAt)
+		//authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
+		//authUser.UpdatedAt = time.Duration(updatedAt)
 
 		log.Debug().Msgf("this user err %v", authUser)
 
-		userdb.updateUserRoles(&authUser)
+		err = userdb.AddRoleNamesToUser(&authUser)
+
+		if err != nil {
+			return nil, err
+		}
 
 		authUsers = append(authUsers, &authUser)
 	}
@@ -282,7 +286,7 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 		return err
 	}
 
-	roles, err := userdb.RoleList(authUser.Id)
+	roles, err := userdb.UserRoleNames(authUser)
 
 	if err != nil {
 		return err
@@ -304,33 +308,7 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 }
 
 func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
-	var authUser AuthUser
-	var updatedAt int64
-
-	err := userdb.db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address).Scan(&authUser.Id,
-		&authUser.PublicId,
-		&authUser.FirstName,
-		&authUser.LastName,
-		&authUser.Username,
-		&authUser.Email,
-		&authUser.IsLocked,
-		&authUser.HashedPassword,
-		&authUser.EmailVerifiedAt,
-		&updatedAt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	authUser.UpdatedAt = time.Duration(updatedAt)
-
-	//err = userdb.updateUserRoles(&authUser)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return &authUser, nil
+	return userdb.findUser(userdb.db.QueryRow(FIND_USER_BY_EMAIL_SQL, email.Address))
 }
 
 func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
@@ -351,74 +329,23 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	var authUser AuthUser
-	var updatedAt int64
-
-	err = userdb.db.QueryRow(FIND_USER_BY_USERNAME_SQL, username).Scan(&authUser.Id,
-		&authUser.PublicId,
-		&authUser.FirstName,
-		&authUser.LastName,
-		&authUser.Username,
-		&authUser.Email,
-		&authUser.IsLocked,
-		&authUser.HashedPassword,
-		&authUser.EmailVerifiedAt,
-		&updatedAt)
-
-	if err != nil {
-		log.Debug().Msgf("err %s", err)
-		return nil, err
-	}
-
-	authUser.UpdatedAt = time.Duration(updatedAt)
-
-	// err = userdb.updateUserRoles(&authUser)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return &authUser, nil
+	return userdb.findUser(userdb.db.QueryRow(FIND_USER_BY_USERNAME_SQL, username))
 }
 
 func (userdb *UserDb) FindUserById(id uint) (*AuthUser, error) {
-
-	var authUser AuthUser
-	var updatedAt int64
-
-	err := userdb.db.QueryRow(FIND_USER_BY_ID_SQL, id).Scan(&authUser.Id,
-		&authUser.PublicId,
-		&authUser.FirstName,
-		&authUser.LastName,
-		&authUser.Username,
-		&authUser.Email,
-		&authUser.IsLocked,
-		&authUser.HashedPassword,
-		&authUser.EmailVerifiedAt,
-		&updatedAt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	authUser.UpdatedAt = time.Duration(updatedAt)
-
-	// err = userdb.updateUserRoles(&authUser)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return &authUser, nil
+	return userdb.findUser(userdb.db.QueryRow(FIND_USER_BY_ID_SQL, id))
 }
 
 func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
+	return userdb.findUser(userdb.db.QueryRow(FIND_USER_BY_PUBLIC_ID_SQL, publicId))
+}
+
+func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
 
 	var authUser AuthUser
-	var updatedAt int64
-	//var createdAt int64
+	//var updatedAt int64
 
-	err := userdb.db.QueryRow(FIND_USER_BY_PUBLIC_ID_SQL, publicId).Scan(&authUser.Id,
+	err := row.Scan(&authUser.Id,
 		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
@@ -427,19 +354,20 @@ func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
 		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
-		&updatedAt)
+		&authUser.CreatedAt,
+		&authUser.UpdatedAt)
 
 	if err != nil {
 		return nil, err
 	}
 
-	authUser.UpdatedAt = time.Duration(updatedAt)
+	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	// err = userdb.updateUserRoles(&authUser)
+	err = userdb.AddRoleNamesToUser(&authUser)
 
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if err != nil {
+		return nil, err
+	}
 
 	return &authUser, nil
 }
@@ -466,9 +394,9 @@ func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
 	return userdb.FindUserById(user_id)
 }
 
-func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
+func (userdb *UserDb) AddRoleNamesToUser(authUser *AuthUser) error {
 
-	roles, err := userdb.RoleList(authUser.Id)
+	roles, err := userdb.UserRoleNames(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
@@ -479,9 +407,9 @@ func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
 	return nil
 }
 
-func (userdb *UserDb) RoleList(userId uint) ([]string, error) {
+func (userdb *UserDb) UserRoleNames(user *AuthUser) ([]string, error) {
 
-	roles, err := userdb.UserRoles(userId)
+	roles, err := userdb.UserRoles(user)
 
 	if err != nil {
 		return nil, err
@@ -495,6 +423,31 @@ func (userdb *UserDb) RoleList(userId uint) ([]string, error) {
 
 	return ret, nil
 
+}
+
+func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
+
+	rows, err := userdb.db.Query(USER_ROLES_SQL, user.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("user roles not found")
+	}
+
+	defer rows.Close()
+
+	roles := make([]*Role, 0, 10)
+
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
+
+		if err != nil {
+			return nil, fmt.Errorf("user roles not found")
+		}
+		roles = append(roles, &role)
+	}
+
+	return roles, nil
 }
 
 func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
@@ -573,31 +526,6 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 	}
 
 	return &role, err
-}
-
-func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
-
-	rows, err := userdb.db.Query(USER_ROLES_SQL, userId)
-
-	if err != nil {
-		return nil, fmt.Errorf("user roles not found")
-	}
-
-	defer rows.Close()
-
-	roles := make([]*Role, 0, 10)
-
-	for rows.Next() {
-		var role Role
-		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
-
-		if err != nil {
-			return nil, fmt.Errorf("user roles not found")
-		}
-		roles = append(roles, &role)
-	}
-
-	return roles, nil
 }
 
 func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
