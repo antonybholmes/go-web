@@ -62,19 +62,18 @@ type Role struct {
 }
 
 type AuthUser struct {
-	PublicId       string `json:"publicId" db:"public_id"`
-	FirstName      string `json:"firstName" db:"first_name"`
-	LastName       string `json:"lastName" db:"last_name"`
-	Username       string `json:"username" db:"username"`
-	Email          string `json:"email" db:"email"`
-	IsLocked       bool   `json:"-"`
-	HashedPassword string `json:"-"`
-
+	PublicId        string        `json:"publicId" db:"public_id"`
+	FirstName       string        `json:"firstName" db:"first_name"`
+	LastName        string        `json:"lastName" db:"last_name"`
+	Username        string        `json:"username" db:"username"`
+	Email           string        `json:"email" db:"email"`
+	HashedPassword  string        `json:"-"`
 	Roles           []string      `json:"roles" db:"role"`
 	Id              uint          `json:"-"`
 	CreatedAt       time.Duration `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`
 	EmailVerifiedAt time.Duration `json:"-"`
+	IsLocked        bool          `json:"isLocked"`
 }
 
 // The admin view adds roles to each user as it is assumed this
