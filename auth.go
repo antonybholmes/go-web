@@ -47,28 +47,29 @@ type User struct {
 }
 
 type Permission struct {
-	PublicId    string `json:"publicId" db:"public_id"`
-	Name        string `json:"name" db:"name"`
-	Description string `json:"description" db:"description"`
-	Id          uint   `json:"-" db:"id"`
+	PublicId    string `json:"publicId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Id          uint   `json:"-"`
 }
 
 type Role struct {
-	PublicId    string `json:"publicId" db:"public_id"`
+	PublicId    string `json:"publicId"`
 	Name        string `json:"name"`
-	Description string `json:"description" db:"description"`
+	Description string `json:"description"`
 	//Permissions []Permission `json:"permissions"`
 	Id uint `json:"-" db:"id"`
 }
 
 type AuthUser struct {
-	PublicId        string        `json:"publicId" db:"public_id"`
-	FirstName       string        `json:"firstName" db:"first_name"`
-	LastName        string        `json:"lastName" db:"last_name"`
-	Username        string        `json:"username" db:"username"`
-	Email           string        `json:"email" db:"email"`
+	PublicId        string        `json:"publicId"`
+	FirstName       string        `json:"firstName"`
+	LastName        string        `json:"lastName"`
+	Username        string        `json:"username"`
+	Email           string        `json:"email"`
 	HashedPassword  string        `json:"-"`
-	Roles           []string      `json:"roles" db:"role"`
+	Roles           []string      `json:"roles"`
+	ApiKeys         []string      `json:"apiKeys"`
 	Id              uint          `json:"-"`
 	CreatedAt       time.Duration `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`

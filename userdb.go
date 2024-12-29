@@ -49,6 +49,12 @@ const FIND_USER_BY_API_KEY_SQL string = `SELECT
 	FROM api_keys 
 	WHERE api_key = ?`
 
+const USER_API_KEYS_SQL string = `SELECT 
+	id, api_key
+	FROM api_keys 
+	WHERE user_id = ?
+	ORDER BY api_key`
+
 const ROLES_SQL string = `SELECT 
 	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
 	FROM user_roles 
@@ -369,6 +375,12 @@ func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
 		return nil, err
 	}
 
+	err = userdb.AddApiKeysToUser(&authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &authUser, nil
 }
 
@@ -423,6 +435,47 @@ func (userdb *UserDb) UserRoleNames(user *AuthUser) ([]string, error) {
 
 	return ret, nil
 
+}
+
+func (userdb *UserDb) AddApiKeysToUser(authUser *AuthUser) error {
+
+	keys, err := userdb.UserApiKeys(authUser)
+
+	if err != nil {
+		return err //fmt.Errorf("there was an error with the database query")
+	}
+
+	authUser.ApiKeys = keys
+
+	return nil
+}
+
+func (userdb *UserDb) UserApiKeys(user *AuthUser) ([]string, error) {
+
+	rows, err := userdb.db.Query(USER_API_KEYS_SQL, user.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("user roles not found")
+	}
+
+	defer rows.Close()
+
+	keys := make([]string, 0, 10)
+
+	var id uint
+	var key string
+
+	for rows.Next() {
+
+		err := rows.Scan(&id, &key)
+
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	return keys, nil
 }
 
 func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {

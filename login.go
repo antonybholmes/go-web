@@ -49,7 +49,7 @@ type LoginBodyReq struct {
 	Password        string   `json:"password"`
 	FirstName       string   `json:"firstName"`
 	LastName        string   `json:"lastName"`
-	Key             string   `json:"key"`
+	ApiKey          string   `json:"apiKey"`
 	Roles           []string `json:"roles"`
 	EmailIsVerified bool     `json:"emailIsVerified"`
 	StaySignedIn    bool     `json:"staySignedIn"`
