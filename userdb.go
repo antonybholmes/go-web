@@ -20,6 +20,8 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
+//const EMAIL_NOT_VERIFIED_TIME_S = 62167219200
+
 const SELECT_USERS_SQL string = `SELECT 
 	id, 
 	public_id, 
@@ -80,6 +82,8 @@ const INSERT_USER_SQL = `INSERT IGNORE INTO users
 const DELETE_USER_ROLES_SQL = "DELETE FROM users_roles WHERE user_id = ?"
 const INSERT_USER_ROLE_SQL = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
 
+const INSERT_APK_KEY_SQL = "INSERT IGNORE INTO api_keys (user_id, api_key) VALUES(?, ?)"
+
 const SET_EMAIL_IS_VERIFIED_SQL = `UPDATE users SET email_verified_at = now() WHERE users.public_id = ?`
 const SET_PASSWORD_SQL = `UPDATE users SET password = ? WHERE users.public_id = ?`
 const SET_USERNAME_SQL = `UPDATE users SET username = ? WHERE users.public_id = ?`
@@ -101,7 +105,11 @@ const ROLE_SQL = `SELECT
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
-const EMAIL_NOT_VERIFIED_TIME_S time.Duration = 31556995200
+
+const EPOCH_DATE = "1970-01-01"
+
+// 1970-01-01 mysql
+const EMAIL_NOT_VERIFIED_TIME_S time.Duration = 62167219200 //31556995200
 
 type UserDb struct {
 	db *sql.DB
@@ -272,7 +280,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 
 		log.Debug().Msgf("this user err %v", authUser)
 
-		err = userdb.AddRoleNamesToUser(&authUser)
+		err = userdb.AddRolesToUser(&authUser)
 
 		if err != nil {
 			return nil, err
@@ -292,7 +300,7 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 		return err
 	}
 
-	roles, err := userdb.UserRoleNames(authUser)
+	roles, err := userdb.UserRoleList(authUser)
 
 	if err != nil {
 		return err
@@ -369,7 +377,7 @@ func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	err = userdb.AddRoleNamesToUser(&authUser)
+	err = userdb.AddRolesToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -391,24 +399,22 @@ func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
 	}
 
 	var id uint
-	var user_id uint
+	var userId uint
 	//var createdAt int64
 
-	log.Debug().Msgf("key %s", key)
-
 	err := userdb.db.QueryRow(FIND_USER_BY_API_KEY_SQL, key).Scan(&id,
-		&user_id, &key)
+		&userId, &key)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return userdb.FindUserById(user_id)
+	return userdb.FindUserById(userId)
 }
 
-func (userdb *UserDb) AddRoleNamesToUser(authUser *AuthUser) error {
+func (userdb *UserDb) AddRolesToUser(authUser *AuthUser) error {
 
-	roles, err := userdb.UserRoleNames(authUser)
+	roles, err := userdb.UserRoleList(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
@@ -419,7 +425,7 @@ func (userdb *UserDb) AddRoleNamesToUser(authUser *AuthUser) error {
 	return nil
 }
 
-func (userdb *UserDb) UserRoleNames(user *AuthUser) ([]string, error) {
+func (userdb *UserDb) UserRoleList(user *AuthUser) ([]string, error) {
 
 	roles, err := userdb.UserRoles(user)
 
@@ -497,6 +503,7 @@ func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
 		}
+
 		roles = append(roles, &role)
 	}
 
@@ -565,7 +572,7 @@ func (userdb *UserDb) Roles() ([]*Role, error) {
 	return roles, nil
 }
 
-func (userdb *UserDb) Role(name string) (*Role, error) {
+func (userdb *UserDb) FindRoleByName(name string) (*Role, error) {
 
 	var role Role
 
@@ -595,11 +602,13 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
 	for rows.Next() {
 		var permission Permission
+
 		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
 
 		if err != nil {
 			return nil, err
 		}
+
 		permissions = append(permissions, &permission)
 	}
 
@@ -794,13 +803,27 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, adminMode b
 
 	var role *Role
 
-	role, err := userdb.Role(roleName)
+	role, err := userdb.FindRoleByName(roleName)
 
 	if err != nil {
 		return err
 	}
 
 	_, err = userdb.db.Exec(INSERT_USER_ROLE_SQL, user.Id, role.Id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error {
+	if !adminMode && user.IsLocked {
+		return fmt.Errorf("account is locked and cannot be edited")
+	}
+
+	_, err := userdb.db.Exec(INSERT_APK_KEY_SQL, user.Id, Uuid())
 
 	if err != nil {
 		return err
@@ -891,10 +914,10 @@ func (userdb *UserDb) CreateUser(userName string,
 
 		// default to unverified i.e. if time is epoch (1970) assume
 		// unverified
-		emailVerifiedAt := "1000-01-01"
+		emailVerifiedAt := EPOCH_DATE
 
 		if emailIsVerified {
-			emailVerifiedAt = "UTC_TIMESTAMP()"
+			emailVerifiedAt = time.Now().Format(time.RFC3339)
 		}
 
 		log.Debug().Msgf("%s %s %s", publicId, email.Address, emailVerifiedAt)
@@ -914,8 +937,12 @@ func (userdb *UserDb) CreateUser(userName string,
 			return nil, err
 		}
 
+		log.Debug().Msgf("create user here")
+
 		// Call function again to get the user details
 		authUser, err = userdb.FindUserByEmail(email)
+
+		log.Debug().Msgf("blob")
 
 		if err != nil {
 			return nil, err
@@ -923,7 +950,9 @@ func (userdb *UserDb) CreateUser(userName string,
 	} else {
 		// user already exists so check if verified
 
-		if authUser.EmailVerifiedAt > 0 {
+		log.Debug().Msgf("blob2")
+
+		if authUser.EmailVerifiedAt > EMAIL_NOT_VERIFIED_TIME_S {
 			return nil, fmt.Errorf("user already registered:please sign up with a different email address")
 		}
 
@@ -940,8 +969,23 @@ func (userdb *UserDb) CreateUser(userName string,
 	}
 
 	// Give user standard role and ability to login
-	userdb.AddRoleToUser(authUser, ROLE_USER, true)
-	userdb.AddRoleToUser(authUser, ROLE_SIGNIN, true)
+	err = userdb.AddRoleToUser(authUser, ROLE_USER, true)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = userdb.AddRoleToUser(authUser, ROLE_SIGNIN, true)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = userdb.CreateApiKeyForUser(authUser, true)
+
+	if err != nil {
+		return nil, err
+	}
 
 	// err = userdb.SetOtp(authUser.UserId, otp)
 
