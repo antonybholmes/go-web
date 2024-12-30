@@ -18,8 +18,8 @@ func Init(secret *rsa.PrivateKey) {
 	})
 }
 
-func RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
-	return tc.RefreshToken(c, publicId, roles)
+func RefreshToken(c echo.Context, user *auth.AuthUser) (string, error) {
+	return tc.RefreshToken(c, user)
 }
 
 func AccessToken(c echo.Context, publicId string, roles string) (string, error) {

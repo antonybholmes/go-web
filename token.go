@@ -125,9 +125,9 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 	return tc
 }
 
-func (tc *TokenCreator) RefreshToken(c echo.Context, publicId string, roles string) (string, error) {
+func (tc *TokenCreator) RefreshToken(c echo.Context, user *AuthUser) (string, error) {
 	return tc.BasicToken(c,
-		publicId,
+		user.PublicId,
 		REFRESH_TOKEN,
 		TTL_HOUR)
 }
