@@ -33,13 +33,17 @@ const (
 	REFRESH_TOKEN        TokenType = "refresh"
 	ACCESS_TOKEN         TokenType = "access"
 	OTP_TOKEN            TokenType = "otp"
+	// returns session info such as user and is not used for
+	// any type of auth
+	SESSION_TOKEN TokenType = "session"
 )
 
 const (
-	TTL_YEAR    time.Duration = time.Hour * 24 * 365
-	TTL_30_DAYS time.Duration = time.Hour * 24 * 30
-	TTL_DAY     time.Duration = time.Hour * 24
-	TTL_HOUR    time.Duration = time.Hour //time.Minute * 60
+	TTL_HOUR    time.Duration = time.Hour
+	TTL_DAY     time.Duration = TTL_HOUR * 24
+	TTL_YEAR    time.Duration = TTL_DAY * 365
+	TTL_30_DAYS time.Duration = TTL_DAY * 30
+
 	TTL_20_MINS time.Duration = time.Minute * 20
 	TTL_15_MINS time.Duration = time.Minute * 15
 	TTL_10_MINS time.Duration = time.Minute * 10
