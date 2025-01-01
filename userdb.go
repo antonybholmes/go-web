@@ -58,28 +58,28 @@ const USER_API_KEYS_SQL string = `SELECT
 	ORDER BY api_key`
 
 const ROLES_SQL string = `SELECT 
-	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
-	FROM user_roles 
-	ORDER BY user_roles.name`
+	roles.id, roles.public_id, roles.name, roles.description
+	FROM roles 
+	ORDER BY roles.name`
 
-const USER_PERMISSIONS_SQL string = `SELECT DISTINCT 
+const permissions_SQL string = `SELECT DISTINCT 
 	permissions.id, permissions.public_id, permissions.name, permissions.description
 	FROM users_roles, roles_permissions, permissions 
 	WHERE users_roles.user_id = ? AND roles_permissions.role_id = users_roles.role_id AND 
 	permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
-const USER_ROLES_SQL string = `SELECT DISTINCT 
-	user_roles.id, user_roles.public_id, user_roles.name, user_roles.description
-	FROM users_roles, user_roles 
-	WHERE users_roles.user_id = ? AND user_roles.id = users_roles.role_id 
-	ORDER BY user_roles.name`
+const roles_SQL string = `SELECT DISTINCT 
+	roles.id, roles.public_id, roles.name, roles.description
+	FROM users_roles, roles 
+	WHERE users_roles.user_id = ? AND roles.id = users_roles.role_id 
+	ORDER BY roles.name`
 
 const INSERT_USER_SQL = `INSERT IGNORE INTO users 
 	(public_id, username, email, password, first_name, last_name, email_verified_at) 
 	VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-const DELETE_USER_ROLES_SQL = "DELETE FROM users_roles WHERE user_id = ?"
+const DELETE_roles_SQL = "DELETE FROM users_roles WHERE user_id = ?"
 const INSERT_USER_ROLE_SQL = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
 
 const INSERT_APK_KEY_SQL = "INSERT IGNORE INTO api_keys (user_id, api_key) VALUES(?, ?)"
@@ -97,11 +97,11 @@ const DELETE_USER_SQL = `DELETE FROM users WHERE public_id = ?`
 const COUNT_USERS_SQL = `SELECT COUNT(ID) FROM users`
 
 const ROLE_SQL = `SELECT 
-	user_roles.id, 
-	user_roles.public_id, 
-	user_roles.name,
-	user_roles.description 
-	FROM user_roles WHERE user_roles.name = ?`
+	roles.id, 
+	roles.public_id, 
+	roles.name,
+	roles.description 
+	FROM roles WHERE roles.name = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
 const MIN_NAME_LENGTH int = 4
@@ -159,7 +159,7 @@ func NewUserDB() *UserDb {
 		// setInfoStmt:            sys.Must(db.Prepare(SET_INFO_SQL)),
 		// setEmailStmt:           sys.Must(db.Prepare(SET_EMAIL_SQL)),
 		// usersStmt:              sys.Must(db.Prepare(USERS_SQL)),
-		// userRolesStmt:          sys.Must(db.Prepare(USER_ROLES_SQL)),
+		// userRolesStmt:          sys.Must(db.Prepare(roles_SQL)),
 		// insertUserStmt:         sys.Must(db.Prepare(INSERT_USER_SQL)),
 		// insertUserRoleStmt:     sys.Must(db.Prepare(INSERT_USER_ROLE_SQL)),
 		// rolesStmt:              sys.Must(db.Prepare(ROLES_SQL)),
@@ -486,7 +486,7 @@ func (userdb *UserDb) UserApiKeys(user *AuthUser) ([]string, error) {
 
 func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 
-	rows, err := userdb.db.Query(USER_ROLES_SQL, user.Id)
+	rows, err := userdb.db.Query(roles_SQL, user.Id)
 
 	if err != nil {
 		return nil, fmt.Errorf("user roles not found")
@@ -590,7 +590,7 @@ func (userdb *UserDb) FindRoleByName(name string) (*Role, error) {
 
 func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
-	rows, err := userdb.db.Query(USER_PERMISSIONS_SQL, user.Id)
+	rows, err := userdb.db.Query(permissions_SQL, user.Id)
 
 	if err != nil {
 		return nil, err
@@ -779,7 +779,7 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, adminMode boo
 	}
 
 	// remove existing roles,
-	_, err := userdb.db.Exec(DELETE_USER_ROLES_SQL, user.Id)
+	_, err := userdb.db.Exec(DELETE_roles_SQL, user.Id)
 
 	if err != nil {
 		return err
@@ -898,62 +898,13 @@ func (userdb *UserDb) CreateUser(userName string,
 	// Check if user exists and if they do, check passwords match.
 	// We don't care about errors because errors signify the user
 	// doesn't exist so we can continue and make the user
-	authUser, err := userdb.FindUserByEmail(email)
+	authUser, _ := userdb.FindUserByEmail(email)
 
-	// try to create user if user does not exist
-	if err != nil {
-		// Create a publicId for the user id
-		publicId := NanoId()
-
-		hash := ""
-
-		// empty passwords indicate passwordless
-		if password != "" {
-			hash = HashPassword(password)
-		}
-
-		// default to unverified i.e. if time is epoch (1970) assume
-		// unverified
-		emailVerifiedAt := EPOCH_DATE
-
-		if emailIsVerified {
-			emailVerifiedAt = time.Now().Format(time.RFC3339)
-		}
-
-		log.Debug().Msgf("%s %s %s", publicId, email.Address, emailVerifiedAt)
-
-		_, err = userdb.db.Exec(
-			INSERT_USER_SQL,
-			publicId,
-			userName,
-			email.Address,
-			hash,
-			firstName,
-			lastName,
-			emailVerifiedAt,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		log.Debug().Msgf("create user here")
-
-		// Call function again to get the user details
-		authUser, err = userdb.FindUserByEmail(email)
-
-		log.Debug().Msgf("blob")
-
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if authUser != nil {
 		// user already exists so check if verified
 
-		log.Debug().Msgf("blob2")
-
 		if authUser.EmailVerifiedAt > EMAIL_NOT_VERIFIED_TIME_S {
-			return nil, fmt.Errorf("user already registered:please sign up with a different email address")
+			return nil, fmt.Errorf("user already registered: please sign up with a different email address")
 		}
 
 		// if user is not verified, update the password since we assume
@@ -964,8 +915,55 @@ func (userdb *UserDb) CreateUser(userName string,
 		err := userdb.SetPassword(authUser, password)
 
 		if err != nil {
-			return nil, fmt.Errorf("user already registered:please sign up with another email address")
+			return nil, fmt.Errorf("user already registered: please sign up with another email address")
 		}
+
+		// ensure user is the updated version
+		return userdb.FindUserById(authUser.Id)
+	}
+
+	// try to create user if user does not exist
+
+	// Create a publicId for the user id
+	publicId := NanoId()
+
+	hash := ""
+
+	// empty passwords indicate passwordless
+	if password != "" {
+		hash = HashPassword(password)
+	}
+
+	// default to unverified i.e. if time is epoch (1970) assume
+	// unverified
+	emailVerifiedAt := EPOCH_DATE
+
+	if emailIsVerified {
+		emailVerifiedAt = time.Now().Format(time.RFC3339)
+	}
+
+	log.Debug().Msgf("%s %s %s", publicId, email.Address, emailVerifiedAt)
+
+	_, err = userdb.db.Exec(
+		INSERT_USER_SQL,
+		publicId,
+		userName,
+		email.Address,
+		hash,
+		firstName,
+		lastName,
+		emailVerifiedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Call function again to get the user details
+	authUser, err = userdb.FindUserByPublicId(publicId)
+
+	if err != nil {
+		return nil, err
 	}
 
 	// Give user standard role and ability to login
@@ -987,13 +985,8 @@ func (userdb *UserDb) CreateUser(userName string,
 		return nil, err
 	}
 
-	// err = userdb.SetOtp(authUser.UserId, otp)
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("could not set otp")
-	// }
-
-	return authUser, nil
+	// return the updated version
+	return userdb.FindUserById(authUser.Id)
 }
 
 // Make sure password meets requirements
