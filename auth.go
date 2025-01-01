@@ -70,7 +70,7 @@ type AuthUser struct {
 	HashedPassword  string        `json:"-"`
 	Roles           []string      `json:"roles"`
 	ApiKeys         []string      `json:"apiKeys"`
-	Id              uint          `json:"-"`
+	Id              uint          `json:"id"`
 	CreatedAt       time.Duration `json:"-"`
 	UpdatedAt       time.Duration `json:"-"`
 	EmailVerifiedAt time.Duration `json:"-"`

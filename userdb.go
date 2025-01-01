@@ -956,6 +956,7 @@ func (userdb *UserDb) CreateUser(userName string,
 	)
 
 	if err != nil {
+		log.Debug().Msgf("error making person %s %v", uuid, err)
 		return nil, err
 	}
 
