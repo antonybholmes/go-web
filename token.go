@@ -53,7 +53,7 @@ const JWT_CLAIM_SEP = " "
 
 type TokenClaims struct {
 	jwt.RegisteredClaims
-	PublicId        string    `json:"publicId"`
+	Uuid            string    `json:"uuid"`
 	Data            string    `json:"data,omitempty"`
 	OneTimePasscode string    `json:"otp,omitempty"`
 	Scope           string    `json:"scope,omitempty"`
@@ -131,7 +131,7 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 
 func (tc *TokenCreator) RefreshToken(c echo.Context, user *AuthUser) (string, error) {
 	return tc.BasicToken(c,
-		user.PublicId,
+		user.Uuid,
 		REFRESH_TOKEN,
 		TTL_HOUR)
 }
@@ -139,7 +139,7 @@ func (tc *TokenCreator) RefreshToken(c echo.Context, user *AuthUser) (string, er
 func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles string) (string, error) {
 
 	claims := TokenClaims{
-		PublicId: publicId,
+		Uuid: publicId,
 		//IpAddr:           ipAddr,
 		Type:             ACCESS_TOKEN,
 		Roles:            roles,
@@ -154,7 +154,7 @@ func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, vis
 	// 	VERIFY_EMAIL_TOKEN)
 
 	claims := TokenClaims{
-		PublicId:         authUser.PublicId,
+		Uuid:             authUser.Uuid,
 		Data:             authUser.FirstName,
 		Type:             VERIFY_EMAIL_TOKEN,
 		Url:              visitUrl,
@@ -166,7 +166,7 @@ func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, vis
 
 func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
 	claims := TokenClaims{
-		PublicId: user.PublicId,
+		Uuid: user.Uuid,
 		// include first name to personalize reset
 		Data:             user.FirstName,
 		Type:             RESET_PASSWORD_TOKEN,
@@ -179,7 +179,7 @@ func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (stri
 func (tc *TokenCreator) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := TokenClaims{
-		PublicId:         user.PublicId,
+		Uuid:             user.Uuid,
 		Data:             email.Address,
 		Type:             CHANGE_EMAIL_TOKEN,
 		OneTimePasscode:  CreateOTP(user),
@@ -195,8 +195,8 @@ func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visit
 	// 	PASSWORDLESS_TOKEN)
 
 	claims := TokenClaims{
-		PublicId: publicId,
-		Type:     PASSWORDLESS_TOKEN,
+		Uuid: publicId,
+		Type: PASSWORDLESS_TOKEN,
 		// This is so the frontend can redirect itself to another page to make
 		// the workflow smoother. For example, if on mutations page and it
 		// requires sign in, we can pass the page url to the server as the visit
@@ -214,7 +214,7 @@ func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visit
 
 func (tc *TokenCreator) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := TokenClaims{
-		PublicId:         user.PublicId,
+		Uuid:             user.Uuid,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
@@ -235,7 +235,7 @@ func (tc *TokenCreator) BasicToken(c echo.Context,
 	tokenType TokenType,
 	ttl time.Duration) (string, error) {
 	claims := TokenClaims{
-		PublicId:         publicId,
+		Uuid:             publicId,
 		Type:             tokenType,
 		RegisteredClaims: makeDefaultClaimsWithTTL(ttl),
 	}

@@ -57,8 +57,8 @@ func FindUserById(id uint) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
-	return instance.FindUserByPublicId(publicId)
+func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
+	return instance.FindUserByUuid(uuid)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {

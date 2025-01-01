@@ -43,7 +43,7 @@ type ApiKeyLoginReq struct {
 // all of these as part of the authentication process
 type LoginBodyReq struct {
 	UrlCallbackReq
-	PublicId        string   `json:"publicId"`
+	Uuid            string   `json:"uuid"`
 	Username        string   `json:"username"`
 	Email           string   `json:"email"`
 	Password        string   `json:"password"`

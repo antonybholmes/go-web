@@ -47,14 +47,14 @@ type User struct {
 }
 
 type Permission struct {
-	PublicId    string `json:"publicId"`
+	Uuid        string `json:"uuid"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Id          uint   `json:"-"`
 }
 
 type Role struct {
-	PublicId    string `json:"publicId"`
+	Uuid        string `json:"uuid"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	//Permissions []Permission `json:"permissions"`
@@ -62,7 +62,7 @@ type Role struct {
 }
 
 type AuthUser struct {
-	PublicId        string        `json:"publicId"`
+	Uuid            string        `json:"uuid"`
 	FirstName       string        `json:"firstName"`
 	LastName        string        `json:"lastName"`
 	Username        string        `json:"username"`
