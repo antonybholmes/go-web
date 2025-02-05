@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys/env"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/labstack/echo/v4"
 )
 
 // type TokenType = uint
@@ -129,14 +129,14 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 	return tc
 }
 
-func (tc *TokenCreator) RefreshToken(c echo.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, error) {
 	return tc.BasicToken(c,
 		user.Uuid,
 		REFRESH_TOKEN,
 		TTL_HOUR)
 }
 
-func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles string) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles string) (string, error) {
 
 	claims := TokenClaims{
 		Uuid: publicId,
@@ -148,7 +148,7 @@ func (tc *TokenCreator) AccessToken(c echo.Context, publicId string, roles strin
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, visitUrl string) (string, error) {
+func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
@@ -164,7 +164,7 @@ func (tc *TokenCreator) VerifyEmailToken(c echo.Context, authUser *AuthUser, vis
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) ResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
 	claims := TokenClaims{
 		Uuid: user.Uuid,
 		// include first name to personalize reset
@@ -176,7 +176,7 @@ func (tc *TokenCreator) ResetPasswordToken(c echo.Context, user *AuthUser) (stri
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) ResetEmailToken(c echo.Context, user *AuthUser, email *mail.Address) (string, error) {
+func (tc *TokenCreator) ResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := TokenClaims{
 		Uuid:             user.Uuid,
@@ -189,7 +189,7 @@ func (tc *TokenCreator) ResetEmailToken(c echo.Context, user *AuthUser, email *m
 
 }
 
-func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+func (tc *TokenCreator) PasswordlessToken(c *gin.Context, publicId string, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
@@ -212,7 +212,7 @@ func (tc *TokenCreator) PasswordlessToken(c echo.Context, publicId string, visit
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) OTPToken(c echo.Context, user *AuthUser, tokenType TokenType) (string, error) {
+func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := TokenClaims{
 		Uuid:             user.Uuid,
 		Type:             tokenType,
@@ -224,13 +224,13 @@ func (tc *TokenCreator) OTPToken(c echo.Context, user *AuthUser, tokenType Token
 }
 
 // Generate short lived tokens for one time passcode use.
-func (tc *TokenCreator) ShortTimeToken(c echo.Context,
+func (tc *TokenCreator) ShortTimeToken(c *gin.Context,
 	publicId string,
 	tokenType TokenType) (string, error) {
 	return tc.BasicToken(c, publicId, tokenType, tc.shortTTL)
 }
 
-func (tc *TokenCreator) BasicToken(c echo.Context,
+func (tc *TokenCreator) BasicToken(c *gin.Context,
 	publicId string,
 	tokenType TokenType,
 	ttl time.Duration) (string, error) {

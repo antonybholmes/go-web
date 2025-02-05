@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/antonybholmes/go-auth"
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 var tc *auth.TokenCreator
@@ -18,30 +18,30 @@ func Init(secret *rsa.PrivateKey) {
 	})
 }
 
-func RefreshToken(c echo.Context, user *auth.AuthUser) (string, error) {
+func RefreshToken(c *gin.Context, user *auth.AuthUser) (string, error) {
 	return tc.RefreshToken(c, user)
 }
 
-func AccessToken(c echo.Context, publicId string, roles string) (string, error) {
+func AccessToken(c *gin.Context, publicId string, roles string) (string, error) {
 	return tc.AccessToken(c, publicId, roles)
 }
 
-func VerifyEmailToken(c echo.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
+func VerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
 	return tc.VerifyEmailToken(c, authUser, visitUrl)
 }
 
-func ResetPasswordToken(c echo.Context, user *auth.AuthUser) (string, error) {
+func ResetPasswordToken(c *gin.Context, user *auth.AuthUser) (string, error) {
 	return tc.ResetPasswordToken(c, user)
 }
 
-func ResetEmailToken(c echo.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
+func ResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
 	return tc.ResetEmailToken(c, user, email)
 }
 
-func PasswordlessToken(c echo.Context, publicId string, visitUrl string) (string, error) {
+func PasswordlessToken(c *gin.Context, publicId string, visitUrl string) (string, error) {
 	return tc.PasswordlessToken(c, publicId, visitUrl)
 }
 
-func OneTimeToken(c echo.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {
+func OneTimeToken(c *gin.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {
 	return tc.OTPToken(c, user, tokenType)
 }
