@@ -38,8 +38,8 @@ func ResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (
 	return tc.ResetEmailToken(c, user, email)
 }
 
-func PasswordlessToken(c *gin.Context, userId string, visitUrl string) (string, error) {
-	return tc.PasswordlessToken(c, userId, visitUrl)
+func PasswordlessToken(c *gin.Context, userId string, url string) (string, error) {
+	return tc.PasswordlessToken(c, userId, url)
 }
 
 func OneTimeToken(c *gin.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {

@@ -58,7 +58,7 @@ type TokenClaims struct {
 	OneTimePasscode string    `json:"otp,omitempty"`
 	Scope           string    `json:"scope,omitempty"`
 	Roles           string    `json:"roles,omitempty"`
-	Url             string    `json:"url,omitempty"`
+	RedirectUrl     string    `json:"redirectUrl,omitempty"`
 	Type            TokenType `json:"type"`
 }
 
@@ -157,7 +157,7 @@ func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, vis
 		UserId:           authUser.Uuid,
 		Data:             authUser.FirstName,
 		Type:             VERIFY_EMAIL_TOKEN,
-		Url:              visitUrl,
+		RedirectUrl:      visitUrl,
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
 	}
 
@@ -189,7 +189,7 @@ func (tc *TokenCreator) ResetEmailToken(c *gin.Context, user *AuthUser, email *m
 
 }
 
-func (tc *TokenCreator) PasswordlessToken(c *gin.Context, userId string, visitUrl string) (string, error) {
+func (tc *TokenCreator) PasswordlessToken(c *gin.Context, userId string, redirectUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
@@ -205,7 +205,7 @@ func (tc *TokenCreator) PasswordlessToken(c *gin.Context, userId string, visitUr
 		// to the visit page. This is so the user is not taken to a sign in or
 		// account page because then they have to click on the page they want again
 		// which is annoying UI.
-		Url:              visitUrl,
+		RedirectUrl:      redirectUrl,
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
 	}
 

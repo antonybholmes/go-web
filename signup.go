@@ -12,7 +12,7 @@ import (
 type SignupReq struct {
 	User
 	Password string `json:"password"`
-	UrlCallbackReq
+	RedirectUrlReq
 }
 
 func (user *SignupReq) String() string {

@@ -32,11 +32,11 @@ type UrlReq struct {
 	Url string `json:"url"`
 }
 
-type UrlCallbackReq struct {
+type RedirectUrlReq struct {
 	// the url that should form the email link in any emails that are sent
-	CallbackUrl string `json:"callbackUrl"`
+	//Url string `json:"url"`
 	// The url the callback url should redirect to once it completes
-	VisitUrl string `json:"visitUrl"`
+	RedirectUrl string `json:"redirectUrl"`
 }
 
 type User struct {
