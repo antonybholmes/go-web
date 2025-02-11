@@ -841,6 +841,8 @@ func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error 
 func (userdb *UserDb) CreateUserFromSignup(user *LoginBodyReq) (*AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
 
+	log.Debug().Msgf("aha %v", email)
+
 	if err != nil {
 		return nil, err
 	}
