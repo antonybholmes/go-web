@@ -1,6 +1,6 @@
 module github.com/antonybholmes/go-auth
 
-go 1.23
+go 1.24
 
 replace github.com/antonybholmes/go-mailer => ../go-mailer
 
