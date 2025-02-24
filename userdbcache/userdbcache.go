@@ -4,7 +4,7 @@ import (
 	"net/mail"
 	"sync"
 
-	"github.com/antonybholmes/go-auth"
+	"github.com/antonybholmes/go-auth/auth"
 )
 
 // pretend its a global const

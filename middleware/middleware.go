@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antonybholmes/go-auth"
+	"github.com/antonybholmes/go-auth/auth"
 	"github.com/antonybholmes/go-auth/routes"
 
 	"github.com/gin-gonic/gin"

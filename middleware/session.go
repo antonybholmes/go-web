@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/antonybholmes/go-auth"
+	"github.com/antonybholmes/go-auth/auth"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )

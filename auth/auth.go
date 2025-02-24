@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
-	"github.com/google/uuid"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -190,20 +188,4 @@ func CheckOTPValid(user *AuthUser, otp string) error {
 	}
 
 	return nil
-}
-
-func NanoId() string {
-	// good enough for Planetscale https://planetscale.com/blog/why-we-chose-nanoids-for-planetscales-api
-	id, err := gonanoid.Generate("0123456789abcdefghijklmnopqrstuvwxyz", 12)
-
-	if err != nil {
-		id = ""
-	}
-
-	return id
-}
-
-func IsValidUUID(u string) bool {
-	_, err := uuid.Parse(u)
-	return err == nil
 }
