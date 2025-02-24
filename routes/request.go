@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antonybholmes/go-auth/auth"
+	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 )
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	web "github.com/antonybholmes/go-auth/web"
 	"github.com/antonybholmes/go-sys"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog/log"
 )
@@ -395,7 +395,7 @@ func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
 
 func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
 
-	if !web.IsValidUUID(key) {
+	if !sys.IsValidUUID(key) {
 		return nil, fmt.Errorf("api key is not in valid format")
 	}
 
@@ -824,7 +824,7 @@ func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error 
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	_, err := userdb.db.Exec(INSERT_APK_KEY_SQL, user.Id, web.Uuid())
+	_, err := userdb.db.Exec(INSERT_APK_KEY_SQL, user.Id, sys.Uuid())
 
 	if err != nil {
 		return err
@@ -928,7 +928,7 @@ func (userdb *UserDb) CreateUser(userName string,
 	// try to create user if user does not exist
 
 	// Create a uuid for the user id
-	uuid := web.NanoId()
+	uuid := sys.NanoId()
 
 	hash := ""
 
