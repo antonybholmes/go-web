@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
-	"github.com/antonybholmes/go-web/routes"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -197,7 +197,7 @@ func checkUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
 	user, ok := c.Get("user")
 
 	if !ok {
-		routes.UserDoesNotExistResp(c)
+		web.UserDoesNotExistResp(c)
 
 		return
 	}
@@ -212,7 +212,7 @@ func JwtIsSpecificTokenTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc 
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if claims.Type != tokenType {
-				routes.AuthErrorResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
+				web.AuthErrorResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
 
 				return
 			}
@@ -239,7 +239,7 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.IsAdmin((claims.Roles)) {
-				routes.AuthErrorResp(c, "user is not an admin")
+				web.AuthErrorResp(c, "user is not an admin")
 
 				return
 			}
@@ -254,7 +254,7 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.CanSignin((claims.Roles)) {
-				routes.AuthErrorResp(c, "user is not allowed to login")
+				web.AuthErrorResp(c, "user is not allowed to login")
 				return
 			}
 
@@ -269,7 +269,7 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 		sessData, err := ReadSessionInfo(c)
 
 		if err != nil {
-			routes.AuthErrorResp(c, "cannot get user id from session")
+			web.AuthErrorResp(c, "cannot get user id from session")
 
 			return
 		}
@@ -343,7 +343,7 @@ func JwtHasRoleMiddleware(validRoles ...string) gin.HandlerFunc {
 				}
 
 				if !isValidRole {
-					routes.ErrorResp(c, "invalid role")
+					web.ErrorResp(c, "invalid role")
 					return
 				}
 			}
