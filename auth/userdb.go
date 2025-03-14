@@ -736,11 +736,6 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 		}
 	}
 
-	// err = CheckName(lastName)
-
-	// if err != nil {
-	// 	return err
-
 	_, err := userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, user.Uuid)
 
 	if err != nil {
