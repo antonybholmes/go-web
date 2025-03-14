@@ -718,11 +718,11 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 	lastName string,
 	adminMode bool) error {
 
-	if !adminMode && user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
-	}
-
 	if !adminMode {
+		if user.IsLocked {
+			return fmt.Errorf("account is locked and cannot be edited")
+		}
+
 		err := CheckUsername(username)
 
 		if err != nil {
