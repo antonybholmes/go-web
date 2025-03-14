@@ -105,7 +105,7 @@ const ROLE_SQL = `SELECT
 	FROM roles WHERE roles.name = ?`
 
 const MIN_PASSWORD_LENGTH int = 8
-const MIN_NAME_LENGTH int = 4
+const MIN_NAME_LENGTH int = 3
 
 const EPOCH_DATE = "1970-01-01"
 
@@ -722,16 +722,18 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	err := CheckUsername(username)
+	if !adminMode {
+		err := CheckUsername(username)
 
-	if err != nil {
-		return err
-	}
+		if err != nil {
+			return err
+		}
 
-	err = CheckName(firstName)
+		err = CheckName(firstName)
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	// err = CheckName(lastName)
@@ -739,7 +741,7 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 	// if err != nil {
 	// 	return err
 
-	_, err = userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, user.Uuid)
+	_, err := userdb.db.Exec(SET_INFO_SQL, username, firstName, lastName, user.Uuid)
 
 	if err != nil {
 		log.Debug().Msgf("%s", err)
@@ -1027,7 +1029,7 @@ func CheckUsername(username string) error {
 
 func CheckName(name string) error {
 	if len(name) < MIN_NAME_LENGTH {
-		return fmt.Errorf("name must be at least %d characters", MIN_NAME_LENGTH)
+		return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
 	}
 
 	if !NAME_REGEX.MatchString(name) {
