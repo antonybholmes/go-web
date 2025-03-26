@@ -10,7 +10,7 @@ require (
 	github.com/antonybholmes/go-sys v0.0.0-20250303144104-66c6d4f258a5
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/xyproto/randomstring v1.2.0
 	golang.org/x/crypto v0.36.0
 )
