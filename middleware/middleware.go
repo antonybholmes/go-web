@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -181,6 +182,45 @@ func JwtAuth0UserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		// use pointer to token
+		c.Set("user", &claims)
+
+		// Continue processing the request
+		c.Next()
+	}
+}
+
+func JwtClerkUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		tokenString, err := ParseToken(c)
+
+		if err != nil {
+			c.Error(err)
+			c.Abort()
+			return
+		}
+
+		claims := auth.ClerkTokenClaims{}
+
+		log.Debug().Msgf("token %s", tokenString)
+
+		// Parse the JWT
+		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+		// 	// Return the secret key for verifying the token
+		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
+		// })
+
+		err = claimsParser(tokenString, &claims)
+
+		if err != nil {
+			c.Error(err)
+			c.Abort()
+			return
+		}
+
+		log.Debug().Msgf("%v %s", claims, claims.Email)
 
 		// use pointer to token
 		c.Set("user", &claims)

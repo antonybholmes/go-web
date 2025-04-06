@@ -37,7 +37,7 @@ func UserDoesNotExistResp(c *gin.Context) {
 	ErrorResp(c, "user does not exist")
 }
 
-func UserNotAllowedToSignIn(c *gin.Context) {
+func UserNotAllowedToSignInErrorResp(c *gin.Context) {
 	ErrorResp(c, "user not allowed to sign in")
 }
 

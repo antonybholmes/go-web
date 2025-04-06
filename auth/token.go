@@ -70,6 +70,12 @@ type Auth0TokenClaims struct {
 	Email string `json:"https://edb.rdf-lab.org/email"`
 }
 
+type ClerkTokenClaims struct {
+	jwt.RegisteredClaims
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 //type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {
