@@ -215,9 +215,9 @@ var EMAIL_REGEX *regexp.Regexp
 var NAME_REGEX *regexp.Regexp
 
 func init() {
-	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d\@\$\!\%\*\#\$\&\.\~\^\-]*$`)
+	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
 	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
-	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.]+$`)
+	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
 	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
 }
 
@@ -279,7 +279,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 		//authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
 		//authUser.UpdatedAt = time.Duration(updatedAt)
 
-		log.Debug().Msgf("this user err %v", authUser)
+		log.Debug().Msgf("this user %v", authUser)
 
 		err = userdb.AddRolesToUser(&authUser)
 
