@@ -90,6 +90,8 @@ func AuthErrorResp(c *gin.Context, message string) {
 // 	return assembly
 // }
 
+// parses an "n" query param as an unsigned int returning
+// a default if the param is not present
 func ParseN(c *gin.Context, defaultN uint16) uint16 {
 
 	v := c.Query("n")
