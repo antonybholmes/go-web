@@ -98,7 +98,7 @@ func ParseN(c *gin.Context, defaultN uint16) uint16 {
 		return defaultN
 	}
 
-	n, err := strconv.ParseUint(v, 10, 0)
+	n, err := strconv.Atoi(v)
 
 	if err != nil {
 		return defaultN
