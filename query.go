@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/rs/zerolog/log"
 )
 
 var ALLOWED_CHARS_REGEX = regexp.MustCompile(`[^a-zA-Z0-9,\+\ \=\"]+`)
@@ -88,8 +86,8 @@ func BoolQuery(query string, clause func(placeholder string, exact bool) string)
 				args = append(args, "%"+tag.Value+"%")
 			}
 
-			log.Debug().Msgf("args %v", args)
-			log.Debug().Msgf("args %v", tag)
+			//log.Debug().Msgf("args %v", args)
+			//log.Debug().Msgf("args %v", tag)
 
 			placeholder := fmt.Sprintf("?%d", len(args))
 			//tagClauses = append(tagClauses, fmt.Sprintf("(gex.gene_symbol LIKE %s OR gex.ensembl_id LIKE %s)", placeholder, placeholder))
