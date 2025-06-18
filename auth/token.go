@@ -76,6 +76,12 @@ type ClerkTokenClaims struct {
 	Email string `json:"email"`
 }
 
+type SupabaseTokenClaims struct {
+	jwt.RegisteredClaims
+	//Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 //type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {
@@ -137,7 +143,7 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 
 func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, error) {
 	return tc.BasicToken(c,
-		user.Uuid,
+		user.PublicId,
 		REFRESH_TOKEN,
 		TTL_HOUR)
 }
@@ -160,7 +166,7 @@ func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, vis
 	// 	VERIFY_EMAIL_TOKEN)
 
 	claims := TokenClaims{
-		UserId:           authUser.Uuid,
+		UserId:           authUser.PublicId,
 		Data:             authUser.FirstName,
 		Type:             VERIFY_EMAIL_TOKEN,
 		RedirectUrl:      visitUrl,
@@ -172,7 +178,7 @@ func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, vis
 
 func (tc *TokenCreator) ResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
 	claims := TokenClaims{
-		UserId: user.Uuid,
+		UserId: user.PublicId,
 		// include first name to personalize reset
 		Data:             user.FirstName,
 		Type:             RESET_PASSWORD_TOKEN,
@@ -185,7 +191,7 @@ func (tc *TokenCreator) ResetPasswordToken(c *gin.Context, user *AuthUser) (stri
 func (tc *TokenCreator) ResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := TokenClaims{
-		UserId:           user.Uuid,
+		UserId:           user.PublicId,
 		Data:             email.Address,
 		Type:             CHANGE_EMAIL_TOKEN,
 		OneTimePasscode:  CreateOTP(user),
@@ -220,7 +226,7 @@ func (tc *TokenCreator) PasswordlessToken(c *gin.Context, userId string, redirec
 
 func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := TokenClaims{
-		UserId:           user.Uuid,
+		UserId:           user.PublicId,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),

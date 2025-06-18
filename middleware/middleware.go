@@ -105,12 +105,31 @@ func ParseToken(c *gin.Context) (string, error) {
 
 type JWTClaimsFunc func(token string, claims jwt.Claims) error
 
-func JwtClaimsParser(rsaPublicKey *rsa.PublicKey) JWTClaimsFunc {
+func JwtClaimsRSAParser(rsaPublicKey *rsa.PublicKey) JWTClaimsFunc {
 	return func(token string, claims jwt.Claims) error {
 		// Parse the JWT
-		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
+		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 			// Return the secret key for verifying the token
 			return rsaPublicKey, nil
+		})
+
+		return err
+	}
+}
+
+func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
+	hmacSecret := []byte(secret)
+
+	return func(token string, claims jwt.Claims) error {
+		// Parse the JWT
+		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+			_, ok := token.Method.(*jwt.SigningMethodHMAC)
+
+			if !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return hmacSecret, nil
 		})
 
 		return err
@@ -154,7 +173,10 @@ func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 	}
 }
 
-func JwtAuth0UserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
+func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
+
+	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
+
 	return func(c *gin.Context) {
 
 		tokenString, err := ParseToken(c)
@@ -191,7 +213,9 @@ func JwtAuth0UserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 	}
 }
 
-func JwtClerkUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
+func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
+	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
+
 	return func(c *gin.Context) {
 
 		tokenString, err := ParseToken(c)
@@ -203,6 +227,47 @@ func JwtClerkUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 		}
 
 		claims := auth.ClerkTokenClaims{}
+
+		log.Debug().Msgf("token %s", tokenString)
+
+		// Parse the JWT
+		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+		// 	// Return the secret key for verifying the token
+		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
+		// })
+
+		err = claimsParser(tokenString, &claims)
+
+		if err != nil {
+			c.Error(err)
+			c.Abort()
+			return
+		}
+
+		log.Debug().Msgf("%v %s", claims, claims.Email)
+
+		// use pointer to token
+		c.Set("user", &claims)
+
+		// Continue processing the request
+		c.Next()
+	}
+}
+
+func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
+	claimsParser := JwtClaimsHMACParser(secret)
+
+	return func(c *gin.Context) {
+
+		tokenString, err := ParseToken(c)
+
+		if err != nil {
+			c.Error(err)
+			c.Abort()
+			return
+		}
+
+		claims := auth.SupabaseTokenClaims{}
 
 		log.Debug().Msgf("token %s", tokenString)
 

@@ -49,16 +49,16 @@ func CreateUserFromSignup(user *auth.LoginBodyReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
-func CreateUserFromAuth0(name string, email *mail.Address) (*auth.AuthUser, error) {
-	return instance.CreateUserFromAuth0(name, email)
+func CreateUserFromOAuth2(name string, email *mail.Address) (*auth.AuthUser, error) {
+	return instance.CreateUserFromOAuth2(name, email)
 }
 
 func FindUserById(id uint) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByUuid(uuid string) (*auth.AuthUser, error) {
-	return instance.FindUserByUuid(uuid)
+func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
+	return instance.FindUserByPublicId(uuid)
 }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
