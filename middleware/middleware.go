@@ -335,6 +335,10 @@ func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
 	return JwtIsSpecificTokenTypeMiddleware(auth.ACCESS_TOKEN)
 }
 
+func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
+	return JwtIsSpecificTokenTypeMiddleware(auth.UPDATE_TOKEN)
+}
+
 func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
 	return JwtIsSpecificTokenTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
 }
@@ -379,7 +383,7 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("authUser", sessData.AuthUser)
+		c.Set("user", sessData.AuthUser)
 
 		c.Next()
 	}

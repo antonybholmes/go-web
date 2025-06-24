@@ -62,7 +62,11 @@ func TokenErrorResp(c *gin.Context) {
 }
 
 func ErrorResp(c *gin.Context, message string) {
-	c.Error(fmt.Errorf("%s", message))
+	BaseErrorResp(c, fmt.Errorf("%s", message))
+}
+
+func BaseErrorResp(c *gin.Context, err error) {
+	c.Error(err)
 	c.Abort()
 }
 
@@ -152,6 +156,10 @@ type RefreshTokenResp struct {
 
 type AccessTokenResp struct {
 	AccessToken string `json:"accessToken"`
+}
+
+type TokenResp struct {
+	Token string `json:"token"`
 }
 
 type LoginResp struct {

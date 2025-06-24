@@ -26,6 +26,10 @@ func AccessToken(c *gin.Context, publicId string, roles string) (string, error) 
 	return tc.AccessToken(c, publicId, roles)
 }
 
+func UpdateToken(c *gin.Context, publicId string, roles string) (string, error) {
+	return tc.UpdateToken(c, publicId, roles)
+}
+
 func VerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
 	return tc.VerifyEmailToken(c, authUser, visitUrl)
 }

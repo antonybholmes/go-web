@@ -227,7 +227,7 @@ func init() {
 	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
 	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
 	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
-	NAME_REGEX = regexp.MustCompile(`^[\w\- ]+$`)
+	NAME_REGEX = regexp.MustCompile(`^[\w\- ]*$`)
 }
 
 // func (userdb *UserDb) Close() {
@@ -1032,9 +1032,9 @@ func CheckUsername(username string) error {
 }
 
 func CheckName(name string) error {
-	if len(name) < MIN_NAME_LENGTH {
-		return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
-	}
+	//if len(name) < MIN_NAME_LENGTH {
+	//	return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
+	//}
 
 	if !NAME_REGEX.MatchString(name) {
 		return fmt.Errorf("invalid name")

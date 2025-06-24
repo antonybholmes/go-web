@@ -32,6 +32,7 @@ const (
 	CHANGE_EMAIL_TOKEN   TokenType = "change_email"
 	REFRESH_TOKEN        TokenType = "refresh"
 	ACCESS_TOKEN         TokenType = "access"
+	UPDATE_TOKEN         TokenType = "update"
 	OTP_TOKEN            TokenType = "otp"
 	// returns session info such as user and is not used for
 	// any type of auth
@@ -44,6 +45,7 @@ const (
 	TTL_YEAR    time.Duration = TTL_DAY * 365
 	TTL_30_DAYS time.Duration = TTL_DAY * 30
 
+	TTL_1_MIN   time.Duration = time.Minute
 	TTL_20_MINS time.Duration = time.Minute * 20
 	TTL_15_MINS time.Duration = time.Minute * 15
 	TTL_10_MINS time.Duration = time.Minute * 10
@@ -156,6 +158,18 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles strin
 		Type:             ACCESS_TOKEN,
 		Roles:            roles,
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
+
+	return tc.BaseToken(claims)
+}
+
+func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles string) (string, error) {
+
+	claims := TokenClaims{
+		UserId: publicId,
+		//IpAddr:           ipAddr,
+		Type:             UPDATE_TOKEN,
+		Roles:            roles,
+		RegisteredClaims: makeDefaultClaimsWithTTL(TTL_1_MIN)}
 
 	return tc.BaseToken(claims)
 }
