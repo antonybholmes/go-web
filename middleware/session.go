@@ -44,7 +44,7 @@ func init() {
 	SESSION_OPT_ZERO = sessions.Options{
 		Path:     "/",
 		MaxAge:   0,
-		HttpOnly: true, //false,
+		HttpOnly: false, //false,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
 	}
