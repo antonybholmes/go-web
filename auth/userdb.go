@@ -227,7 +227,8 @@ func init() {
 	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
 	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
 	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
-	NAME_REGEX = regexp.MustCompile(`^[\w\- ]*$`)
+	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
+	NAME_REGEX = regexp.MustCompile(`^[\w\-\_ ]*$`)
 }
 
 // func (userdb *UserDb) Close() {
