@@ -9,6 +9,7 @@ import (
 
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -384,6 +385,26 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 		}
 
 		c.Set("user", sessData.AuthUser)
+
+		c.Next()
+	}
+}
+
+func CSRFMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
+		session := sessions.Default(c)
+		stored := session.Get(web.SESSION_CSRF_TOKEN)
+		received := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
+
+		if stored == nil || stored != received {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid CSRF token"})
+			return
+		}
 
 		c.Next()
 	}

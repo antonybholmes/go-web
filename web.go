@@ -1,6 +1,8 @@
 package web
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +11,17 @@ import (
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 )
+
+const (
+	//SESSION_PUBLICID   string = "publicId"
+	//SESSION_ROLES      string = "roles"
+	SESSION_USER       string = "user"
+	SESSION_CSRF_TOKEN string = "csrfToken"
+	SESSION_CREATED_AT string = "createdAt"
+	SESSION_EXPIRES_AT string = "expiresAt"
+)
+
+const HEADER_X_CSRF_TOKEN = "X-CSRF-Token"
 
 const ERROR_USER_DOES_NOT_EXIST = "user does not exist"
 const ERROR_WRONG_TOKEN_TYPE = "wrong token type"
@@ -197,4 +210,13 @@ func MakeOkResp(c *gin.Context, message string) {
 
 func MakeSuccessResp(c *gin.Context, message string, success bool) {
 	MakeDataResp(c, message, &SuccessResp{Success: success})
+}
+
+func GenerateCSRFToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
 }

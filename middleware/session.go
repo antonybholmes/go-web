@@ -4,17 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	//SESSION_PUBLICID   string = "publicId"
-	//SESSION_ROLES      string = "roles"
-	SESSION_USER       string = "user"
-	SESSION_CREATED_AT string = "createdAt"
-	SESSION_EXPIRES_AT string = "expiresAt"
 )
 
 const (
@@ -77,7 +70,7 @@ func init() {
 func ReadSessionInfo(c *gin.Context) (*SessionInfo, error) {
 	sess := sessions.Default(c) //.Get(consts.SESSION_NAME, c)
 
-	userData, _ := sess.Get(SESSION_USER).(string)
+	userData, _ := sess.Get(web.SESSION_USER).(string)
 
 	var user auth.AuthUser
 
@@ -87,8 +80,8 @@ func ReadSessionInfo(c *gin.Context) (*SessionInfo, error) {
 
 	//publicId, _ := sess.Values[SESSION_PUBLICID].(string)
 	//roles, _ := sess.Values[SESSION_ROLES].(string)
-	createdAt, _ := sess.Get(SESSION_CREATED_AT).(string)
-	expires, _ := sess.Get(SESSION_EXPIRES_AT).(string)
+	createdAt, _ := sess.Get(web.SESSION_CREATED_AT).(string)
+	expires, _ := sess.Get(web.SESSION_EXPIRES_AT).(string)
 	//isValid := publicId != ""
 
 	return &SessionInfo{AuthUser: &user,
