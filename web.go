@@ -75,11 +75,19 @@ func TokenErrorResp(c *gin.Context) {
 }
 
 func ErrorResp(c *gin.Context, message string) {
-	BaseErrorResp(c, fmt.Errorf("%s", message))
+	ErrorWithStatusResp(c, http.StatusBadRequest, message)
+}
+
+func ErrorWithStatusResp(c *gin.Context, status int, message string) {
+	BaseErrorWithStatusResp(c, status, fmt.Errorf("%s", message))
 }
 
 func BaseErrorResp(c *gin.Context, err error) {
-	c.Error(err)
+	BaseErrorWithStatusResp(c, http.StatusBadRequest, err)
+}
+
+func BaseErrorWithStatusResp(c *gin.Context, status int, err error) {
+	c.Error(err).SetMeta(status)
 	c.Abort()
 }
 

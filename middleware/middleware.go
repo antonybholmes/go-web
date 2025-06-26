@@ -66,20 +66,22 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 
 			// Set a custom status code based on the error
 			// If no custom status code is set, use the error's default status or fallback to 400
-			statusCode := http.StatusBadRequest
+			status := http.StatusBadRequest
+
+			//log.Debug().Msgf("error %v %d", err, err.Meta)
 
 			if err.Meta != nil {
 				// ok indicates cast worked
 				customStatus, ok := err.Meta.(int)
 
 				if ok {
-					statusCode = customStatus
+					status = customStatus
 				}
 			}
 
 			// Send the error response with custom status code
-			c.JSON(statusCode, APIError{
-				Code:    statusCode,
+			c.JSON(status, APIError{
+				Code:    status,
 				Message: err.Error(),
 			})
 		}
@@ -402,7 +404,7 @@ func CSRFMiddleware() gin.HandlerFunc {
 		received := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
 
 		if stored == nil || stored != received {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid CSRF token"})
+			web.ErrorWithStatusResp(c, http.StatusForbidden, "invalid CSRF token")
 			return
 		}
 
