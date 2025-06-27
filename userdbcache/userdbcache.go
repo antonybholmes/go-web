@@ -45,7 +45,7 @@ func Users(records uint, offset uint) ([]*auth.AuthUser, error) {
 	return instance.Users(records, offset)
 }
 
-func CreateUserFromSignup(user *auth.LoginBodyReq) (*auth.AuthUser, error) {
+func CreateUserFromSignup(user *auth.UserBodyReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 

@@ -185,8 +185,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
+			web.UnauthorizedResp(c, "invalid auth0 token")
 			return
 		}
 
@@ -203,8 +202,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		err = claimsParser(tokenString, &claims)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
+			web.UnauthorizedResp(c, "invalid auth0 token")
 			return
 		}
 
@@ -224,8 +222,7 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
+			web.UnauthorizedResp(c, "invalid clerk token")
 			return
 		}
 
@@ -265,8 +262,7 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
+			web.UnauthorizedResp(c, "invalid supabase token")
 			return
 		}
 
@@ -320,7 +316,7 @@ func JwtIsSpecificTokenTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc 
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if claims.Type != tokenType {
-				web.AuthErrorResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
+				web.ForbiddenResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
 
 				return
 			}
@@ -351,7 +347,7 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.IsAdmin((claims.Roles)) {
-				web.AuthErrorResp(c, "user is not an admin")
+				web.ForbiddenResp(c, "user is not an admin")
 
 				return
 			}
@@ -366,29 +362,12 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.CanSignin((claims.Roles)) {
-				web.AuthErrorResp(c, "user is not allowed to login")
+				web.ForbiddenResp(c, "user is not allowed to login")
 				return
 			}
 
 			c.Next()
 		})
-	}
-}
-
-// basic check that session exists and seems to be populated with the user
-func SessionIsValidMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sessData, err := ReadSessionInfo(c)
-
-		if err != nil {
-			web.AuthErrorResp(c, "cannot get user id from session")
-
-			return
-		}
-
-		c.Set("user", sessData.AuthUser)
-
-		c.Next()
 	}
 }
 
@@ -403,10 +382,28 @@ func CSRFMiddleware() gin.HandlerFunc {
 		stored := session.Get(web.SESSION_CSRF_TOKEN)
 		received := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
 
+		log.Debug().Msgf("stored CSRF token: %v, received CSRF token: %v", stored, received)
+
 		if stored == nil || stored != received {
-			web.ErrorWithStatusResp(c, http.StatusForbidden, "invalid CSRF token")
+			web.UnauthorizedResp(c, "invalid CSRF token")
 			return
 		}
+
+		c.Next()
+	}
+}
+
+// basic check that session exists and seems to be populated with the user
+func SessionIsValidMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessData, err := ReadSessionInfo(c)
+
+		if err != nil {
+			web.UnauthorizedResp(c, "invalid session")
+			return
+		}
+
+		c.Set("user", sessData.AuthUser)
 
 		c.Next()
 	}
@@ -475,7 +472,7 @@ func JwtHasRoleMiddleware(validRoles ...string) gin.HandlerFunc {
 				}
 
 				if !isValidRole {
-					web.ErrorResp(c, "invalid role")
+					web.ForbiddenResp(c, "invalid role")
 					return
 				}
 			}

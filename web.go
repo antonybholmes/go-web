@@ -39,39 +39,51 @@ type ReqJwt struct {
 }
 
 func InvalidEmailReq(c *gin.Context) {
-	ErrorResp(c, "invalid email address")
+	UnauthorizedResp(c, "invalid email address")
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
-	ErrorResp(c, "email address not verified")
+	ForbiddenResp(c, "email address not verified")
 }
 
 func UserDoesNotExistResp(c *gin.Context) {
-	ErrorResp(c, "user does not exist")
+	UnauthorizedResp(c, "user does not exist")
 }
 
 func UserNotAllowedToSignInErrorResp(c *gin.Context) {
-	ErrorResp(c, "user not allowed to sign in")
+	ForbiddenResp(c, "user not allowed to sign in")
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	ErrorResp(c, "invalid username")
+	UnauthorizedResp(c, "invalid username")
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	ErrorResp(c, "passwords do not match")
+	UnauthorizedResp(c, "passwords do not match")
 }
 
 func NotAdminResp(c *gin.Context) {
-	ErrorResp(c, "user is not an admin")
+	ForbiddenResp(c, "user is not an admin")
 }
 
 func WrongTokentTypeReq(c *gin.Context) {
-	ErrorResp(c, ERROR_WRONG_TOKEN_TYPE)
+	ForbiddenResp(c, ERROR_WRONG_TOKEN_TYPE)
 }
 
 func TokenErrorResp(c *gin.Context) {
-	ErrorResp(c, "token not generated")
+	ForbiddenResp(c, "token not generated")
+}
+
+func ForbiddenResp(c *gin.Context, message string) {
+	ErrorWithStatusResp(c, http.StatusForbidden, message)
+}
+
+func UnauthorizedResp(c *gin.Context, message string) {
+	ErrorWithStatusResp(c, http.StatusUnauthorized, message)
+}
+
+func BaseUnauthorizedResp(c *gin.Context, err error) {
+	BaseErrorWithStatusResp(c, http.StatusUnauthorized, err)
 }
 
 func ErrorResp(c *gin.Context, message string) {
@@ -88,12 +100,6 @@ func BaseErrorResp(c *gin.Context, err error) {
 
 func BaseErrorWithStatusResp(c *gin.Context, status int, err error) {
 	c.Error(err).SetMeta(status)
-	c.Abort()
-}
-
-func AuthErrorResp(c *gin.Context, message string) {
-	c.Error(fmt.Errorf("%s", message))
-	c.Errors.Last().SetMeta(http.StatusUnauthorized)
 	c.Abort()
 }
 

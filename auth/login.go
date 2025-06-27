@@ -41,7 +41,7 @@ type ApiKeyLoginReq struct {
 
 // When user is logging in, they may supply some or
 // all of these as part of the authentication process
-type LoginBodyReq struct {
+type UserBodyReq struct {
 	RedirectUrlReq
 	Uuid            string   `json:"uuid"`
 	Username        string   `json:"username"`
