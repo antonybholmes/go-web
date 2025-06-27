@@ -43,10 +43,11 @@ type ApiKeyLoginReq struct {
 // all of these as part of the authentication process
 type UserBodyReq struct {
 	RedirectUrlReq
-	Uuid            string   `json:"uuid"`
+	PublicId        string   `json:"publicId"`
 	Username        string   `json:"username"`
 	Email           string   `json:"email"`
 	Password        string   `json:"password"`
+	NewPassword     string   `json:"newPassword"`
 	FirstName       string   `json:"firstName"`
 	LastName        string   `json:"lastName"`
 	ApiKey          string   `json:"apiKey"`
