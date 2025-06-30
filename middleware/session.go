@@ -15,6 +15,7 @@ const (
 )
 
 var SESSION_OPT_ZERO sessions.Options
+var SESSION_OPT_CLEAR sessions.Options
 
 type SessionInfo struct {
 	AuthUser  *auth.AuthUser `json:"user"`
@@ -37,6 +38,14 @@ func init() {
 	SESSION_OPT_ZERO = sessions.Options{
 		Path:     "/",
 		MaxAge:   0,
+		HttpOnly: true, //false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	}
+
+	SESSION_OPT_CLEAR = sessions.Options{
+		Path:     "/",
+		MaxAge:   -1,   // -1 to delete the cookie
 		HttpOnly: true, //false,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
