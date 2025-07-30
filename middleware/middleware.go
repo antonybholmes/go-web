@@ -396,7 +396,9 @@ func CSRFMiddleware() gin.HandlerFunc {
 // basic check that session exists and seems to be populated with the user
 func SessionIsValidMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessData, err := ReadSessionInfo(c)
+		session := sessions.Default(c)
+
+		sessData, err := ReadSessionInfo(c, session)
 
 		if err != nil {
 			web.UnauthorizedResp(c, "invalid session")

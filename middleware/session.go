@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/antonybholmes/go-web"
@@ -22,6 +23,7 @@ type SessionInfo struct {
 	IsValid   bool           `json:"valid"`
 	CreatedAt string         `json:"createdAt"`
 	ExpiresAt string         `json:"expiresAt"`
+	CsrfToken string         `json:"csrfToken"`
 }
 
 //var SESSION_OPT_24H *sessions.Options
@@ -76,25 +78,32 @@ func init() {
 	// }
 }
 
-func ReadSessionInfo(c *gin.Context) (*SessionInfo, error) {
-	sess := sessions.Default(c) //.Get(consts.SESSION_NAME, c)
+func ReadSessionInfo(c *gin.Context, session sessions.Session) (*SessionInfo, error) {
+	//sess := sessions.Default(c) //.Get(consts.SESSION_NAME, c)
 
-	userData, _ := sess.Get(web.SESSION_USER).(string)
+	userData := session.Get(web.SESSION_USER)
+
+	if userData == nil {
+		return nil, fmt.Errorf("session user data is nil")
+	}
 
 	var user auth.AuthUser
 
-	if err := json.Unmarshal([]byte(userData), &user); err != nil {
+	if err := json.Unmarshal([]byte(userData.(string)), &user); err != nil {
 		return nil, err
 	}
 
 	//publicId, _ := sess.Values[SESSION_PUBLICID].(string)
 	//roles, _ := sess.Values[SESSION_ROLES].(string)
-	createdAt, _ := sess.Get(web.SESSION_CREATED_AT).(string)
-	expires, _ := sess.Get(web.SESSION_EXPIRES_AT).(string)
+	createdAt, _ := session.Get(web.SESSION_CREATED_AT).(string)
+	expires, _ := session.Get(web.SESSION_EXPIRES_AT).(string)
+	csrfToken, _ := session.Get(web.SESSION_CSRF_TOKEN).(string)
+
 	//isValid := publicId != ""
 
 	return &SessionInfo{AuthUser: &user,
 			CreatedAt: createdAt,
-			ExpiresAt: expires},
+			ExpiresAt: expires,
+			CsrfToken: csrfToken},
 		nil
 }
