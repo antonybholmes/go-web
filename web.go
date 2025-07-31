@@ -21,6 +21,10 @@ const (
 	SESSION_EXPIRES_AT string = "expiresAt"
 )
 
+const (
+	CSRF_COOKIE_NAME string = "csrf_token"
+)
+
 const HEADER_X_CSRF_TOKEN = "X-CSRF-Token"
 
 const ERROR_USER_DOES_NOT_EXIST = "user does not exist"
@@ -232,5 +236,7 @@ func GenerateCSRFToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(b), nil
+
+	// make cookie safe
+	return base64.RawURLEncoding.EncodeToString(b), nil //StdEncoding
 }

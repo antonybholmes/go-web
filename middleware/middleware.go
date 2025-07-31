@@ -371,21 +371,96 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 	}
 }
 
-func CSRFMiddleware() gin.HandlerFunc {
+// func CSRFMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodOptions {
+// 			c.Next()
+// 			return
+// 		}
+
+// 		session := sessions.Default(c)
+// 		stored := session.Get(web.SESSION_CSRF_TOKEN)
+// 		received := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
+
+// 		log.Debug().Msgf("stored CSRF token: %v, received CSRF token: %v", stored, received)
+
+// 		if stored == nil || stored != received {
+// 			web.UnauthorizedResp(c, "invalid CSRF token")
+// 			return
+// 		}
+
+// 		c.Next()
+// 	}
+// }
+
+func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
+	token, err := web.GenerateCSRFToken()
+
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return "", fmt.Errorf("failed to generate CSRF token: %w", err)
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:  web.CSRF_COOKIE_NAME,
+		Value: token,
+		Path:  "/",
+		//Domain:   "ed.site.com", // or leave empty if called via ed.site.com
+		MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+		Secure:   true,
+		HttpOnly: false, // must be readable from JS!
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	log.Debug().Msgf("CSRF token set in cookie: %s", token)
+
+	return token, nil
+}
+
+func CSRFCookieMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, err := c.Cookie(web.CSRF_COOKIE_NAME)
+
+		if err == nil {
+			// Cookie exists, do nothing
+			c.Next()
+			return
+		}
+
+		log.Debug().Msgf("CSRF cookie not found, creating a new one")
+
+		_, err = CreateCSRFTokenCookie(c)
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func CSRFValidateMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodOptions {
 			c.Next()
 			return
 		}
 
-		session := sessions.Default(c)
-		stored := session.Get(web.SESSION_CSRF_TOKEN)
-		received := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
+		cookieToken, err := c.Cookie(web.CSRF_COOKIE_NAME)
 
-		log.Debug().Msgf("stored CSRF token: %v, received CSRF token: %v", stored, received)
+		if err != nil {
+			web.ForbiddenResp(c, "CSRF token missing in cookie")
 
-		if stored == nil || stored != received {
-			web.UnauthorizedResp(c, "invalid CSRF token")
+			return
+		}
+
+		headerToken := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
+
+		if headerToken == "" || headerToken != cookieToken {
+			web.ForbiddenResp(c, "invalid CSRF token")
+
+			// Optionally, you can also log the error
+			log.Error().Msgf("CSRF token mismatch: cookie=%s, header=%s", cookieToken, headerToken)
 			return
 		}
 
