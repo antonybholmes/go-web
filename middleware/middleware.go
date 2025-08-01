@@ -51,7 +51,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				// Handle panic errors with 500 status code
 				c.JSON(http.StatusInternalServerError, APIError{
 					Code:    http.StatusInternalServerError,
-					Message: fmt.Sprintf("Internal Server Error: %v", err),
+					Message: fmt.Sprintf("internal server error: %v", err),
 				})
 			}
 		}()
@@ -62,28 +62,38 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		// Check if there are any errors
 		if len(c.Errors) > 0 {
 			// Get the last error (or you can choose how to handle multiple errors)
-			err := c.Errors.Last()
+			lastErr := c.Errors.Last()
 
-			// Set a custom status code based on the error
-			// If no custom status code is set, use the error's default status or fallback to 400
-			status := http.StatusBadRequest
+			switch err := lastErr.Err.(type) {
+			case web.HTTPError:
+				//c.JSON(err.Code, gin.H{"error": err.Message})
+				c.JSON(err.Code, APIError{
+					Code:    err.Code,
+					Message: err.Message,
+				})
+			default:
+				// Set a custom status code based on the error
+				// If no custom status code is set, use the error's default status or fallback to 400
+				status := http.StatusBadRequest
 
-			//log.Debug().Msgf("error %v %d", err, err.Meta)
+				//log.Debug().Msgf("error %v %d", err, err.Meta)
 
-			if err.Meta != nil {
-				// ok indicates cast worked
-				customStatus, ok := err.Meta.(int)
+				if lastErr.Meta != nil {
+					// ok indicates cast worked
+					customStatus, ok := lastErr.Meta.(int)
 
-				if ok {
-					status = customStatus
+					if ok {
+						status = customStatus
+					}
 				}
-			}
 
-			// Send the error response with custom status code
-			c.JSON(status, APIError{
-				Code:    status,
-				Message: err.Error(),
-			})
+				// Send the error response with custom status code
+				c.JSON(status, APIError{
+					Code:    status,
+					Message: lastErr.Error(),
+				})
+			}
+			c.Abort()
 		}
 	}
 }

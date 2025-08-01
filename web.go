@@ -42,6 +42,15 @@ type ReqJwt struct {
 	Jwt string `json:"jwt"`
 }
 
+type HTTPError struct {
+	Code    int    `json:"-"`
+	Message string `json:"error"`
+}
+
+func (e HTTPError) Error() string {
+	return e.Message
+}
+
 func InvalidEmailReq(c *gin.Context) {
 	UnauthorizedResp(c, "invalid email address")
 }
@@ -79,31 +88,32 @@ func TokenErrorResp(c *gin.Context) {
 }
 
 func ForbiddenResp(c *gin.Context, message string) {
-	ErrorWithStatusResp(c, http.StatusForbidden, message)
+	ErrorResp(c, http.StatusForbidden, message)
 }
 
 func UnauthorizedResp(c *gin.Context, message string) {
-	ErrorWithStatusResp(c, http.StatusUnauthorized, message)
+	ErrorResp(c, http.StatusUnauthorized, message)
 }
 
 func BaseUnauthorizedResp(c *gin.Context, err error) {
-	BaseErrorWithStatusResp(c, http.StatusUnauthorized, err)
+	ErrorResp(c, http.StatusUnauthorized, err.Error())
 }
 
-func ErrorResp(c *gin.Context, message string) {
-	ErrorWithStatusResp(c, http.StatusBadRequest, message)
+func BadReqResp(c *gin.Context, message string) {
+	ErrorResp(c, http.StatusBadRequest, message)
 }
 
-func ErrorWithStatusResp(c *gin.Context, status int, message string) {
-	BaseErrorWithStatusResp(c, status, fmt.Errorf("%s", message))
+func BaseBadReqResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusBadRequest, err.Error())
 }
 
-func BaseErrorResp(c *gin.Context, err error) {
-	BaseErrorWithStatusResp(c, http.StatusBadRequest, err)
-}
+func ErrorResp(c *gin.Context, status int, message string) {
+	//c.Error(err).SetMeta(status)
 
-func BaseErrorWithStatusResp(c *gin.Context, status int, err error) {
-	c.Error(err).SetMeta(status)
+	c.Error(HTTPError{
+		Code:    status,
+		Message: message,
+	})
 	c.Abort()
 }
 
@@ -198,16 +208,16 @@ type LoginResp struct {
 	AccessToken  string `json:"accessToken"`
 }
 
-func JsonResp[V any](c *gin.Context, status int, data V) {
-	c.JSON(status, data)
-}
+// func JsonResp[V any](c *gin.Context, status int, data V) {
+// 	c.JSON(status, data)
+// }
 
 // func MakeBadResp(c *gin.Context, err error) error {
 // 	return JsonRep(c, http.StatusBadRequest, StatusResp{StatusResp: StatusResp{Status: http.StatusBadRequest}, Message: err.Error()})
 // }
 
 func MakeDataResp[V any](c *gin.Context, message string, data V) {
-	JsonResp(c,
+	c.JSON(
 		http.StatusOK,
 		DataResp{
 			StatusMessageResp: StatusMessageResp{
@@ -239,4 +249,34 @@ func GenerateCSRFToken() (string, error) {
 
 	// make cookie safe
 	return base64.RawURLEncoding.EncodeToString(b), nil //StdEncoding
+}
+
+type CsrfTokenResp struct {
+	CsrfToken string `json:"csrfToken"`
+}
+
+func MakeCsrfTokenResp(c *gin.Context) (string, error) {
+	csrfToken, err := GenerateCSRFToken()
+
+	if err != nil {
+		c.Error(fmt.Errorf("error generating CSRF token: %w", err))
+		return "", err
+	}
+
+	// Set the CSRF token in a session cookie
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:  CSRF_COOKIE_NAME,
+		Value: csrfToken,
+		Path:  "/",
+		//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+		Secure:   true,
+		HttpOnly: false, // must be readable from JS!
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	MakeDataResp(c, "", &CsrfTokenResp{
+		CsrfToken: csrfToken,
+	})
+
+	return csrfToken, nil
 }
