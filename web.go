@@ -3,7 +3,6 @@ package web
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -97,6 +96,14 @@ func UnauthorizedResp(c *gin.Context, message string) {
 
 func BaseUnauthorizedResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusUnauthorized, err.Error())
+}
+
+func BaseInternalErrorResp(c *gin.Context, err error) {
+	InternalErrorResp(c, err.Error())
+}
+
+func InternalErrorResp(c *gin.Context, message string) {
+	ErrorResp(c, http.StatusInternalServerError, message)
 }
 
 func BadReqResp(c *gin.Context, message string) {
@@ -259,7 +266,7 @@ func MakeCsrfTokenResp(c *gin.Context) (string, error) {
 	csrfToken, err := GenerateCSRFToken()
 
 	if err != nil {
-		c.Error(fmt.Errorf("error generating CSRF token: %w", err))
+		InternalErrorResp(c, "error generating CSRF token")
 		return "", err
 	}
 
