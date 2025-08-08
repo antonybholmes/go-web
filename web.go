@@ -42,8 +42,8 @@ type ReqJwt struct {
 }
 
 type HTTPError struct {
-	Code    int    `json:"-"`
 	Message string `json:"error"`
+	Code    int    `json:"-"`
 }
 
 func (e HTTPError) Error() string {
