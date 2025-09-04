@@ -144,9 +144,13 @@ func ErrorResp(c *gin.Context, status int, message string) {
 
 // parses an "n" query param as an unsigned int returning
 // a default if the param is not present
-func ParseN(c *gin.Context, defaultN uint16) uint16 {
+func ParseN(c *gin.Context, defaultN uint) uint {
+	return ParseNumParam(c, "n", defaultN)
+}
 
-	v := c.Query("n")
+func ParseNumParam(c *gin.Context, name string, defaultN uint) uint {
+
+	v := c.Query(name)
 
 	if v == "" {
 		return defaultN
@@ -158,7 +162,7 @@ func ParseN(c *gin.Context, defaultN uint16) uint16 {
 		return defaultN
 	}
 
-	return uint16(n)
+	return uint(n)
 }
 
 func ParseOutput(c *gin.Context) string {
