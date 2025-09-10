@@ -48,6 +48,7 @@ type UserBodyReq struct {
 	Email           string   `json:"email"`
 	Password        string   `json:"password"`
 	NewPassword     string   `json:"newPassword"`
+	OTP             string   `json:"otp"`
 	FirstName       string   `json:"firstName"`
 	LastName        string   `json:"lastName"`
 	ApiKey          string   `json:"apiKey"`
