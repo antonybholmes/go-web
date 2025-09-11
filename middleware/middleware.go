@@ -12,7 +12,6 @@ import (
 	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -23,7 +22,8 @@ type APIError struct {
 	Code    int    `json:"code"`
 }
 
-func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
+// func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
+func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
@@ -34,12 +34,7 @@ func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
 		duration := time.Since(start)
 
 		// Log the request information
-		logger.Info().
-			Str("method", c.Request.Method).
-			Str("path", c.Request.URL.Path).
-			Int("status", c.Writer.Status()).
-			Dur("duration", duration).
-			Msg("HTTP request")
+		log.Info().Msgf("HTTP request: %s %s %d %v", c.Request.Method, c.Request.URL.Path, c.Writer.Status(), duration)
 	}
 }
 

@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -206,4 +207,17 @@ func Generate6DigitCode() (string, error) {
 		b[i] = digits[int(b[i])%10]
 	}
 	return string(b), nil
+}
+
+func GenerateOTP() (string, error) {
+	max := big.NewInt(1000000) // 6 digits: 000000 - 999999
+
+	n, err := rand.Int(rand.Reader, max)
+
+	if err != nil {
+		return "", err
+	}
+
+	// "%06d" padds with leading zeros if necessary
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }
