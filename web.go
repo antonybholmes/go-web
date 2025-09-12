@@ -266,7 +266,7 @@ type CsrfTokenResp struct {
 	CsrfToken string `json:"csrfToken"`
 }
 
-func MakeCsrfTokenResp(c *gin.Context) (string, error) {
+func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 	csrfToken, err := GenerateCSRFToken()
 
 	if err != nil {
