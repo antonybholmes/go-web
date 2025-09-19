@@ -30,20 +30,20 @@ func UpdateToken(c *gin.Context, publicId string, roles string) (string, error) 
 	return tc.UpdateToken(c, publicId, roles)
 }
 
-func VerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
-	return tc.VerifyEmailToken(c, authUser, visitUrl)
+func MakeVerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
+	return tc.MakeVerifyEmailToken(c, authUser, visitUrl)
 }
 
-func ResetPasswordToken(c *gin.Context, user *auth.AuthUser) (string, error) {
-	return tc.ResetPasswordToken(c, user)
+func MakeResetPasswordToken(c *gin.Context, user *auth.AuthUser) (string, error) {
+	return tc.MakeResetPasswordToken(c, user)
 }
 
-func ResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
-	return tc.ResetEmailToken(c, user, email)
+func MakeResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
+	return tc.MakeResetEmailToken(c, user, email)
 }
 
-func PasswordlessToken(c *gin.Context, userId string, url string) (string, error) {
-	return tc.PasswordlessToken(c, userId, url)
+func MakePasswordlessToken(c *gin.Context, userId string, url string) (string, error) {
+	return tc.MakePasswordlessToken(c, userId, url)
 }
 
 func OneTimeToken(c *gin.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {

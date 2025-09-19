@@ -174,7 +174,7 @@ func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles strin
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, visitUrl string) (string, error) {
+func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
@@ -190,7 +190,7 @@ func (tc *TokenCreator) VerifyEmailToken(c *gin.Context, authUser *AuthUser, vis
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) ResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
 	claims := TokenClaims{
 		UserId: user.PublicId,
 		// include first name to personalize reset
@@ -202,7 +202,7 @@ func (tc *TokenCreator) ResetPasswordToken(c *gin.Context, user *AuthUser) (stri
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) ResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
+func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := TokenClaims{
 		UserId:           user.PublicId,
@@ -215,7 +215,7 @@ func (tc *TokenCreator) ResetEmailToken(c *gin.Context, user *AuthUser, email *m
 
 }
 
-func (tc *TokenCreator) PasswordlessToken(c *gin.Context, userId string, redirectUrl string) (string, error) {
+func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, redirectUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
