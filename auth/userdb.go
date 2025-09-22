@@ -831,7 +831,13 @@ func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error 
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	_, err := userdb.db.Exec(INSERT_APK_KEY_SQL, user.Id, sys.Uuid())
+	uuid, err := sys.Uuid()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = userdb.db.Exec(INSERT_APK_KEY_SQL, user.Id, uuid)
 
 	if err != nil {
 		return err
@@ -935,7 +941,11 @@ func (userdb *UserDb) CreateUser(userName string,
 	// try to create user if user does not exist
 
 	// Create a publicId for the user id
-	publicId := sys.NanoId()
+	publicId, err := sys.Uuid() // sys.NanoId()
+
+	if err != nil {
+		return nil, fmt.Errorf("could not create uuid for user")
+	}
 
 	hash := ""
 
