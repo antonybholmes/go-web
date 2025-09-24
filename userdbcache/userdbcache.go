@@ -107,7 +107,7 @@ func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
 
 	roleSet := sys.NewStringSet()
 
-	roleSet.UpdateFromList(roles)
+	roleSet.ListUpdate(roles)
 
 	return roleSet, nil
 }

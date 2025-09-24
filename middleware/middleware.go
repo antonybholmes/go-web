@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -147,6 +146,8 @@ func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
 }
 
 // Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
+// If jwt is present it is added to the context as "user", thus subsequent handlers can
+// access it.
 func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
@@ -303,6 +304,8 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 
 type UserClaimsFunc func(c *gin.Context, claims *auth.TokenClaims)
 
+// checks that user exists in context and calls f with the claims
+// if it does.
 func checkUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
 
 	user, ok := c.Get("user")
@@ -318,7 +321,7 @@ func checkUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
 	f(c, claims)
 }
 
-func JwtIsSpecificTokenTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
+func JwtIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
@@ -334,26 +337,27 @@ func JwtIsSpecificTokenTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc 
 }
 
 func JwtIsRefreshTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTokenTypeMiddleware(auth.REFRESH_TOKEN)
+	return JwtIsSpecificTypeMiddleware(auth.REFRESH_TOKEN)
 }
 
+// make sure the supplied token is an access token
 func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTokenTypeMiddleware(auth.ACCESS_TOKEN)
+	return JwtIsSpecificTypeMiddleware(auth.ACCESS_TOKEN)
 }
 
 func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTokenTypeMiddleware(auth.UPDATE_TOKEN)
+	return JwtIsSpecificTypeMiddleware(auth.UPDATE_TOKEN)
 }
 
 func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTokenTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
+	return JwtIsSpecificTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
 }
 
 func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.HasAdminRole(sys.NewStringSet().UpdateFromList(claims.Role)) {
+			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(claims.Role)) {
 				web.ForbiddenResp(c, "user is not an admin")
 
 				return
@@ -368,7 +372,7 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.HasSignInRole(sys.NewStringSet().UpdateFromList(claims.Role)) {
+			if !auth.HasSignInRole(sys.NewStringSet().ListUpdate(claims.Role)) {
 				web.ForbiddenResp(c, "user is not allowed to login")
 				return
 			}
@@ -535,19 +539,19 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 // Create a permissions middleware to verify jwt roles on a token
 func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 
+	//roleSet := sys.NewStringSet().UpdateFromList(roles)
+
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			//log.Debug().Msgf("claims %v", claims)
 
-			userRoles := sys.NewStringSet().UpdateFromList(claims.Role)
+			userRoles := sys.NewStringSet().ListUpdate(claims.Role)
 
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list
 			if !auth.HasAdminRole(userRoles) {
-				userHasValidRole := slices.ContainsFunc(roles, userRoles.Has)
-
-				if !userHasValidRole {
+				if !userRoles.ListContains(roles) {
 					web.ForbiddenResp(c, "invalid role")
 					return
 				}
