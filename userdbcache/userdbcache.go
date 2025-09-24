@@ -4,6 +4,7 @@ import (
 	"net/mail"
 	"sync"
 
+	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
 )
 
@@ -94,6 +95,21 @@ func UserRoleList(user *auth.AuthUser) ([]string, error) {
 	}
 
 	return ret, nil
+}
+
+func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
+
+	roles, err := instance.UserRoleList(user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	roleSet := sys.NewStringSet()
+
+	roleSet.UpdateFromList(roles)
+
+	return roleSet, nil
 }
 
 func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {

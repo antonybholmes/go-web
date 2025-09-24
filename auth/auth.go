@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
@@ -138,17 +137,16 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 // 	return CanLogin(user.Roles)
 // }
 
-func IsSuper(roles string) bool {
-	return strings.Contains(roles, ROLE_SUPER)
+func HasSuperRole(roles *sys.StringSet) bool {
+	return roles.Has(ROLE_SUPER)
 }
 
-func IsAdmin(roles string) bool {
-	return IsSuper(roles) || strings.Contains(roles, ROLE_ADMIN)
-
+func HasAdminRole(roles *sys.StringSet) bool {
+	return HasSuperRole(roles) || roles.Has(ROLE_ADMIN)
 }
 
-func CanSignin(roles string) bool {
-	return IsAdmin(roles) || strings.Contains(roles, ROLE_SIGNIN)
+func HasSignInRole(roles *sys.StringSet) bool {
+	return HasAdminRole(roles) || roles.Has(ROLE_SIGNIN)
 }
 
 // // Generate a one time code

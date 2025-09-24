@@ -4,9 +4,11 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-contrib/sessions"
@@ -351,7 +353,7 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.IsAdmin((claims.Roles)) {
+			if !auth.HasAdminRole(sys.NewStringSet().UpdateFromList(claims.Role)) {
 				web.ForbiddenResp(c, "user is not an admin")
 
 				return
@@ -366,7 +368,7 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.CanSignin((claims.Roles)) {
+			if !auth.HasSignInRole(sys.NewStringSet().UpdateFromList(claims.Role)) {
 				web.ForbiddenResp(c, "user is not allowed to login")
 				return
 			}
@@ -530,30 +532,22 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 // 	}
 // }
 
-// Create a permissions middleware to verify jwt permissions on a token
-func JwtHasRoleMiddleware(validRoles ...string) gin.HandlerFunc {
+// Create a permissions middleware to verify jwt roles on a token
+func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			//log.Debug().Msgf("claims %v", claims)
 
+			userRoles := sys.NewStringSet().UpdateFromList(claims.Role)
+
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list
-			if !auth.IsAdmin(claims.Roles) {
-				isValidRole := false
+			if !auth.HasAdminRole(userRoles) {
+				userHasValidRole := slices.ContainsFunc(roles, userRoles.Has)
 
-				for _, validRole := range validRoles {
-
-					// if we find a permission, stop and move on
-					if strings.Contains(claims.Roles, validRole) {
-						isValidRole = true
-						break
-					}
-
-				}
-
-				if !isValidRole {
+				if !userHasValidRole {
 					web.ForbiddenResp(c, "invalid role")
 					return
 				}
