@@ -12,6 +12,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// initialize once. Ideally would be a constant but Go doesn't
+// support non primitive constants
+var otpMax *big.Int
+
 const (
 	MAX_AGE_YEAR_SECS    = 31536000
 	MAX_AGE_30_DAYS_SECS = 2592000
@@ -93,6 +97,8 @@ type AuthUser struct {
 
 func init() {
 	randomstring.Seed()
+	// initialize once
+	otpMax = big.NewInt(1000000)
 }
 
 // func NewAuthUser(
@@ -207,10 +213,10 @@ func Generate6DigitCode() (string, error) {
 	return string(b), nil
 }
 
-func GenerateOTP() (string, error) {
-	max := big.NewInt(1000000) // 6 digits: 000000 - 999999
+func Generate6DigitOTP() (string, error) {
+	//max := big.NewInt(1000000) // 6 digits: 000000 - 999999
 
-	n, err := rand.Int(rand.Reader, max)
+	n, err := rand.Int(rand.Reader, otpMax)
 
 	if err != nil {
 		return "", err
