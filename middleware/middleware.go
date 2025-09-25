@@ -145,10 +145,8 @@ func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
 	}
 }
 
-// Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
-// If jwt is present it is added to the context as "user", thus subsequent handlers can
-// access it.
-func ParseJwtUser(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenClaims, error) {
+// Reads the token and parses the authorization JWT. If no jwt is present, returns an error.
+func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenClaims, error) {
 	return func(c *gin.Context) (*auth.TokenClaims, error) {
 
 		tokenString, err := ParseToken(c)
@@ -173,8 +171,8 @@ func ParseJwtUser(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenC
 // Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
 // If jwt is present it is added to the context as "user", thus subsequent handlers can
 // access it.
-func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
-	parseFunc := ParseJwtUser(claimsParser)
+func UserJWTMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
+	parseFunc := ParseUserJWT(claimsParser)
 
 	return func(c *gin.Context) {
 
@@ -200,11 +198,9 @@ func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 	}
 }
 
-type UserClaimsFunc func(c *gin.Context, claims *auth.TokenClaims)
-
 // checks that user exists in context and calls f with the claims
 // if it does.
-func checkJWTUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
+func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims *auth.TokenClaims)) {
 
 	// user is a jwt
 	user, ok := c.Get("user")

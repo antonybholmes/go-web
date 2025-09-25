@@ -268,7 +268,12 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 	//var emailVerifiedAt int64
 
 	for rows.Next() {
-		var authUser AuthUser
+		// need to initialize slices here to avoid nil
+		authUser := AuthUser{
+			Roles:   make([]string, 0, 5),
+			ApiKeys: make([]string, 0, 5),
+		}
+
 		err := rows.Scan(&authUser.Id,
 			&authUser.PublicId,
 			&authUser.FirstName,
@@ -289,7 +294,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 		//authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
 		//authUser.UpdatedAt = time.Duration(updatedAt)
 
-		log.Debug().Msgf("this user %v", authUser)
+		//log.Debug().Msgf("this user %v", authUser)
 
 		err = userdb.AddRolesToUser(&authUser)
 
@@ -431,7 +436,7 @@ func (userdb *UserDb) AddRolesToUser(authUser *AuthUser) error {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser.Roles = roles
+	authUser.Roles = append(authUser.Roles, roles...)
 
 	return nil
 }

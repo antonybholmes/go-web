@@ -9,7 +9,7 @@ import (
 
 func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) gin.HandlerFunc {
 	// create a function that extracts user from context
-	parseFunc := ParseJwtUser(claimsParser)
+	parseFunc := ParseUserJWT(claimsParser)
 
 	return func(c *gin.Context) {
 		// extract user from context

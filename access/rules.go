@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/antonybholmes/go-sys"
@@ -19,17 +20,25 @@ import (
 // 	return rulePath == actualPath
 // }
 
+const (
+	MATCH_TYPE_EXACT    = "exact"
+	MATCH_TYPE_WILDCARD = "wildcard"
+)
+
 type JsonTokenRule struct {
 	Type  string   `json:"type"`
 	Roles []string `json:"roles"`
 }
 
+type JsonMethodRule struct {
+	Type   string          `json:"type"`
+	Tokens []JsonTokenRule `json:"tokens"`
+}
+
 // JSON structure for rules
 type JsonRule struct {
-	Method string   `json:"method"`
-	Path   string   `json:"path"`
-	Token  string   `json:"token"`
-	Roles  []string `json:"roles"`
+	Methods []JsonMethodRule `json:"methods"`
+	Path    string           `json:"path"`
 }
 
 type TokenRule struct {
@@ -38,20 +47,19 @@ type TokenRule struct {
 }
 
 // Rule represents an access control rule
-type Rule struct {
-	Method string         `json:"method"`
-	Path   string         `json:"path"`
-	Token  string         `json:"token"`
-	Roles  *sys.StringSet `json:"roles"`
-}
+// type Rule struct {
+// 	Method string         `json:"method"`
+// 	Path   string         `json:"path"`
+// 	Token  string         `json:"token"`
+// 	Roles  *sys.StringSet `json:"roles"`
+// }
 
 type RuleEngine struct {
-	rules map[string]map[string]map[string]*sys.StringSet
-	//wilcardRules map[string]map[string][]Rule
+	rules map[string]map[string]map[string]map[string]*sys.StringSet
 }
 
 func NewRuleEngine() *RuleEngine {
-	return &RuleEngine{rules: make(map[string]map[string]map[string]*sys.StringSet)} //wilcardRules: make(map[string]map[string][]Rule)
+	return &RuleEngine{rules: make(map[string]map[string]map[string]map[string]*sys.StringSet)} //wilcardRules: make(map[string]map[string][]Rule)
 
 }
 
@@ -63,16 +71,23 @@ func (re *RuleEngine) LoadRules(filename string) {
 
 	var rules []JsonRule
 	sys.BaseMust(json.Unmarshal(data, &rules))
+	var matchType string
 
 	for _, r := range rules {
 
 		path := r.Path
 		if strings.HasSuffix(path, "/*") {
+			matchType = MATCH_TYPE_WILDCARD
 			prefix := strings.TrimSuffix(path, "/*")
 
 			// Adjust the rule path to be the prefix without the wildcard
 			path = prefix
+		} else {
+			matchType = MATCH_TYPE_EXACT
 		}
+
+		// remove trailing slash if present
+		path = strings.TrimSuffix(path, "/")
 
 		// rule := Rule{
 		// 	Method: strings.ToUpper(r.Method),
@@ -81,38 +96,102 @@ func (re *RuleEngine) LoadRules(filename string) {
 		// 	Roles:  sys.NewStringSet().ListUpdate(r.Roles),
 		// }
 
-		if re.rules[r.Method] == nil {
-			re.rules[r.Method] = make(map[string]map[string]*sys.StringSet)
+		for _, m := range r.Methods {
+
+			methodType := strings.ToLower(m.Type)
+
+			for _, t := range m.Tokens {
+
+				tokenType := strings.ToLower(t.Type)
+
+				if re.rules[matchType] == nil {
+					re.rules[matchType] = make(map[string]map[string]map[string]*sys.StringSet)
+				}
+
+				if re.rules[matchType][methodType] == nil {
+					re.rules[matchType][methodType] = make(map[string]map[string]*sys.StringSet)
+				}
+
+				if re.rules[matchType][methodType][tokenType] == nil {
+					re.rules[matchType][methodType][tokenType] = make(map[string]*sys.StringSet)
+				}
+
+				// path is last as this is the most expensive to check
+				// so we can quickly eliminate rules that don't match method or token
+				// before checking path
+				re.rules[matchType][methodType][tokenType][path] = sys.NewStringSet().ListUpdate(t.Roles) //  = append(re.rules[rule.Method][rule.Token][rule.Path], rule)
+			}
 		}
-
-		if re.rules[r.Method][r.Token] == nil {
-			re.rules[r.Method][r.Token] = make(map[string]*sys.StringSet)
-		}
-
-		// path is last as this is the most expensive to check
-		// so we can quickly eliminate rules that don't match method or token
-		// before checking path
-		re.rules[r.Method][r.Token][path] = sys.NewStringSet().ListUpdate(r.Roles) //  = append(re.rules[rule.Method][rule.Token][rule.Path], rule)
-
 	}
 
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules), filename)
-
 }
 
-func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
-	method = strings.ToUpper(method)
+func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+	log.Debug().Msgf("GetWildCardRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
-	methodRules, ok := re.rules[method]
+	matchTypeRules, ok := re.rules[MATCH_TYPE_WILDCARD]
 
 	if !ok {
-		return nil, fmt.Errorf("no rules for method %s", method)
+		return nil, fmt.Errorf("no rules for match type %s for path %s", MATCH_TYPE_EXACT, path)
+	}
+
+	methodRules, ok := matchTypeRules[method]
+
+	if !ok {
+		return nil, fmt.Errorf("no rules for method %s for path %s", method, path)
 	}
 
 	tokenRules, ok := methodRules[tokenType]
 
 	if !ok {
-		return nil, fmt.Errorf("no rules for token type %s", tokenType)
+		return nil, fmt.Errorf("no rules for token type %s for method %s for path %s", tokenType, method, path)
+	}
+
+	// sort paths descending by length so that the longest match is found first
+	rulePaths := make([]string, 0, len(tokenRules))
+
+	for rulePath := range tokenRules {
+		rulePaths = append(rulePaths, rulePath)
+	}
+
+	sort.Slice(rulePaths, func(i, j int) bool {
+		return len(rulePaths[i]) > len(rulePaths[j])
+	})
+
+	// find the first matching rule that is longest
+	for _, rulePath := range rulePaths {
+
+		// see if path starts with rulePath prefix
+		if strings.HasPrefix(path, rulePath) {
+			return tokenRules[rulePath], nil
+		}
+
+	}
+
+	// No matching rules found
+	return nil, fmt.Errorf("no rules found")
+}
+
+func (re *RuleEngine) getExactRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
+
+	matchTypeRules, ok := re.rules[MATCH_TYPE_EXACT]
+
+	if !ok {
+		return nil, fmt.Errorf("no rules for match type %s for path %s", MATCH_TYPE_EXACT, path)
+	}
+
+	methodRules, ok := matchTypeRules[method]
+
+	if !ok {
+		return nil, fmt.Errorf("no rules for method %s for path %s", method, path)
+	}
+
+	tokenRules, ok := methodRules[tokenType]
+
+	if !ok {
+		return nil, fmt.Errorf("no rules for token type %s for method %s for path %s", tokenType, method, path)
 	}
 
 	// Exact match rules, ideally all routes should be exact matches
@@ -122,18 +201,25 @@ func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path str
 		return rules, nil
 	}
 
-	// Wildcard match rules,
-	// check each rulePath to see if path starts with rulePath prefix
-	// which is more expensive so do it last
-	for rulePath, rules := range tokenRules {
-		// see if path starts with rulePath prefix
-		if strings.HasPrefix(path, rulePath) {
-			return rules, nil
-		}
+	return nil, fmt.Errorf("no rules found")
+}
+
+func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+	method = strings.ToLower(method)
+	tokenType = strings.ToLower(tokenType)
+	// normalize path by removing trailing slash if present
+	path = strings.TrimSuffix(path, "/")
+
+	rules, err := re.getExactRoles(method, tokenType, path)
+
+	if err == nil {
+		return rules, nil
 	}
 
-	// No matching rules found
-	return nil, fmt.Errorf("no matching rules found")
+	// try wildcard rules
+
+	return re.getWildCardRoles(method, tokenType, path)
+
 }
 
 func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, roles []string) error {
