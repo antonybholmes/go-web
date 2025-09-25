@@ -148,151 +148,49 @@ func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
 // Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
 // If jwt is present it is added to the context as "user", thus subsequent handlers can
 // access it.
-func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
+func ParseJwtUser(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenClaims, error) {
+	return func(c *gin.Context) (*auth.TokenClaims, error) {
 
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
-			return
+
+			return nil, err
 		}
 
 		claims := auth.TokenClaims{}
 
 		err = claimsParser(tokenString, &claims)
 
+		if err != nil {
+			return nil, err
+		}
+
+		return &claims, nil
+	}
+}
+
+// Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
+// If jwt is present it is added to the context as "user", thus subsequent handlers can
+// access it.
+func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
+	parseFunc := ParseJwtUser(claimsParser)
+
+	return func(c *gin.Context) {
+
+		claims, err := parseFunc(c)
+
+		if err != nil {
+			c.Error(err)
+			c.Abort()
+			return
+		}
+
 		// // Parse the JWT
 		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// 	// Return the secret key for verifying the token
 		// 	return consts.JWT_RSA_PUBLIC_KEY, nil
 		// })
-
-		if err != nil {
-			c.Error(err)
-			c.Abort()
-			return
-		}
-
-		// use pointer to token
-		c.Set("user", &claims)
-
-		// Continue processing the request
-		c.Next()
-
-	}
-}
-
-func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
-
-	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
-
-	return func(c *gin.Context) {
-
-		tokenString, err := ParseToken(c)
-
-		if err != nil {
-			web.UnauthorizedResp(c, "invalid auth0 token")
-			return
-		}
-
-		claims := auth.Auth0TokenClaims{}
-
-		//log.Debug().Msgf("token %s", tokenString)
-
-		// Parse the JWT
-		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-		// 	// Return the secret key for verifying the token
-		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
-		// })
-
-		err = claimsParser(tokenString, &claims)
-
-		if err != nil {
-			web.UnauthorizedResp(c, "invalid auth0 token")
-			return
-		}
-
-		// use pointer to token
-		c.Set("user", &claims)
-
-		// Continue processing the request
-		c.Next()
-	}
-}
-
-func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
-	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
-
-	return func(c *gin.Context) {
-
-		tokenString, err := ParseToken(c)
-
-		if err != nil {
-			web.UnauthorizedResp(c, "invalid clerk token")
-			return
-		}
-
-		claims := auth.ClerkTokenClaims{}
-
-		log.Debug().Msgf("token %s", tokenString)
-
-		// Parse the JWT
-		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-		// 	// Return the secret key for verifying the token
-		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
-		// })
-
-		err = claimsParser(tokenString, &claims)
-
-		if err != nil {
-			c.Error(err)
-			c.Abort()
-			return
-		}
-
-		log.Debug().Msgf("%v %s", claims, claims.Email)
-
-		// use pointer to token
-		c.Set("user", &claims)
-
-		// Continue processing the request
-		c.Next()
-	}
-}
-
-func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
-	claimsParser := JwtClaimsHMACParser(secret)
-
-	return func(c *gin.Context) {
-
-		tokenString, err := ParseToken(c)
-
-		if err != nil {
-			web.UnauthorizedResp(c, "invalid supabase token")
-			return
-		}
-
-		claims := auth.SupabaseTokenClaims{}
-
-		log.Debug().Msgf("token %s", tokenString)
-
-		// Parse the JWT
-		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-		// 	// Return the secret key for verifying the token
-		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
-		// })
-
-		err = claimsParser(tokenString, &claims)
-
-		if err != nil {
-			c.Error(err)
-			c.Abort()
-			return
-		}
-
-		log.Debug().Msgf("%v %s", claims, claims.Email)
 
 		// use pointer to token
 		c.Set("user", &claims)
@@ -306,8 +204,9 @@ type UserClaimsFunc func(c *gin.Context, claims *auth.TokenClaims)
 
 // checks that user exists in context and calls f with the claims
 // if it does.
-func checkUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
+func checkJWTUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
 
+	// user is a jwt
 	user, ok := c.Get("user")
 
 	if !ok {
@@ -321,9 +220,11 @@ func checkUserExistsMiddleware(c *gin.Context, f UserClaimsFunc) {
 	f(c, claims)
 }
 
-func JwtIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
+func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		log.Debug().Msgf("Handler: %s", c.FullPath())
+
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if claims.Type != tokenType {
 				web.ForbiddenResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
@@ -337,27 +238,27 @@ func JwtIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 }
 
 func JwtIsRefreshTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTypeMiddleware(auth.REFRESH_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.REFRESH_TOKEN)
 }
 
 // make sure the supplied token is an access token
 func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTypeMiddleware(auth.ACCESS_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.ACCESS_TOKEN)
 }
 
 func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTypeMiddleware(auth.UPDATE_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.UPDATE_TOKEN)
 }
 
 func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
-	return JwtIsSpecificTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
 }
 
 func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(claims.Role)) {
+			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
 				web.ForbiddenResp(c, "user is not an admin")
 
 				return
@@ -370,9 +271,9 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 
 func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
-			if !auth.HasSignInRole(sys.NewStringSet().ListUpdate(claims.Role)) {
+			if !auth.HasSignInRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
 				web.ForbiddenResp(c, "user is not allowed to login")
 				return
 			}
@@ -403,81 +304,6 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 // 		c.Next()
 // 	}
 // }
-
-func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
-	token, err := web.GenerateCSRFToken()
-
-	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return "", fmt.Errorf("failed to generate CSRF token: %w", err)
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  web.CSRF_COOKIE_NAME,
-		Value: token,
-		Path:  "/",
-		//Domain:   "ed.site.com", // or leave empty if called via ed.site.com
-		MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
-		Secure:   true,
-		HttpOnly: false, // must be readable from JS!
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	log.Debug().Msgf("CSRF token set in cookie: %s", token)
-
-	return token, nil
-}
-
-func CSRFCookieMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		_, err := c.Cookie(web.CSRF_COOKIE_NAME)
-
-		if err == nil {
-			// Cookie exists, do nothing
-			c.Next()
-			return
-		}
-
-		log.Debug().Msgf("CSRF cookie not found, creating a new one")
-
-		_, err = CreateCSRFTokenCookie(c)
-		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func CSRFValidateMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodOptions {
-			c.Next()
-			return
-		}
-
-		cookieToken, err := c.Cookie(web.CSRF_COOKIE_NAME)
-
-		if err != nil {
-			web.ForbiddenResp(c, "CSRF token missing in cookie")
-
-			return
-		}
-
-		headerToken := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
-
-		if headerToken == "" || headerToken != cookieToken {
-			web.ForbiddenResp(c, "invalid CSRF token")
-
-			// Optionally, you can also log the error
-			log.Error().Msgf("CSRF token mismatch: cookie=%s, header=%s", cookieToken, headerToken)
-			return
-		}
-
-		c.Next()
-	}
-}
 
 // basic check that session exists and seems to be populated with the user
 func SessionIsValidMiddleware() gin.HandlerFunc {
@@ -542,11 +368,11 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 	//roleSet := sys.NewStringSet().UpdateFromList(roles)
 
 	return func(c *gin.Context) {
-		checkUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			//log.Debug().Msgf("claims %v", claims)
 
-			userRoles := sys.NewStringSet().ListUpdate(claims.Role)
+			userRoles := sys.NewStringSet().ListUpdate(claims.Roles)
 
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list

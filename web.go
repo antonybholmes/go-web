@@ -90,11 +90,15 @@ func ForbiddenResp(c *gin.Context, message string) {
 	ErrorResp(c, http.StatusForbidden, message)
 }
 
+func ForbiddenErrResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusForbidden, err.Error())
+}
+
 func UnauthorizedResp(c *gin.Context, message string) {
 	ErrorResp(c, http.StatusUnauthorized, message)
 }
 
-func BaseUnauthorizedResp(c *gin.Context, err error) {
+func UnauthorizedErrResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusUnauthorized, err.Error())
 }
 

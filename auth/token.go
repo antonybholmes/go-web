@@ -59,7 +59,7 @@ type TokenClaims struct {
 	Data            string    `json:"data,omitempty"`
 	OneTimePasscode string    `json:"otp,omitempty"`
 	Scope           []string  `json:"scope,omitempty"`
-	Role            []string  `json:"role,omitempty"`
+	Roles           []string  `json:"roles,omitempty"`
 	RedirectUrl     string    `json:"redirectUrl,omitempty"`
 	Type            TokenType `json:"type"`
 }
@@ -156,7 +156,7 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []str
 		UserId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             ACCESS_TOKEN,
-		Role:             roles,
+		Roles:            roles,
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
 
 	return tc.BaseToken(claims)
@@ -168,7 +168,7 @@ func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []str
 		UserId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             UPDATE_TOKEN,
-		Role:             roles,
+		Roles:            roles,
 		RegisteredClaims: makeDefaultClaimsWithTTL(TTL_1_MIN)}
 
 	return tc.BaseToken(claims)
