@@ -193,7 +193,7 @@ func JwtUserMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 		// })
 
 		// use pointer to token
-		c.Set("user", &claims)
+		c.Set("user", claims)
 
 		// Continue processing the request
 		c.Next()
