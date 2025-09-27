@@ -39,17 +39,7 @@ const (
 	SESSION_TOKEN TokenType = "session"
 )
 
-const (
-	TTL_HOUR    time.Duration = time.Hour
-	TTL_DAY     time.Duration = TTL_HOUR * 24
-	TTL_YEAR    time.Duration = TTL_DAY * 365
-	TTL_30_DAYS time.Duration = TTL_DAY * 30
 
-	TTL_1_MIN   time.Duration = time.Minute
-	TTL_20_MINS time.Duration = time.Minute * 20
-	TTL_15_MINS time.Duration = time.Minute * 15
-	TTL_10_MINS time.Duration = time.Minute * 10
-)
 
 const JWT_CLAIM_SEP = " "
 
