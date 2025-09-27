@@ -19,7 +19,7 @@ var otp8Max *big.Int
 const KEY = "otp:"
 
 type RateLimit struct {
-	Limit     int64           // number of allowed attempts
+	Limit     int64         // number of allowed attempts
 	BlockTime time.Duration // block time duration
 }
 
@@ -39,7 +39,7 @@ func init() {
 
 func makeOTPKey(email string) string {
 	return fmt.Sprintf("login:email:%s:otp", email)
-}	
+}
 
 func NewDefaultOTP(rdb *redis.Client) *OTP {
 	return NewOTP(rdb, TTL_10_MINS, RateLimit{Limit: 10, BlockTime: TTL_10_MINS})
@@ -49,18 +49,18 @@ func NewOTP(rdb *redis.Client, ttl time.Duration, rateLimit RateLimit) *OTP {
 	return &OTP{
 		Context:     context.Background(),
 		RedisClient: rdb,
-		ttl:        ttl,
-		rateLimit:  rateLimit,
+		ttl:         ttl,
+		rateLimit:   rateLimit,
 	}
 }
 
 // TTL returns the time to live duration for the OTP
-func (otp *OTP) TTL () time.Duration {
+func (otp *OTP) TTL() time.Duration {
 	return otp.ttl
 }
 
 func (otp *OTP) Cache8DigitOTP(username string) (string, error) {
-	code, err :=  Generate8DigitOTP() //Generate6DigitCode()
+	code, err := Generate8DigitOTP() //Generate6DigitCode()
 
 	if err != nil {
 		return "", err
@@ -76,7 +76,7 @@ func (otp *OTP) Cache8DigitOTP(username string) (string, error) {
 }
 
 func (otp *OTP) Cache6DigitOTP(username string) (string, error) {
-	code, err :=  Generate6DigitOTP() //Generate6DigitCode()
+	code, err := Generate6DigitOTP() //Generate6DigitCode()
 
 	if err != nil {
 		return "", err
@@ -92,7 +92,7 @@ func (otp *OTP) Cache6DigitOTP(username string) (string, error) {
 }
 
 func (otp *OTP) deleteOTP(email string) error {
-	key :=  makeOTPKey(email)
+	key := makeOTPKey(email)
 	return otp.RedisClient.Del(otp.Context, key).Err()
 }
 
@@ -107,15 +107,17 @@ func (otp *OTP) storeOTP(email string, code string) error {
 }
 
 func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
-	exceeded, err := otp.attemptLimitExceeded( email )
-    
+	// distinguish between an error with redis and when
+	// rate is exceeded
+	exceeded, err := otp.attemptLimitExceeded(email)
+
 	if err != nil {
-         return false, err
-    }
-    
+		return false, err
+	}
+
 	if exceeded {
-        return false, fmt.Errorf("Too many failed attempts. Try again later.")
-    }
+		return false, fmt.Errorf("Too many failed attempts. Try again later.")
+	}
 
 	stored, err := otp.getOTP(email)
 
@@ -141,26 +143,22 @@ func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
 	return true, nil
 }
 
-func (otp *OTP) attemptLimitExceeded( email string ) (bool, error) {
-    key := fmt.Sprintf("login:email:%s:attempts", email)
+func (otp *OTP) attemptLimitExceeded(email string) (bool, error) {
+	key := fmt.Sprintf("login:email:%s:attempts", email)
 
-    attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
+	attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
 
-    if err != nil {
-        return false, err
-    }
+	if err != nil {
+		return false, err
+	}
 
-    if attempts == 1 {
+	if attempts == 1 {
 		// on first attempt set expiry
-        otp.RedisClient.Expire(otp.Context, key, otp.rateLimit.BlockTime)
-    }
+		otp.RedisClient.Expire(otp.Context, key, otp.rateLimit.BlockTime)
+	}
 
-    return attempts > otp.rateLimit.Limit, nil
+	return attempts > otp.rateLimit.Limit, nil
 }
-
-
-
-
 
 func Generate6DigitOTP() (string, error) {
 	//max := big.NewInt(1000000) // 6 digits: 000000 - 999999

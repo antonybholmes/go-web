@@ -12,6 +12,7 @@ import (
 type SignupReq struct {
 	User
 	Password string `json:"password"`
+
 	RedirectUrlReq
 }
 
