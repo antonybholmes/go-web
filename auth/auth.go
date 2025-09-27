@@ -3,7 +3,6 @@ package auth
 import (
 	"crypto/rand"
 	"fmt"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -12,15 +11,25 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// initialize once. Ideally would be a constant but Go doesn't
-// support non primitive constants
-var otpMax *big.Int
+
 
 const (
 	MAX_AGE_YEAR_SECS    = 31536000
 	MAX_AGE_30_DAYS_SECS = 2592000
 	MAX_AGE_7_DAYS_SECS  = 604800 //86400 * 7
 	MAX_AGE_DAY_SECS     = 86400
+)
+
+const (
+	TTL_HOUR    time.Duration = time.Hour
+	TTL_DAY     time.Duration = TTL_HOUR * 24
+	TTL_YEAR    time.Duration = TTL_DAY * 365
+	TTL_30_DAYS time.Duration = TTL_DAY * 30
+
+	TTL_1_MIN   time.Duration = time.Minute
+	TTL_20_MINS time.Duration = time.Minute * 20
+	TTL_15_MINS time.Duration = time.Minute * 15
+	TTL_10_MINS time.Duration = time.Minute * 10
 )
 
 const (
@@ -97,8 +106,6 @@ type AuthUser struct {
 
 func init() {
 	randomstring.Seed()
-	// initialize once
-	otpMax = big.NewInt(1000000)
 }
 
 // func NewAuthUser(
@@ -213,15 +220,4 @@ func Generate6DigitCode() (string, error) {
 	return string(b), nil
 }
 
-func Generate6DigitOTP() (string, error) {
-	//max := big.NewInt(1000000) // 6 digits: 000000 - 999999
 
-	n, err := rand.Int(rand.Reader, otpMax)
-
-	if err != nil {
-		return "", err
-	}
-
-	// "%06d" padds with leading zeros if necessary
-	return fmt.Sprintf("%06d", n.Int64()), nil
-}
