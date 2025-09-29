@@ -34,7 +34,7 @@ const (
 	ROLE_SUPER  = "Super"
 	ROLE_ADMIN  = "Admin"
 	ROLE_USER   = "User"
-	ROLE_SIGNIN = "Sign In"
+	ROLE_SIGNIN = "Signin"
 	ROLE_RDF    = "RDF"
 )
 
