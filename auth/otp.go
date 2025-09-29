@@ -60,22 +60,28 @@ func (otp *OTP) TTL() time.Duration {
 }
 
 func (otp *OTP) Cache8DigitOTP(username string) (string, error) {
+
 	code, err := Generate8DigitOTP() //Generate6DigitCode()
 
 	if err != nil {
 		return "", err
 	}
 
-	err = otp.storeOTP(username, code)
+	return otp.cacheOTP(username, code)
+}
+
+func (otp *OTP) Cache6DigitOTP(email string) (string, error) {
+
+	code, err := Generate6DigitOTP() //Generate6DigitCode()
 
 	if err != nil {
 		return "", err
 	}
 
-	return code, nil
+	return otp.cacheOTP(email, code)
 }
 
-func (otp *OTP) Cache6DigitOTP(email string) (string, error) {
+func (otp *OTP) cacheOTP(email string, code string) (string, error) {
 	exceeded, err := otp.cacheOTPAttemptLimitExceeded(email)
 
 	if err != nil {
@@ -84,12 +90,6 @@ func (otp *OTP) Cache6DigitOTP(email string) (string, error) {
 
 	if exceeded {
 		return "", fmt.Errorf("too many attempts to create an OTP for this email address")
-	}
-
-	code, err := Generate6DigitOTP() //Generate6DigitCode()
-
-	if err != nil {
-		return "", err
 	}
 
 	err = otp.storeOTP(email, code)
