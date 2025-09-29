@@ -11,8 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
-
 const (
 	MAX_AGE_YEAR_SECS    = 31536000
 	MAX_AGE_30_DAYS_SECS = 2592000
@@ -36,7 +34,7 @@ const (
 	ROLE_SUPER  = "Super"
 	ROLE_ADMIN  = "Admin"
 	ROLE_USER   = "User"
-	ROLE_SIGNIN = "Signin"
+	ROLE_SIGNIN = "Sign In"
 	ROLE_RDF    = "RDF"
 )
 
@@ -219,5 +217,3 @@ func Generate6DigitCode() (string, error) {
 	}
 	return string(b), nil
 }
-
-

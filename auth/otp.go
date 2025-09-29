@@ -38,7 +38,7 @@ func init() {
 }
 
 func makeOTPKey(email string) string {
-	return fmt.Sprintf("login:email:%s:otp", email)
+	return fmt.Sprintf("opt:email:%s:code", email)
 }
 
 func NewDefaultOTP(rdb *redis.Client) *OTP {
@@ -75,14 +75,24 @@ func (otp *OTP) Cache8DigitOTP(username string) (string, error) {
 	return code, nil
 }
 
-func (otp *OTP) Cache6DigitOTP(username string) (string, error) {
+func (otp *OTP) Cache6DigitOTP(email string) (string, error) {
+	exceeded, err := otp.cacheOTPAttemptLimitExceeded(email)
+
+	if err != nil {
+		return "", err
+	}
+
+	if exceeded {
+		return "", fmt.Errorf("too many attempts to create an OTP for this email address")
+	}
+
 	code, err := Generate6DigitOTP() //Generate6DigitCode()
 
 	if err != nil {
 		return "", err
 	}
 
-	err = otp.storeOTP(username, code)
+	err = otp.storeOTP(email, code)
 
 	if err != nil {
 		return "", err
@@ -109,14 +119,14 @@ func (otp *OTP) storeOTP(email string, code string) error {
 func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
 	// distinguish between an error with redis and when
 	// rate is exceeded
-	exceeded, err := otp.attemptLimitExceeded(email)
+	exceeded, err := otp.validateOTPAttemptLimitExceeded(email)
 
 	if err != nil {
 		return false, err
 	}
 
 	if exceeded {
-		return false, fmt.Errorf("Too many failed attempts. Try again later.")
+		return false, fmt.Errorf("too many validation attempts")
 	}
 
 	stored, err := otp.getOTP(email)
@@ -143,8 +153,26 @@ func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
 	return true, nil
 }
 
-func (otp *OTP) attemptLimitExceeded(email string) (bool, error) {
-	key := fmt.Sprintf("login:email:%s:attempts", email)
+// limits the number of OTPs that can be sent to an email address
+func (otp *OTP) cacheOTPAttemptLimitExceeded(email string) (bool, error) {
+	key := fmt.Sprintf("otp:email:%s:send:attempts", email)
+
+	attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
+
+	if err != nil {
+		return false, err
+	}
+
+	if attempts == 1 {
+		// on first attempt set expiry
+		otp.RedisClient.Expire(otp.Context, key, otp.rateLimit.BlockTime)
+	}
+
+	return attempts > otp.rateLimit.Limit, nil
+}
+
+func (otp *OTP) validateOTPAttemptLimitExceeded(email string) (bool, error) {
+	key := fmt.Sprintf("opt:email:%s:check:attempts", email)
 
 	attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
 

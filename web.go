@@ -218,7 +218,7 @@ type TokenResp struct {
 	Token string `json:"token"`
 }
 
-type LoginResp struct {
+type SignInResp struct {
 	RefreshToken string `json:"refreshToken"`
 	AccessToken  string `json:"accessToken"`
 }
