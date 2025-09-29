@@ -82,7 +82,7 @@ func (otp *OTP) Cache6DigitOTP(email string) (string, error) {
 }
 
 func (otp *OTP) cacheOTP(email string, code string) (string, error) {
-	exceeded, err := otp.cacheOTPAttemptLimitExceeded(email)
+	exceeded, err := otp.rateLimitForOTPCachingExceeded(email)
 
 	if err != nil {
 		return "", err
@@ -119,7 +119,7 @@ func (otp *OTP) storeOTP(email string, code string) error {
 func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
 	// distinguish between an error with redis and when
 	// rate is exceeded
-	exceeded, err := otp.validateOTPAttemptLimitExceeded(email)
+	exceeded, err := otp.rateLimitForOTPValidationExceeded(email)
 
 	if err != nil {
 		return false, err
@@ -154,7 +154,7 @@ func (otp *OTP) ValidateOTP(email string, input string) (bool, error) {
 }
 
 // limits the number of OTPs that can be sent to an email address
-func (otp *OTP) cacheOTPAttemptLimitExceeded(email string) (bool, error) {
+func (otp *OTP) rateLimitForOTPCachingExceeded(email string) (bool, error) {
 	key := fmt.Sprintf("otp:email:%s:send:attempts", email)
 
 	attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
@@ -171,7 +171,7 @@ func (otp *OTP) cacheOTPAttemptLimitExceeded(email string) (bool, error) {
 	return attempts > otp.rateLimit.Limit, nil
 }
 
-func (otp *OTP) validateOTPAttemptLimitExceeded(email string) (bool, error) {
+func (otp *OTP) rateLimitForOTPValidationExceeded(email string) (bool, error) {
 	key := fmt.Sprintf("opt:email:%s:check:attempts", email)
 
 	attempts, err := otp.RedisClient.Incr(otp.Context, key).Result()
