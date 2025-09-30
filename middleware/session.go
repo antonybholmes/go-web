@@ -11,28 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var SessionOptsZero sessions.Options
-var SessionOptsClear sessions.Options
-
-type SessionInfo struct {
-	AuthUser  *auth.AuthUser `json:"user"`
-	IsValid   bool           `json:"valid"`
-	CreatedAt string         `json:"createdAt"`
-	ExpiresAt string         `json:"expiresAt"`
-	CsrfToken string         `json:"csrfToken"`
-}
-
-//var SESSION_OPT_24H *sessions.Options
-//var SESSION_OPT_30_DAYS *sessions.Options
-//var SESSION_OPT_7_DAYS *sessions.Options
-
-func init() {
-
-	// HttpOnly and Secure are disabled so we can use them
-	// cross domain for testing
-	// http only false to allow js to delete etc on the client side
-
-	// For sessions that should end when browser closes
+var (
 	SessionOptsZero = sessions.Options{
 		Path:     "/",
 		MaxAge:   0,
@@ -48,31 +27,19 @@ func init() {
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
 	}
+)
 
-	// SESSION_OPT_24H = &sessions.Options{
-	// 	Path:     "/",
-	// 	MaxAge:   auth.MAX_AGE_DAY_SECS,
-	// 	HttpOnly: false,
-	// 	Secure:   true,
-	// 	SameSite: http.SameSiteNoneMode,
-	// }
-
-	// SESSION_OPT_30_DAYS = &sessions.Options{
-	// 	Path:     "/",
-	// 	MaxAge:   auth.MAX_AGE_30_DAYS_SECS,
-	// 	HttpOnly: false,
-	// 	Secure:   true,
-	// 	SameSite: http.SameSiteNoneMode,
-	// }
-
-	// SESSION_OPT_7_DAYS = &sessions.Options{
-	// 	Path:     "/",
-	// 	MaxAge:   auth.MAX_AGE_7_DAYS_SECS,
-	// 	HttpOnly: false,
-	// 	Secure:   true,
-	// 	SameSite: http.SameSiteNoneMode,
-	// }
+type SessionInfo struct {
+	AuthUser  *auth.AuthUser `json:"user"`
+	IsValid   bool           `json:"valid"`
+	CreatedAt string         `json:"createdAt"`
+	ExpiresAt string         `json:"expiresAt"`
+	CsrfToken string         `json:"csrfToken"`
 }
+
+//var SESSION_OPT_24H *sessions.Options
+//var SESSION_OPT_30_DAYS *sessions.Options
+//var SESSION_OPT_7_DAYS *sessions.Options
 
 func ReadSessionInfo(c *gin.Context, session sessions.Session) (*SessionInfo, error) {
 	//sess := sessions.Default(c) //.Get(consts.SESSION_NAME, c)

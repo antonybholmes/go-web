@@ -19,9 +19,7 @@ const (
 	MaxAge30DaysSecs = 2592000
 	MaxAge7DaysSecs  = 604800 //86400 * 7
 	MaxAgeDaysSecs   = 86400
-)
 
-const (
 	TtlHour   time.Duration = time.Hour
 	TtlDay    time.Duration = TtlHour * 24
 	TtlYear   time.Duration = TtlDay * 365
@@ -32,9 +30,7 @@ const (
 	Ttl10Mins time.Duration = time.Minute * 10
 	Ttl20Mins time.Duration = time.Minute * 20
 	Ttl15Mins time.Duration = time.Minute * 15
-)
 
-const (
 	RoleSuper  = "Super"
 	RoleAdmin  = "Admin"
 	RoleUser   = "User"

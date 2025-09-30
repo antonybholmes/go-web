@@ -38,10 +38,10 @@ const (
 	// returns session info such as user and is not used for
 	// any type of auth
 	TokenTypeSession TokenType = "session"
-)
 
-const JwtClaimSep = " "
-const EmailClaim = "https://edb.rdf-lab.org/email"
+	JwtClaimSep = " "
+	EmailClaim  = "https://edb.rdf-lab.org/email"
+)
 
 var (
 	ErrInvalidTokenType = errors.New("invalid token type")

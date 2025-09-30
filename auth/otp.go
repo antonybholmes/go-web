@@ -12,15 +12,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	GlobalOtpMinuteRateKey = "global:otp:minute"
+	GlobalOtpHourRateKey   = "global:otp:hour"
+	GlobalOtpDayRateKey    = "global:otp:day"
+)
+
 // initialize once. Ideally would be a constant but Go doesn't
 // support non primitive constants
-var otp6Max *big.Int
-var otp8Max *big.Int
-
-// const KEY = "otp:"
-const GlobalOtpMinuteRateKey = "global:otp:minute"
-const GlobalOtpHourRateKey = "global:otp:hour"
-const GlobalOtpDayRateKey = "global:otp:day"
+var (
+	Otp6MaxNum *big.Int = big.NewInt(1000000)
+	Otp8MaxNum *big.Int = big.NewInt(100000000)
+)
 
 type RateLimitError struct {
 	Message string
@@ -57,12 +60,6 @@ type OTP struct {
 	rateLimit       RateLimit       // max attempts allowed
 	globalRateLimit GlobalRateLimit // max attempts allowed across all email addresses
 
-}
-
-func init() {
-	// initialize once
-	otp6Max = big.NewInt(1000000)
-	otp8Max = big.NewInt(100000000)
 }
 
 func makeOTPKey(email string) string {
@@ -293,7 +290,7 @@ func (otp *OTP) RateLimitForOTPValidationExceeded(email string) error {
 func Generate6DigitOTP() (string, error) {
 	//max := big.NewInt(1000000) // 6 digits: 000000 - 999999
 
-	n, err := rand.Int(rand.Reader, otp6Max)
+	n, err := rand.Int(rand.Reader, Otp6MaxNum)
 
 	if err != nil {
 		return "", err
@@ -306,7 +303,7 @@ func Generate6DigitOTP() (string, error) {
 func Generate8DigitOTP() (string, error) {
 	//max := big.NewInt(1000000) // 6 digits: 000000 - 999999
 
-	n, err := rand.Int(rand.Reader, otp8Max)
+	n, err := rand.Int(rand.Reader, Otp8MaxNum)
 
 	if err != nil {
 		return "", err
