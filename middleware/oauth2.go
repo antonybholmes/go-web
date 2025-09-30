@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	ErrInvalidAuth0Token = errors.New("invalid auth0 token")
-
+	ErrInvalidAuth0Token    = errors.New("invalid auth0 token")
 	ErrInvalidClerkToken    = errors.New("invalid clerk token")
 	ErrInvalidSupabaseToken = errors.New("invalid supabase token")
 )

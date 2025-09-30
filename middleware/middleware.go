@@ -234,20 +234,20 @@ func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 }
 
 func JwtIsRefreshTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(auth.REFRESH_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.TokenTypeRefresh)
 }
 
 // make sure the supplied token is an access token
 func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(auth.ACCESS_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.TokenTypeAccess)
 }
 
 func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(auth.UPDATE_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.TokenTypeUpdate)
 }
 
 func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(auth.VERIFY_EMAIL_TOKEN)
+	return JWTIsSpecificTypeMiddleware(auth.TokenTypeVerifyEmail)
 }
 
 func JwtIsAdminMiddleware() gin.HandlerFunc {

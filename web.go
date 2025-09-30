@@ -15,17 +15,13 @@ import (
 const (
 	//SESSION_PUBLICID   string = "publicId"
 	//SESSION_ROLES      string = "roles"
-	SESSION_USER       string = "user"
-	SESSION_CSRF_TOKEN string = "csrfToken"
-	SESSION_CREATED_AT string = "createdAt"
-	SESSION_EXPIRES_AT string = "expiresAt"
+	SessionUser      string = "user"
+	SessionCsrfToken string = "csrfToken"
+	SessionCreatedAt string = "createdAt"
+	SessionExpiresAt string = "expiresAt"
+	CsrfCookieName   string = "csrf_token"
+	HeaderXCsrfToken string = "X-CSRF-Token"
 )
-
-const (
-	CSRF_COOKIE_NAME string = "csrf_token"
-)
-
-const HEADER_X_CSRF_TOKEN = "X-CSRF-Token"
 
 var (
 	ErrInvalidEmail = errors.New("invalid email address")
@@ -276,7 +272,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 
 	// Set the CSRF token in a session cookie
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  CSRF_COOKIE_NAME,
+		Name:  CsrfCookieName,
 		Value: csrfToken,
 		Path:  "/",
 		//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes

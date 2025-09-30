@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -12,12 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	ERR_CREATING_SESSION = errors.New("error creating session")
-)
-
-var SESSION_OPT_ZERO sessions.Options
-var SESSION_OPT_CLEAR sessions.Options
+var SessionOptsZero sessions.Options
+var SessionOptsClear sessions.Options
 
 type SessionInfo struct {
 	AuthUser  *auth.AuthUser `json:"user"`
@@ -38,7 +33,7 @@ func init() {
 	// http only false to allow js to delete etc on the client side
 
 	// For sessions that should end when browser closes
-	SESSION_OPT_ZERO = sessions.Options{
+	SessionOptsZero = sessions.Options{
 		Path:     "/",
 		MaxAge:   0,
 		HttpOnly: true, //false,
@@ -46,7 +41,7 @@ func init() {
 		SameSite: http.SameSiteNoneMode,
 	}
 
-	SESSION_OPT_CLEAR = sessions.Options{
+	SessionOptsClear = sessions.Options{
 		Path:     "/",
 		MaxAge:   -1,   // -1 to delete the cookie
 		HttpOnly: true, //false,
@@ -82,7 +77,7 @@ func init() {
 func ReadSessionInfo(c *gin.Context, session sessions.Session) (*SessionInfo, error) {
 	//sess := sessions.Default(c) //.Get(consts.SESSION_NAME, c)
 
-	userData := session.Get(web.SESSION_USER)
+	userData := session.Get(web.SessionUser)
 
 	if userData == nil {
 		return nil, fmt.Errorf("session user data is nil")
@@ -96,9 +91,9 @@ func ReadSessionInfo(c *gin.Context, session sessions.Session) (*SessionInfo, er
 
 	//publicId, _ := sess.Values[SESSION_PUBLICID].(string)
 	//roles, _ := sess.Values[SESSION_ROLES].(string)
-	createdAt, _ := session.Get(web.SESSION_CREATED_AT).(string)
-	expires, _ := session.Get(web.SESSION_EXPIRES_AT).(string)
-	csrfToken, _ := session.Get(web.SESSION_CSRF_TOKEN).(string)
+	createdAt, _ := session.Get(web.SessionCreatedAt).(string)
+	expires, _ := session.Get(web.SessionExpiresAt).(string)
+	csrfToken, _ := session.Get(web.SessionCsrfToken).(string)
 
 	//isValid := publicId != ""
 

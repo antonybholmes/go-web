@@ -25,11 +25,11 @@ func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  web.CSRF_COOKIE_NAME,
+		Name:  web.CsrfCookieName,
 		Value: token,
 		Path:  "/",
 		//Domain:   "ed.site.com", // or leave empty if called via ed.site.com
-		MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+		MaxAge:   auth.MaxAge30DaysSecs, // 0 means until browser closes
 		Secure:   true,
 		HttpOnly: false, // must be readable from JS!
 		SameSite: http.SameSiteNoneMode,
@@ -42,7 +42,7 @@ func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 
 func CSRFCookieMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, err := c.Cookie(web.CSRF_COOKIE_NAME)
+		_, err := c.Cookie(web.CsrfCookieName)
 
 		if err == nil {
 			// Cookie exists, do nothing
@@ -69,7 +69,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		cookieToken, err := c.Cookie(web.CSRF_COOKIE_NAME)
+		cookieToken, err := c.Cookie(web.CsrfCookieName)
 
 		if err != nil {
 			web.ForbiddenResp(c, ErrCSRFTokenMissing)
@@ -77,7 +77,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		headerToken := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
+		headerToken := c.GetHeader(web.HeaderXCsrfToken)
 
 		if headerToken == "" || headerToken != cookieToken {
 			web.ForbiddenResp(c, ErrCSRFTokenInvalid)

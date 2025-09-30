@@ -15,36 +15,35 @@ import (
 )
 
 const (
-	MAX_AGE_YEAR_SECS    = 31536000
-	MAX_AGE_30_DAYS_SECS = 2592000
-	MAX_AGE_7_DAYS_SECS  = 604800 //86400 * 7
-	MAX_AGE_DAY_SECS     = 86400
+	MaxAgeYearSecs   = 31536000
+	MaxAge30DaysSecs = 2592000
+	MaxAge7DaysSecs  = 604800 //86400 * 7
+	MaxAgeDaysSecs   = 86400
 )
 
 const (
-	TTL_HOUR    time.Duration = time.Hour
-	TTL_DAY     time.Duration = TTL_HOUR * 24
-	TTL_YEAR    time.Duration = TTL_DAY * 365
-	TTL_30_DAYS time.Duration = TTL_DAY * 30
+	TtlHour   time.Duration = time.Hour
+	TtlDay    time.Duration = TtlHour * 24
+	TtlYear   time.Duration = TtlDay * 365
+	Ttl30Days time.Duration = TtlDay * 30
 
-	TTL_1_MIN   time.Duration = time.Minute
-	TTL_5_MINS  time.Duration = time.Minute * 5
-	TTL_10_MINS time.Duration = time.Minute * 10
-	TTL_20_MINS time.Duration = time.Minute * 20
-	TTL_15_MINS time.Duration = time.Minute * 15
+	Ttl1Min   time.Duration = time.Minute
+	Ttl5Mins  time.Duration = time.Minute * 5
+	Ttl10Mins time.Duration = time.Minute * 10
+	Ttl20Mins time.Duration = time.Minute * 20
+	Ttl15Mins time.Duration = time.Minute * 15
 )
 
 const (
-	ROLE_SUPER  = "Super"
-	ROLE_ADMIN  = "Admin"
-	ROLE_USER   = "User"
-	ROLE_SIGNIN = "Signin"
-	ROLE_RDF    = "RDF"
+	RoleSuper  = "Super"
+	RoleAdmin  = "Admin"
+	RoleUser   = "User"
+	RoleSignin = "Signin"
+	RoleRdf    = "RDF"
 )
 
 var (
-	ErrUserDoesNotExist = errors.New("user does not exist")
-
+	ErrUserDoesNotExist            = errors.New("user does not exist")
 	ErrPasswordsDoNotMatch         = errors.New("passwords do not match")
 	ErrPasswordDoesNotMeetCriteria = errors.New("password does not meet criteria")
 	ErrCouldNotUpdatePassword      = errors.New("could not update password")
@@ -54,6 +53,9 @@ var (
 	ErrInvalidSession              = errors.New("invalid session")
 	ErrInvalidRoles                = errors.New("invalid roles")
 	ErrWrongTokenType              = errors.New("wrong token type")
+	ErrEmailNotVerified            = errors.New("email not verified")
+	ErrInvalidUsername             = errors.New("invalid username")
+	ErrCreatingSession             = errors.New("error creating session")
 )
 
 type JwtInfo struct {
@@ -133,27 +135,27 @@ func init() {
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
-	web.ForbiddenResp(c, fmt.Errorf("email address not verified"))
+	web.ForbiddenResp(c, ErrEmailNotVerified)
 }
 
 func UserDoesNotExistResp(c *gin.Context) {
-	web.UnauthorizedResp(c, fmt.Errorf("user does not exist"))
+	web.UnauthorizedResp(c, ErrUserDoesNotExist)
 }
 
 func UserNotAllowedToSignInErrorResp(c *gin.Context) {
-	web.ForbiddenResp(c, fmt.Errorf("user not allowed to sign in"))
+	web.ForbiddenResp(c, ErrUserCannotLogin)
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	web.UnauthorizedResp(c, fmt.Errorf("invalid username"))
+	web.UnauthorizedResp(c, ErrInvalidUsername)
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	web.UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
+	web.UnauthorizedResp(c, ErrPasswordsDoNotMatch)
 }
 
 func NotAdminResp(c *gin.Context) {
-	web.ForbiddenResp(c, fmt.Errorf("user is not an admin"))
+	web.ForbiddenResp(c, ErrUserIsNotAdmin)
 }
 
 func WrongTokenTypeReq(c *gin.Context) {
@@ -207,15 +209,15 @@ func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 // }
 
 func HasSuperRole(roles *sys.StringSet) bool {
-	return roles.Has(ROLE_SUPER)
+	return roles.Has(RoleSuper)
 }
 
 func HasAdminRole(roles *sys.StringSet) bool {
-	return HasSuperRole(roles) || roles.Has(ROLE_ADMIN)
+	return HasSuperRole(roles) || roles.Has(RoleAdmin)
 }
 
 func HasSignInRole(roles *sys.StringSet) bool {
-	return HasAdminRole(roles) || roles.Has(ROLE_SIGNIN)
+	return HasAdminRole(roles) || roles.Has(RoleSignin)
 }
 
 // // Generate a one time code

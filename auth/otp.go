@@ -18,9 +18,9 @@ var otp6Max *big.Int
 var otp8Max *big.Int
 
 // const KEY = "otp:"
-const GLOBAL_OTP_MINUTE_RATE_KEY = "global:otp:minute"
-const GLOBAL_OTP_HOUR_RATE_KEY = "global:otp:hour"
-const GLOBAL_OTP_DAY_RATE_KEY = "global:otp:day"
+const GlobalOtpMinuteRateKey = "global:otp:minute"
+const GlobalOtpHourRateKey = "global:otp:hour"
+const GlobalOtpDayRateKey = "global:otp:day"
 
 type RateLimitError struct {
 	Message string
@@ -70,12 +70,12 @@ func makeOTPKey(email string) string {
 }
 
 func NewDefaultOTP(rdb *redis.Client) *OTP {
-	return NewOTP(rdb, TTL_10_MINS,
-		RateLimit{Limit: 5, BlockTime: TTL_5_MINS},
+	return NewOTP(rdb, Ttl10Mins,
+		RateLimit{Limit: 5, BlockTime: Ttl5Mins},
 		GlobalRateLimit{
-			Minute: RateLimit{Limit: 100, BlockTime: TTL_1_MIN},
-			Hour:   RateLimit{Limit: 1000, BlockTime: TTL_HOUR},
-			Day:    RateLimit{Limit: 10000, BlockTime: TTL_DAY},
+			Minute: RateLimit{Limit: 100, BlockTime: Ttl1Min},
+			Hour:   RateLimit{Limit: 1000, BlockTime: TtlHour},
+			Day:    RateLimit{Limit: 10000, BlockTime: TtlDay},
 		})
 }
 
@@ -198,7 +198,7 @@ func (otp *OTP) ValidateOTP(email string, input string) error {
 // Returns false, nil if rate limit not exceeded.
 func (otp *OTP) GlobalRateLimitForOTPCachingExceeded() error {
 
-	attempts, err := otp.RedisClient.Incr(otp.Context, GLOBAL_OTP_MINUTE_RATE_KEY).Result()
+	attempts, err := otp.RedisClient.Incr(otp.Context, GlobalOtpMinuteRateKey).Result()
 
 	if err != nil {
 		return web.NewConnectionError(err.Error())
@@ -206,14 +206,14 @@ func (otp *OTP) GlobalRateLimitForOTPCachingExceeded() error {
 
 	if attempts == 1 {
 		// on first attempt set expiry
-		otp.RedisClient.Expire(otp.Context, GLOBAL_OTP_MINUTE_RATE_KEY, otp.globalRateLimit.Minute.BlockTime)
+		otp.RedisClient.Expire(otp.Context, GlobalOtpMinuteRateKey, otp.globalRateLimit.Minute.BlockTime)
 	}
 
 	if attempts > otp.globalRateLimit.Minute.Limit {
 		return NewRateLimitError("the global per minute rate limit for code generation has been exceeded")
 	}
 
-	attempts, err = otp.RedisClient.Incr(otp.Context, GLOBAL_OTP_HOUR_RATE_KEY).Result()
+	attempts, err = otp.RedisClient.Incr(otp.Context, GlobalOtpHourRateKey).Result()
 
 	if err != nil {
 		return web.NewConnectionError(err.Error())
@@ -221,14 +221,14 @@ func (otp *OTP) GlobalRateLimitForOTPCachingExceeded() error {
 
 	if attempts == 1 {
 		// on first attempt set expiry
-		otp.RedisClient.Expire(otp.Context, GLOBAL_OTP_HOUR_RATE_KEY, otp.globalRateLimit.Hour.BlockTime)
+		otp.RedisClient.Expire(otp.Context, GlobalOtpHourRateKey, otp.globalRateLimit.Hour.BlockTime)
 	}
 
 	if attempts > otp.globalRateLimit.Hour.Limit {
 		return NewRateLimitError("the global hourly rate limit for code generation has been exceeded")
 	}
 
-	attempts, err = otp.RedisClient.Incr(otp.Context, GLOBAL_OTP_DAY_RATE_KEY).Result()
+	attempts, err = otp.RedisClient.Incr(otp.Context, GlobalOtpDayRateKey).Result()
 
 	if err != nil {
 		return web.NewConnectionError(err.Error())
@@ -236,7 +236,7 @@ func (otp *OTP) GlobalRateLimitForOTPCachingExceeded() error {
 
 	if attempts == 1 {
 		// on first attempt set expiry
-		otp.RedisClient.Expire(otp.Context, GLOBAL_OTP_DAY_RATE_KEY, otp.globalRateLimit.Day.BlockTime)
+		otp.RedisClient.Expire(otp.Context, GlobalOtpDayRateKey, otp.globalRateLimit.Day.BlockTime)
 	}
 
 	if attempts > otp.globalRateLimit.Day.Limit {
