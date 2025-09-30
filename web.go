@@ -118,6 +118,10 @@ func BaseBadReqResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusBadRequest, err.Error())
 }
 
+func ErrResp(c *gin.Context, status int, err error) {
+	ErrorResp(c, status, err.Error())
+}
+
 func ErrorResp(c *gin.Context, status int, message string) {
 	//c.Error(err).SetMeta(status)
 
