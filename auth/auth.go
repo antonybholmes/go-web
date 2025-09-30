@@ -2,11 +2,14 @@ package auth
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-web"
+	"github.com/gin-gonic/gin"
 	"github.com/xyproto/randomstring"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -38,6 +41,28 @@ const (
 	ROLE_SIGNIN = "Signin"
 	ROLE_RDF    = "RDF"
 )
+
+var (
+	ErrUserDoesNotExist = errors.New("user does not exist")
+
+	ErrPasswordsDoNotMatch         = errors.New("passwords do not match")
+	ErrPasswordDoesNotMeetCriteria = errors.New("password does not meet criteria")
+	ErrCouldNotUpdatePassword      = errors.New("could not update password")
+	ErrUserIsNotAdmin              = errors.New("user is not an admin")
+	ErrUserIsNotSuper              = errors.New("user is not a super user")
+	ErrUserCannotLogin             = errors.New("user is not allowed to login")
+	ErrInvalidSession              = errors.New("invalid session")
+	ErrInvalidRoles                = errors.New("invalid roles")
+	ErrWrongTokenType              = errors.New("wrong token type")
+)
+
+type JwtInfo struct {
+	UserId string `json:"userId"`
+	//Name  string `json:"name"`
+	Type TokenType `json:"type"`
+	//IpAddr  string `json:"ipAddr"`
+	Expires string `json:"expires"`
+}
 
 type UrlReq struct {
 	Url string `json:"url"`
@@ -105,6 +130,38 @@ type AuthUser struct {
 
 func init() {
 	randomstring.Seed()
+}
+
+func EmailNotVerifiedReq(c *gin.Context) {
+	web.ForbiddenResp(c, fmt.Errorf("email address not verified"))
+}
+
+func UserDoesNotExistResp(c *gin.Context) {
+	web.UnauthorizedResp(c, fmt.Errorf("user does not exist"))
+}
+
+func UserNotAllowedToSignInErrorResp(c *gin.Context) {
+	web.ForbiddenResp(c, fmt.Errorf("user not allowed to sign in"))
+}
+
+func InvalidUsernameReq(c *gin.Context) {
+	web.UnauthorizedResp(c, fmt.Errorf("invalid username"))
+}
+
+func PasswordsDoNotMatchReq(c *gin.Context) {
+	web.UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
+}
+
+func NotAdminResp(c *gin.Context) {
+	web.ForbiddenResp(c, fmt.Errorf("user is not an admin"))
+}
+
+func WrongTokenTypeReq(c *gin.Context) {
+	web.ForbiddenResp(c, ErrWrongTokenType)
+}
+
+func TokenErrorResp(c *gin.Context) {
+	web.ForbiddenResp(c, fmt.Errorf("token not generated"))
 }
 
 // func NewAuthUser(

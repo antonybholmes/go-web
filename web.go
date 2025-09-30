@@ -3,11 +3,12 @@ package web
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,19 +27,38 @@ const (
 
 const HEADER_X_CSRF_TOKEN = "X-CSRF-Token"
 
-const ERROR_USER_DOES_NOT_EXIST = "user does not exist"
-const ERROR_WRONG_TOKEN_TYPE = "wrong token type"
+var (
+	ErrInvalidEmail = errors.New("invalid email address")
+	ErrInvalidBody  = errors.New("invalid body")
+)
 
-type JwtInfo struct {
-	Uuid string `json:"uuid"`
-	//Name  string `json:"name"`
-	Type auth.TokenType `json:"type"`
-	//IpAddr  string `json:"ipAddr"`
-	Expires string `json:"expires"`
-}
+// type JwtInfo struct {
+// 	Uuid string `json:"uuid"`
+// 	//Name  string `json:"name"`
+// 	Type auth.TokenType `json:"type"`
+// 	//IpAddr  string `json:"ipAddr"`
+// 	Expires string `json:"expires"`
+// }
 
 type ReqJwt struct {
 	Jwt string `json:"jwt"`
+}
+
+type ConnectionError struct {
+	Message string
+}
+
+func (e *ConnectionError) Error() string {
+	return fmt.Sprintf("connection error: %s", e.Message)
+}
+
+func NewConnectionError(message string) *ConnectionError {
+	return &ConnectionError{Message: message}
+}
+
+func IsConnectionError(err error) bool {
+	_, ok := err.(*ConnectionError)
+	return ok
 }
 
 type HTTPError struct {
@@ -51,83 +71,55 @@ func (e HTTPError) Error() string {
 }
 
 func InvalidEmailReq(c *gin.Context) {
-	UnauthorizedResp(c, "invalid email address")
+	UnauthorizedResp(c, ErrInvalidEmail)
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
-	ForbiddenResp(c, "email address not verified")
+	ForbiddenResp(c, fmt.Errorf("email address not verified"))
 }
 
 func UserDoesNotExistResp(c *gin.Context) {
-	UnauthorizedResp(c, "user does not exist")
+	UnauthorizedResp(c, fmt.Errorf("user does not exist"))
 }
 
 func UserNotAllowedToSignInErrorResp(c *gin.Context) {
-	ForbiddenResp(c, "user not allowed to sign in")
+	ForbiddenResp(c, fmt.Errorf("user not allowed to sign in"))
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	UnauthorizedResp(c, "invalid username")
+	UnauthorizedResp(c, fmt.Errorf("invalid username"))
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	UnauthorizedResp(c, "passwords do not match")
+	UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
 }
 
-func NotAdminResp(c *gin.Context) {
-	ForbiddenResp(c, "user is not an admin")
+func ForbiddenResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusForbidden, err)
 }
 
-func WrongTokentTypeReq(c *gin.Context) {
-	ForbiddenResp(c, ERROR_WRONG_TOKEN_TYPE)
+func UnauthorizedResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusUnauthorized, err)
 }
 
-func TokenErrorResp(c *gin.Context) {
-	ForbiddenResp(c, "token not generated")
+func InternalErrorResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusInternalServerError, err)
 }
 
-func ForbiddenResp(c *gin.Context, message string) {
-	ErrorResp(c, http.StatusForbidden, message)
+func BadReqResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusBadRequest, err)
 }
 
-func ForbiddenErrResp(c *gin.Context, err error) {
-	ErrorResp(c, http.StatusForbidden, err.Error())
+func TooManyRequestsResp(c *gin.Context, err error) {
+	ErrorResp(c, http.StatusTooManyRequests, err)
 }
 
-func UnauthorizedResp(c *gin.Context, message string) {
-	ErrorResp(c, http.StatusUnauthorized, message)
-}
-
-func UnauthorizedErrResp(c *gin.Context, err error) {
-	ErrorResp(c, http.StatusUnauthorized, err.Error())
-}
-
-func BaseInternalErrorResp(c *gin.Context, err error) {
-	InternalErrorResp(c, err.Error())
-}
-
-func InternalErrorResp(c *gin.Context, message string) {
-	ErrorResp(c, http.StatusInternalServerError, message)
-}
-
-func BadReqResp(c *gin.Context, message string) {
-	ErrorResp(c, http.StatusBadRequest, message)
-}
-
-func BaseBadReqResp(c *gin.Context, err error) {
-	ErrorResp(c, http.StatusBadRequest, err.Error())
-}
-
-func ErrResp(c *gin.Context, status int, err error) {
-	ErrorResp(c, status, err.Error())
-}
-
-func ErrorResp(c *gin.Context, status int, message string) {
+func ErrorResp(c *gin.Context, status int, err error) {
 	//c.Error(err).SetMeta(status)
 
 	c.Error(HTTPError{
 		Code:    status,
-		Message: message,
+		Message: err.Error(),
 	})
 	c.Abort()
 }
@@ -247,7 +239,7 @@ func MakeDataResp[V any](c *gin.Context, message string, data V) {
 		})
 }
 
-// func MakeValidResp(c *gin.Context, message string, valid bool) error {
+// func MakeValidResp(c *gin.Context, message error, valid bool) error {
 // 	return MakeDataResp(c, message, &ValidResp{Valid: valid})
 // }
 
@@ -278,7 +270,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 	csrfToken, err := GenerateCSRFToken()
 
 	if err != nil {
-		InternalErrorResp(c, "error generating CSRF token")
+		InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
 		return "", err
 	}
 

@@ -2,11 +2,19 @@ package middleware
 
 import (
 	"crypto/rsa"
+	"errors"
 
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+)
+
+var (
+	ErrInvalidAuth0Token = errors.New("invalid auth0 token")
+
+	ErrInvalidClerkToken    = errors.New("invalid clerk token")
+	ErrInvalidSupabaseToken = errors.New("invalid supabase token")
 )
 
 func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
@@ -18,7 +26,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid auth0 token")
+			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
 			return
 		}
 
@@ -35,7 +43,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		err = claimsParser(tokenString, &claims)
 
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid auth0 token")
+			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
 			return
 		}
 
@@ -55,7 +63,7 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid clerk token")
+			web.UnauthorizedResp(c, ErrInvalidClerkToken)
 			return
 		}
 
@@ -95,7 +103,7 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid supabase token")
+			web.UnauthorizedResp(c, ErrInvalidSupabaseToken)
 			return
 		}
 

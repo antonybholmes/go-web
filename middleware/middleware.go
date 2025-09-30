@@ -223,7 +223,7 @@ func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if claims.Type != tokenType {
-				web.ForbiddenResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
+				web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
 
 				return
 			}
@@ -255,7 +255,7 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
-				web.ForbiddenResp(c, "user is not an admin")
+				web.ForbiddenResp(c, auth.ErrUserIsNotAdmin)
 
 				return
 			}
@@ -270,7 +270,7 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
 
 			if !auth.HasSignInRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
-				web.ForbiddenResp(c, "user is not allowed to login")
+				web.ForbiddenResp(c, auth.ErrUserCannotLogin)
 				return
 			}
 
@@ -309,7 +309,7 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 		sessData, err := ReadSessionInfo(c, session)
 
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid session")
+			web.UnauthorizedResp(c, auth.ErrInvalidSession)
 			return
 		}
 
@@ -374,7 +374,7 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 			// we have and if they match the valid list
 			if !auth.HasAdminRole(userRoles) {
 				if !userRoles.ListContains(roles) {
-					web.ForbiddenResp(c, "invalid role")
+					web.ForbiddenResp(c, auth.ErrInvalidRoles)
 					return
 				}
 			}

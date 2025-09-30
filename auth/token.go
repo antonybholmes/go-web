@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rsa"
+	"errors"
 	"net/mail"
 	"strings"
 	"time"
@@ -39,13 +40,16 @@ const (
 	SESSION_TOKEN TokenType = "session"
 )
 
-
-
 const JWT_CLAIM_SEP = " "
+const EMAIL_CLAIM = "https://edb.rdf-lab.org/email"
+
+var (
+	ErrInvalidTokenType = errors.New("invalid token type")
+)
 
 type TokenClaims struct {
 	jwt.RegisteredClaims
-	UserId          string    `json:"userId"`
+	UserId          string    `json:"userId"` // the publicId of the user
 	Data            string    `json:"data,omitempty"`
 	OneTimePasscode string    `json:"otp,omitempty"`
 	Scope           []string  `json:"scope,omitempty"`
@@ -53,8 +57,6 @@ type TokenClaims struct {
 	RedirectUrl     string    `json:"redirectUrl,omitempty"`
 	Type            TokenType `json:"type"`
 }
-
-const EMAIL_CLAIM = "https://edb.rdf-lab.org/email"
 
 type Auth0TokenClaims struct {
 	jwt.RegisteredClaims

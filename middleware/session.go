@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -11,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	ERROR_CREATING_SESSION string = "error creating session"
+var (
+	ERR_CREATING_SESSION = errors.New("error creating session")
 )
 
 var SESSION_OPT_ZERO sessions.Options

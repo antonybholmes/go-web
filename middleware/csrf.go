@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -8,6 +9,11 @@ import (
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+)
+
+var (
+	ErrCSRFTokenMissing = errors.New("CSRF token missing")
+	ErrCSRFTokenInvalid = errors.New("CSRF token invalid")
 )
 
 func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
@@ -66,7 +72,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 		cookieToken, err := c.Cookie(web.CSRF_COOKIE_NAME)
 
 		if err != nil {
-			web.ForbiddenResp(c, "CSRF token missing in cookie")
+			web.ForbiddenResp(c, ErrCSRFTokenMissing)
 
 			return
 		}
@@ -74,7 +80,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 		headerToken := c.GetHeader(web.HEADER_X_CSRF_TOKEN)
 
 		if headerToken == "" || headerToken != cookieToken {
-			web.ForbiddenResp(c, "invalid CSRF token")
+			web.ForbiddenResp(c, ErrCSRFTokenInvalid)
 
 			// Optionally, you can also log the error
 			log.Error().Msgf("CSRF token mismatch: cookie=%s, header=%s", cookieToken, headerToken)
