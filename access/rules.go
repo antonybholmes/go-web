@@ -41,10 +41,16 @@ type JsonRule struct {
 	Path    string           `json:"path"`
 }
 
-type TokenRule struct {
-	Type  string         `json:"type"`
-	Roles *sys.StringSet `json:"roles"`
+type JsonRules struct {
+	Version string     `json:"version"`
+	Updated string     `json:"updated"`
+	Rules   []JsonRule `json:"rules"`
 }
+
+// type TokenRule struct {
+// 	Type  string         `json:"type"`
+// 	Roles *sys.StringSet `json:"roles"`
+// }
 
 // Rule represents an access control rule
 // type Rule struct {
@@ -81,11 +87,11 @@ func NewRuleEngine() *RuleEngine {
 func (re *RuleEngine) LoadRules(filename string) {
 	data := sys.Must(os.ReadFile(filename))
 
-	var rules []JsonRule
+	var rules JsonRules
 	sys.BaseMust(json.Unmarshal(data, &rules))
 	var isExact bool
 
-	for _, r := range rules {
+	for _, r := range rules.Rules {
 
 		path := r.Path
 
@@ -147,7 +153,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 		}
 	}
 
-	log.Info().Msgf("Loaded %d access rules from %s", len(rules), filename)
+	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
 }
 
 func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
