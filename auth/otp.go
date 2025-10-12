@@ -18,16 +18,38 @@ const (
 	GlobalOtpDayRateKey    = "global:otp:day"
 )
 
+type (
+	RateLimitError struct {
+		Message string
+	}
+
+	RateLimit struct {
+		Limit     int64         // number of allowed attempts
+		BlockTime time.Duration // block time duration
+	}
+
+	GlobalRateLimit struct {
+		Minute RateLimit // max attempts allowed across all email addresses
+		Hour   RateLimit // max attempts allowed across all email addresses
+		Day    RateLimit // max attempts allowed across all email addresses
+	}
+
+	OTP struct {
+		Context         context.Context
+		RedisClient     *redis.Client
+		ttl             time.Duration
+		rateLimit       RateLimit       // max attempts allowed
+		globalRateLimit GlobalRateLimit // max attempts allowed across all email addresses
+
+	}
+)
+
 // initialize once. Ideally would be a constant but Go doesn't
 // support non primitive constants
 var (
 	Otp6MaxNum *big.Int = big.NewInt(1000000)
 	Otp8MaxNum *big.Int = big.NewInt(100000000)
 )
-
-type RateLimitError struct {
-	Message string
-}
 
 func (e *RateLimitError) Error() string {
 	return fmt.Sprintf("rate limit error: %s", e.Message)
@@ -40,26 +62,6 @@ func NewRateLimitError(message string) *RateLimitError {
 func IsRateLimitError(err error) bool {
 	_, ok := err.(*RateLimitError)
 	return ok
-}
-
-type RateLimit struct {
-	Limit     int64         // number of allowed attempts
-	BlockTime time.Duration // block time duration
-}
-
-type GlobalRateLimit struct {
-	Minute RateLimit // max attempts allowed across all email addresses
-	Hour   RateLimit // max attempts allowed across all email addresses
-	Day    RateLimit // max attempts allowed across all email addresses
-}
-
-type OTP struct {
-	Context         context.Context
-	RedisClient     *redis.Client
-	ttl             time.Duration
-	rateLimit       RateLimit       // max attempts allowed
-	globalRateLimit GlobalRateLimit // max attempts allowed across all email addresses
-
 }
 
 func makeOTPKey(email string) string {

@@ -18,10 +18,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type APIError struct {
-	Message string `json:"message"`
-	Code    int    `json:"code"`
-}
+type (
+	APIError struct {
+		Message string `json:"message"`
+		Code    int    `json:"code"`
+	}
+
+	JWTClaimsFunc func(token string, claims jwt.Claims) error
+)
 
 // func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
 func LoggingMiddleware() gin.HandlerFunc {
@@ -111,8 +115,6 @@ func ParseToken(c *gin.Context) (string, error) {
 
 	return tokenString, nil
 }
-
-type JWTClaimsFunc func(token string, claims jwt.Claims) error
 
 func JwtClaimsRSAParser(rsaPublicKey *rsa.PublicKey) JWTClaimsFunc {
 	return func(token string, claims jwt.Claims) error {
