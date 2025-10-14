@@ -1,129 +1,21 @@
-package auth
+package userdb
 
 import (
 	"database/sql"
 	"fmt"
 	"net/mail"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-web/auth"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog/log"
 )
 
-// MySQL version
-
-// See https://echo.labstack.com/docs/cookbook/jwt#login
-
-// partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
-
-//const EMAIL_NOT_VERIFIED_TIME_S = 62167219200
-
-const (
-	SelectUsersSql string = `SELECT 
-	id, 
-	public_id, 
-	first_name, 
-	last_name, 
-	username, 
-	email, 
-	is_locked, 
-	password, 
-	TO_SECONDS(email_verified_at) as email_verified_at, 
-	TO_SECONDS(created_at) as created_at, 
-	TO_SECONDS(updated_at) as updated_at
-	FROM users`
-
-	UsersSql string = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT ? OFFSET ?`
-
-	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = ?`
-
-	FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = ?`
-
-	FindUserByEmailSql string = SelectUsersSql + ` WHERE users.email = ?`
-
-	FindUserByUsernameSql string = SelectUsersSql + ` WHERE users.username = ?`
-
-	FindUserByApiKeySql string = `SELECT 
-	id, user_id, api_key
-	FROM api_keys 
-	WHERE api_key = ?`
-
-	UsersApiKeysSql string = `SELECT 
-	id, api_key
-	FROM api_keys 
-	WHERE user_id = ?
-	ORDER BY api_key`
-
-	RolesSql string = `SELECT 
-	id, 
-	public_id, 
-	name, 
-	description
-	FROM roles 
-	ORDER BY roles.name`
-
-	UserPermissionsSql string = `SELECT DISTINCT 
-	permissions.id, 
-	permissions.public_id, 
-	permissions.name, 
-	permissions.description
-	FROM users_roles, roles_permissions, permissions 
-	WHERE users_roles.user_id = ? AND roles_permissions.role_id = users_roles.role_id AND 
-	permissions.id = roles_permissions.permission_id 
-	ORDER BY permissions.name`
-
-	UserRolesSql string = `SELECT DISTINCT 
-	roles.id, 
-	roles.public_id, 
-	roles.name, 
-	roles.description
-	FROM users_roles, roles 
-	WHERE users_roles.user_id = ? AND roles.id = users_roles.role_id 
-	ORDER BY roles.name`
-
-	InsertUserSql = `INSERT IGNORE INTO users 
-	(public_id, username, email, password, first_name, last_name, email_verified_at) 
-	VALUES (?, ?, ?, ?, ?, ?, ?)`
-
-	DeleteRolesSql    = "DELETE FROM users_roles WHERE user_id = ?"
-	InsertUserRoleSql = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
-
-	InsertApiKeySql = "INSERT IGNORE INTO api_keys (user_id, api_key) VALUES(?, ?)"
-
-	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.public_id = ?`
-	SetPasswordSql      = `UPDATE users SET password = ? WHERE users.public_id = ?`
-	SetUsernameSql      = `UPDATE users SET username = ? WHERE users.public_id = ?`
-
-	//   SET_NAME_SQL = `UPDATE users SET first_name = 1, last_name = 1 WHERE users.public_id = 1`
-	SetInfoSql  = `UPDATE users SET username = ?, first_name = ?, last_name = ? WHERE users.public_id = ?`
-	SetEmailSql = `UPDATE users SET email = ? WHERE users.public_id = ?`
-
-	DeleteUserSql = `DELETE FROM users WHERE public_id = ?`
-
-	CountUsersSql = `SELECT COUNT(ID) FROM users`
-
-	RoleSql = `SELECT 
-	roles.id, 
-	roles.public_id, 
-	roles.name,
-	roles.description 
-	FROM roles WHERE roles.name = ?`
-
-	MinPasswordLength int = 8
-	MinNameLength     int = 3
-
-	EpochDate = "1970-01-01"
-
-	// 1970-01-01 mysql
-	EmailNotVerifiedDate time.Duration = 62167219200 //31556995200
-)
-
-type UserDb struct {
+type MySQLUserDB struct {
 	db *sql.DB
 	//ctx context.Context
 	//setEmailVerifiedStmt *sql.Stmt
@@ -149,7 +41,7 @@ type UserDb struct {
 	// deleteUserStmt         *sql.Stmt
 }
 
-func NewUserDB() *UserDb {
+func NewUserDBMySQL() *MySQLUserDB {
 	//db := sys.Must(sql.Open("sqlite3", file))
 	cfg := mysql.Config{
 		User:                 os.Getenv("MYSQL_USER"),
@@ -162,7 +54,7 @@ func NewUserDB() *UserDb {
 
 	db := sys.Must(sql.Open("mysql", cfg.FormatDSN()))
 
-	return &UserDb{
+	return &MySQLUserDB{
 		db: db,
 		//ctx: ctx,
 		// findUserByPublicIdStmt: sys.Must(db.Prepare(FIND_USER_BY_public_id_SQL)),
@@ -180,7 +72,7 @@ func NewUserDB() *UserDb {
 	}
 }
 
-func (userdb *UserDb) Db() *sql.DB {
+func (userdb *MySQLUserDB) Db() *sql.DB {
 	return userdb.db
 }
 
@@ -220,26 +112,13 @@ func (userdb *UserDb) Db() *sql.DB {
 // 	return db, nil
 // }
 
-var PASSWORD_REGEX *regexp.Regexp
-var USERNAME_REGEX *regexp.Regexp
-var EMAIL_REGEX *regexp.Regexp
-var NAME_REGEX *regexp.Regexp
-
-func init() {
-	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
-	EMAIL_REGEX = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
-	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
-	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
-	NAME_REGEX = regexp.MustCompile(`^[\w\-\_ ]*$`)
-}
-
 // func (userdb *UserDb) Close() {
 // 	if userdb.db != nil {
 // 		userdb.db.Close()
 // 	}
 // }
 
-func (userdb *UserDb) NumUsers() (uint, error) {
+func (userdb *MySQLUserDB) NumUsers() (uint, error) {
 
 	var n uint
 
@@ -252,7 +131,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
+func (userdb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, error) {
 	//log.Debug().Msgf("users %d %d", records, offset)
 
 	rows, err := userdb.db.Query(UsersSql, records, offset)
@@ -263,7 +142,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 
 	defer rows.Close()
 
-	authUsers := make([]*AuthUser, 0, records)
+	authUsers := make([]*auth.AuthUser, 0, records)
 
 	//var createdAt time.Duration
 	//var updatedAt time.Duration
@@ -271,7 +150,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 
 	for rows.Next() {
 		// need to initialize slices here to avoid nil
-		authUser := AuthUser{
+		authUser := auth.AuthUser{
 			Roles:   make([]string, 0, 5),
 			ApiKeys: make([]string, 0, 5),
 		}
@@ -310,7 +189,7 @@ func (userdb *UserDb) Users(records uint, offset uint) ([]*AuthUser, error) {
 	return authUsers, nil
 }
 
-func (userdb *UserDb) DeleteUser(publicId string) error {
+func (userdb *MySQLUserDB) DeleteUser(publicId string) error {
 
 	authUser, err := userdb.FindUserByPublicId(publicId)
 
@@ -324,9 +203,9 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 		return err
 	}
 
-	claim := MakeClaim(roles)
+	claim := auth.MakeClaim(roles)
 
-	if strings.Contains(claim, RoleSuper) {
+	if strings.Contains(claim, auth.RoleSuper) {
 		return fmt.Errorf("cannot delete superuser account")
 	}
 
@@ -339,11 +218,11 @@ func (userdb *UserDb) DeleteUser(publicId string) error {
 	return nil
 }
 
-func (userdb *UserDb) FindUserByEmail(email *mail.Address) (*AuthUser, error) {
+func (userdb *MySQLUserDB) FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return userdb.findUser(userdb.db.QueryRow(FindUserByEmailSql, email.Address))
 }
 
-func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
+func (userdb *MySQLUserDB) FindUserByUsername(username string) (*auth.AuthUser, error) {
 
 	if strings.Contains(username, "@") {
 		email, err := mail.ParseAddress(username)
@@ -364,17 +243,17 @@ func (userdb *UserDb) FindUserByUsername(username string) (*AuthUser, error) {
 	return userdb.findUser(userdb.db.QueryRow(FindUserByUsernameSql, username))
 }
 
-func (userdb *UserDb) FindUserById(id uint) (*AuthUser, error) {
+func (userdb *MySQLUserDB) FindUserById(id uint) (*auth.AuthUser, error) {
 	return userdb.findUser(userdb.db.QueryRow(FindUserByIdSql, id))
 }
 
-func (userdb *UserDb) FindUserByPublicId(publicId string) (*AuthUser, error) {
+func (userdb *MySQLUserDB) FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
 	return userdb.findUser(userdb.db.QueryRow(FindUserByPublicIdSql, publicId))
 }
 
-func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
+func (userdb *MySQLUserDB) findUser(row *sql.Row) (*auth.AuthUser, error) {
 
-	var authUser AuthUser
+	var authUser auth.AuthUser
 	//var updatedAt int64
 
 	err := row.Scan(&authUser.Id,
@@ -410,7 +289,7 @@ func (userdb *UserDb) findUser(row *sql.Row) (*AuthUser, error) {
 	return &authUser, nil
 }
 
-func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
+func (userdb *MySQLUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error) {
 
 	if !sys.IsValidUUID(key) {
 		return nil, fmt.Errorf("api key is not in valid format")
@@ -430,7 +309,7 @@ func (userdb *UserDb) FindUserByApiKey(key string) (*AuthUser, error) {
 	return userdb.FindUserById(userId)
 }
 
-func (userdb *UserDb) AddRolesToUser(authUser *AuthUser) error {
+func (userdb *MySQLUserDB) AddRolesToUser(authUser *auth.AuthUser) error {
 
 	roles, err := userdb.UserRoleList(authUser)
 
@@ -443,7 +322,7 @@ func (userdb *UserDb) AddRolesToUser(authUser *AuthUser) error {
 	return nil
 }
 
-func (userdb *UserDb) UserRoleList(user *AuthUser) ([]string, error) {
+func (userdb *MySQLUserDB) UserRoleList(user *auth.AuthUser) ([]string, error) {
 
 	roles, err := userdb.UserRoles(user)
 
@@ -461,7 +340,7 @@ func (userdb *UserDb) UserRoleList(user *AuthUser) ([]string, error) {
 
 }
 
-func (userdb *UserDb) AddApiKeysToUser(authUser *AuthUser) error {
+func (userdb *MySQLUserDB) AddApiKeysToUser(authUser *auth.AuthUser) error {
 
 	keys, err := userdb.UserApiKeys(authUser)
 
@@ -474,7 +353,7 @@ func (userdb *UserDb) AddApiKeysToUser(authUser *AuthUser) error {
 	return nil
 }
 
-func (userdb *UserDb) UserApiKeys(user *AuthUser) ([]string, error) {
+func (userdb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
 	rows, err := userdb.db.Query(UsersApiKeysSql, user.Id)
 
@@ -502,7 +381,7 @@ func (userdb *UserDb) UserApiKeys(user *AuthUser) ([]string, error) {
 	return keys, nil
 }
 
-func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
+func (userdb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
 
 	rows, err := userdb.db.Query(UserRolesSql, user.Id)
 
@@ -512,10 +391,10 @@ func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 
 	defer rows.Close()
 
-	roles := make([]*Role, 0, 10)
+	roles := make([]*auth.Role, 0, 10)
 
 	for rows.Next() {
-		var role Role
+		var role auth.Role
 		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
 
 		if err != nil {
@@ -528,9 +407,9 @@ func (userdb *UserDb) UserRoles(user *AuthUser) ([]*Role, error) {
 	return roles, nil
 }
 
-func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
+func (userdb *MySQLUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
 
-	permissions, err := userdb.UserPermissions(user)
+	permissions, err := userdb.Permissions(user)
 
 	if err != nil {
 		return nil, err
@@ -561,7 +440,7 @@ func (userdb *UserDb) PermissionList(user *AuthUser) ([]string, error) {
 // 	return userdb.db.QueryRow(query, args...)
 // }
 
-func (userdb *UserDb) Roles() ([]*Role, error) {
+func (userdb *MySQLUserDB) Roles() ([]*auth.Role, error) {
 
 	rows, err := userdb.db.Query(RolesSql)
 
@@ -571,10 +450,10 @@ func (userdb *UserDb) Roles() ([]*Role, error) {
 
 	defer rows.Close()
 
-	var roles []*Role
+	var roles []*auth.Role
 
 	for rows.Next() {
-		var role Role
+		var role auth.Role
 		err := rows.Scan(&role.Id,
 			&role.PublicId,
 			&role.Name,
@@ -590,9 +469,9 @@ func (userdb *UserDb) Roles() ([]*Role, error) {
 	return roles, nil
 }
 
-func (userdb *UserDb) FindRoleByName(name string) (*Role, error) {
+func (userdb *MySQLUserDB) FindRoleByName(name string) (*auth.Role, error) {
 
-	var role Role
+	var role auth.Role
 
 	err := userdb.db.QueryRow(RoleSql, name).Scan(&role.Id,
 		&role.PublicId,
@@ -606,9 +485,9 @@ func (userdb *UserDb) FindRoleByName(name string) (*Role, error) {
 	return &role, err
 }
 
-func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
+func (userdb *MySQLUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
 
-	rows, err := userdb.db.Query(UserPermissionsSql, user.Id)
+	rows, err := userdb.db.Query(PermissionsSql, user.Id)
 
 	if err != nil {
 		return nil, err
@@ -616,10 +495,10 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 
 	defer rows.Close()
 
-	permissions := make([]*Permission, 0, 10)
+	permissions := make([]*auth.Permission, 0, 10)
 
 	for rows.Next() {
-		var permission Permission
+		var permission auth.Permission
 
 		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
 
@@ -633,7 +512,7 @@ func (userdb *UserDb) UserPermissions(user *AuthUser) ([]*Permission, error) {
 	return permissions, nil
 }
 
-func (userdb *UserDb) SetIsVerified(userId string) error {
+func (userdb *MySQLUserDB) SetIsVerified(userId string) error {
 
 	_, err := userdb.db.Exec(SetEmailVerifiedSql, userId)
 
@@ -650,7 +529,7 @@ func (userdb *UserDb) SetIsVerified(userId string) error {
 	return nil
 }
 
-func (userdb *UserDb) SetPassword(user *AuthUser, password string) error {
+func (userdb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error {
 	if user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
@@ -663,7 +542,7 @@ func (userdb *UserDb) SetPassword(user *AuthUser, password string) error {
 		return err
 	}
 
-	hash := HashPassword(password)
+	hash := auth.HashPassword(password)
 
 	_, err = userdb.db.Exec(SetPasswordSql, hash, user.PublicId)
 
@@ -729,7 +608,7 @@ func (userdb *UserDb) SetPassword(user *AuthUser, password string) error {
 // 	return err
 // }
 
-func (userdb *UserDb) SetUserInfo(user *AuthUser,
+func (userdb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 	username string,
 	firstName string,
 	lastName string,
@@ -773,7 +652,7 @@ func (userdb *UserDb) SetUserInfo(user *AuthUser,
 // 	return userdb.SetEmailAddress(publicId, address)
 // }
 
-func (userdb *UserDb) SetEmailAddress(user *AuthUser, address *mail.Address, adminMode bool) error {
+func (userdb *MySQLUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error {
 
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
@@ -788,7 +667,7 @@ func (userdb *UserDb) SetEmailAddress(user *AuthUser, address *mail.Address, adm
 	return err
 }
 
-func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, adminMode bool) error {
+func (userdb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
@@ -811,12 +690,12 @@ func (userdb *UserDb) SetUserRoles(user *AuthUser, roles []string, adminMode boo
 	return nil
 }
 
-func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, adminMode bool) error {
+func (userdb *MySQLUserDB) AddRoleToUser(user *auth.AuthUser, roleName string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	var role *Role
+	var role *auth.Role
 
 	role, err := userdb.FindRoleByName(roleName)
 
@@ -833,7 +712,7 @@ func (userdb *UserDb) AddRoleToUser(user *AuthUser, roleName string, adminMode b
 	return nil
 }
 
-func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error {
+func (userdb *MySQLUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
@@ -859,7 +738,7 @@ func (userdb *UserDb) CreateApiKeyForUser(user *AuthUser, adminMode bool) error 
 // 	return err
 // }
 
-func (userdb *UserDb) CreateUserFromSignup(user *UserBodyReq) (*AuthUser, error) {
+func (userdb *MySQLUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
 
 	log.Debug().Msgf("aha %v", email)
@@ -881,7 +760,7 @@ func (userdb *UserDb) CreateUserFromSignup(user *UserBodyReq) (*AuthUser, error)
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
-func (userdb *UserDb) CreateUserFromOAuth2(name string, email *mail.Address) (*AuthUser, error) {
+func (userdb *MySQLUserDB) CreateUserFromOAuth2(name string, email *mail.Address) (*auth.AuthUser, error) {
 	authUser, err := userdb.FindUserByEmail(email)
 
 	if err == nil {
@@ -906,12 +785,12 @@ func (userdb *UserDb) CreateUserFromOAuth2(name string, email *mail.Address) (*A
 
 }
 
-func (userdb *UserDb) CreateUser(userName string,
+func (userdb *MySQLUserDB) CreateUser(userName string,
 	email *mail.Address,
 	password string,
 	firstName string,
 	lastName string,
-	emailIsVerified bool) (*AuthUser, error) {
+	emailIsVerified bool) (*auth.AuthUser, error) {
 	err := CheckPassword(password)
 
 	if err != nil {
@@ -958,7 +837,7 @@ func (userdb *UserDb) CreateUser(userName string,
 
 	// empty passwords indicate passwordless
 	if password != "" {
-		hash = HashPassword(password)
+		hash = auth.HashPassword(password)
 	}
 
 	// default to unverified i.e. if time is epoch (1970) assume
@@ -995,13 +874,13 @@ func (userdb *UserDb) CreateUser(userName string,
 	}
 
 	// Give user standard role and ability to login
-	err = userdb.AddRoleToUser(authUser, RoleUser, true)
+	err = userdb.AddRoleToUser(authUser, auth.RoleUser, true)
 
 	if err != nil {
 		return nil, err
 	}
 
-	err = userdb.AddRoleToUser(authUser, RoleSignin, true)
+	err = userdb.AddRoleToUser(authUser, auth.RoleSignin, true)
 
 	if err != nil {
 		return nil, err
@@ -1016,62 +895,3 @@ func (userdb *UserDb) CreateUser(userName string,
 	// return the updated version
 	return userdb.FindUserById(authUser.Id)
 }
-
-// Make sure password meets requirements
-func CheckPassword(password string) error {
-	// empty passwords are a special case used to indicate
-	// passwordless only login
-	if password == "" {
-		return nil
-	}
-
-	if len(password) < MinPasswordLength {
-		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
-	}
-
-	if !PASSWORD_REGEX.MatchString(password) {
-		return fmt.Errorf("invalid password")
-	}
-
-	return nil
-}
-
-// Make sure password meets requirements
-func CheckUsername(username string) error {
-	if len(username) < MinNameLength {
-		return fmt.Errorf("username must be at least %d characters", MinNameLength)
-	}
-
-	if !USERNAME_REGEX.MatchString(username) {
-		return fmt.Errorf("invalid username")
-	}
-
-	return nil
-}
-
-func CheckName(name string) error {
-	//if len(name) < MIN_NAME_LENGTH {
-	//	return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
-	//}
-
-	if !NAME_REGEX.MatchString(name) {
-		return fmt.Errorf("invalid name")
-	}
-
-	return nil
-}
-
-// func CheckEmailIsWellFormed(email string) (*mail.Address, error) {
-// 	log.Debug().Msgf("validate %s", email)
-// 	if !EMAIL_REGEX.MatchString(email) {
-// 		return nil, fmt.Errorf("invalid email address")
-// 	}
-
-// 	address, err := mail.ParseAddress(email)
-
-// 	if err != nil {
-// 		return nil, fmt.Errorf("could not parse email")
-// 	}
-
-// 	return address, nil
-// }

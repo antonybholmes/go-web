@@ -1,4 +1,4 @@
-package userdbcache
+package cache
 
 import (
 	"net/mail"
@@ -6,23 +6,28 @@ import (
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/userdb"
 )
 
 // pretend its a global const
-var instance *auth.UserDb
+var instance userdb.UserDB
 var once sync.Once
 
 func InitCache() {
 
 	//instance, err = auth.NewUserDB(file)
 
+	// once.Do(func() {
+	// 	instance = userdb.NewUserDBMySQL()
+	// })
+
 	once.Do(func() {
-		instance = auth.NewUserDB()
+		instance = userdb.NewPostgresUserDB()
 	})
 
 }
 
-func Instance() *auth.UserDb {
+func Instance() userdb.UserDB {
 	return instance
 }
 
@@ -113,7 +118,7 @@ func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
 }
 
 func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {
-	return instance.UserPermissions(user)
+	return instance.Permissions(user)
 }
 
 func PermissionList(user *auth.AuthUser) ([]string, error) {
