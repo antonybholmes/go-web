@@ -7,6 +7,7 @@ import (
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/userdb"
+	"github.com/antonybholmes/go-web/auth/userdb/postgres"
 )
 
 // pretend its a global const
@@ -22,7 +23,7 @@ func InitCache() {
 	// })
 
 	once.Do(func() {
-		instance = userdb.NewPostgresUserDB()
+		instance = postgres.NewPostgresUserDB()
 	})
 
 }
