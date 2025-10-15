@@ -27,6 +27,18 @@ type (
 	JWTClaimsFunc func(token string, claims jwt.Claims) error
 )
 
+func (e *APIError) Error() string {
+	return fmt.Sprintf("api error: (%d) %s", e.Code, e.Message)
+}
+
+// NewAPIError creates a new APIError with the given message and code
+func NewAPIError(code int, message string) error {
+	return &APIError{
+		Code:    code,
+		Message: message,
+	}
+}
+
 // func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -49,10 +61,9 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		defer func() {
 			if err := recover(); err != nil {
 				// Handle panic errors with 500 status code
-				c.JSON(http.StatusInternalServerError, APIError{
-					Code:    http.StatusInternalServerError,
-					Message: fmt.Sprintf("internal server error: %v", err),
-				})
+				c.JSON(http.StatusInternalServerError, NewAPIError(http.StatusInternalServerError,
+					fmt.Sprintf("internal server error %v", err),
+				))
 			}
 		}()
 
@@ -67,10 +78,8 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			switch err := lastErr.Err.(type) {
 			case web.HTTPError:
 				//c.JSON(err.Code, gin.H{"error": err.Message})
-				c.JSON(err.Code, APIError{
-					Code:    err.Code,
-					Message: err.Message,
-				})
+				c.JSON(err.Code, NewAPIError(err.Code, err.Message))
+
 			default:
 				// Set a custom status code based on the error
 				// If no custom status code is set, use the error's default status or fallback to 400
@@ -88,10 +97,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				}
 
 				// Send the error response with custom status code
-				c.JSON(status, APIError{
-					Code:    status,
-					Message: lastErr.Error(),
-				})
+				c.JSON(status, NewAPIError(status, lastErr.Error()))
 			}
 			c.Abort()
 		}

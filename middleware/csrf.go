@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -11,10 +10,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	ErrCSRFTokenMissing = errors.New("CSRF token missing")
-	ErrCSRFTokenInvalid = errors.New("CSRF token invalid")
+type (
+	CSRFError struct {
+		s string
+	}
 )
+
+var (
+	ErrCSRFTokenMissing = NewCSRFError("token missing")
+	ErrCSRFTokenInvalid = NewCSRFError("token invalid")
+)
+
+func (e *CSRFError) Error() string {
+	return fmt.Sprintf("csrf error: %s", e.s)
+}
+
+func NewCSRFError(s string) error {
+	return &CSRFError{s}
+}
 
 func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 	token, err := web.GenerateCSRFToken()
