@@ -98,12 +98,11 @@ const (
 	InsertApiKeySql = "INSERT IGNORE INTO api_keys (user_id, api_key) VALUES($1, $2)"
 
 	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.public_id = $1`
-	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.public_id = $1`
-	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.public_id = $1`
+	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.public_id = $2`
+	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.public_id = $2`
 
-	//   SET_NAME_SQL = `UPDATE users SET first_name = 1, last_name = 1 WHERE users.public_id = 1`
-	SetInfoSql  = `UPDATE users SET username = $1, first_name = $1, last_name = $1 WHERE users.public_id = $1`
-	SetEmailSql = `UPDATE users SET email = $1 WHERE users.public_id = $1`
+	SetInfoSql  = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.public_id = $4`
+	SetEmailSql = `UPDATE users SET email = $1 WHERE users.public_id = $2`
 
 	DeleteUserSql = `DELETE FROM users WHERE public_id = $1`
 
@@ -239,7 +238,7 @@ func (pgdb *PostgresUserDB) DeleteUser(publicId string) error {
 }
 
 func (pgdb *PostgresUserDB) FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	return pgdb.findUser(pgdb.db.QueryRow(pgdb.ctx, FindUserByEmailSql, email.Address))
+	return pgdb.findUser(email.Address, pgdb.db.QueryRow(pgdb.ctx, FindUserByEmailSql, email.Address))
 }
 
 func (pgdb *PostgresUserDB) FindUserByUsername(username string) (*auth.AuthUser, error) {
@@ -260,18 +259,18 @@ func (pgdb *PostgresUserDB) FindUserByUsername(username string) (*auth.AuthUser,
 		return nil, err
 	}
 
-	return pgdb.findUser(pgdb.db.QueryRow(pgdb.ctx, FindUserByUsernameSql, username))
+	return pgdb.findUser(username, pgdb.db.QueryRow(pgdb.ctx, FindUserByUsernameSql, username))
 }
 
 func (pgdb *PostgresUserDB) FindUserById(id uint) (*auth.AuthUser, error) {
-	return pgdb.findUser(pgdb.db.QueryRow(pgdb.ctx, FindUserByIdSql, id))
+	return pgdb.findUser(fmt.Sprintf("%d", id), pgdb.db.QueryRow(pgdb.ctx, FindUserByIdSql, id))
 }
 
 func (pgdb *PostgresUserDB) FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
-	return pgdb.findUser(pgdb.db.QueryRow(pgdb.ctx, FindUserByPublicIdSql, publicId))
+	return pgdb.findUser(publicId, pgdb.db.QueryRow(pgdb.ctx, FindUserByPublicIdSql, publicId))
 }
 
-func (pgdb *PostgresUserDB) findUser(row pgx.Row) (*auth.AuthUser, error) {
+func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, error) {
 
 	var authUser auth.AuthUser
 	//var updatedAt int64
@@ -289,7 +288,7 @@ func (pgdb *PostgresUserDB) findUser(row pgx.Row) (*auth.AuthUser, error) {
 		&authUser.UpdatedAt)
 
 	if err != nil {
-		return nil, err
+		return nil, userdb.NewUserNotFoundError(id)
 	}
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
@@ -499,10 +498,10 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.Role, error) {
 		&role.Description)
 
 	if err != nil {
-		return nil, err
+		return nil, userdb.NewAccountError(fmt.Sprintf("%s role not found", name))
 	}
 
-	return &role, err
+	return &role, nil
 }
 
 func (pgdb *PostgresUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
@@ -537,7 +536,7 @@ func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailVerifiedSql, userId)
 
 	if err != nil {
-		return err
+		return userdb.NewAccountError("could not verify email address")
 	}
 
 	// _, err = pgdb.setOtpStmt.Exec(pgdb.ctx,"", userId)
@@ -551,7 +550,7 @@ func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 
 func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) error {
 	if user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return userdb.NewPasswordError("account is locked and cannot be edited")
 	}
 
 	var err error
@@ -567,7 +566,7 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) er
 	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, hash, user.PublicId)
 
 	if err != nil {
-		return fmt.Errorf("could not update password")
+		return userdb.NewPasswordError("could not update password")
 	}
 
 	return err
@@ -636,7 +635,7 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 
 	if !adminMode {
 		if user.IsLocked {
-			return fmt.Errorf("account is locked and cannot be edited")
+			return userdb.NewAccountError("account is locked and cannot be edited")
 		}
 
 		err := userdb.CheckUsername(username)
@@ -655,11 +654,10 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 	_, err := pgdb.db.Exec(pgdb.ctx, SetInfoSql, username, firstName, lastName, user.PublicId)
 
 	if err != nil {
-		log.Debug().Msgf("%s", err)
-		return fmt.Errorf("could not update user info")
+		return userdb.NewAccountError("could not update user info")
 	}
 
-	return err
+	return nil
 }
 
 // func (pgdb *pgdb) SetEmail(publicId string, email string) error {
@@ -675,21 +673,21 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 func (pgdb *PostgresUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error {
 
 	if !adminMode && user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
 	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailSql, address.Address, user.PublicId)
 
 	if err != nil {
-		return fmt.Errorf("could not update email address")
+		return userdb.NewAccountError("could not update email address")
 	}
 
-	return err
+	return nil
 }
 
 func (pgdb *PostgresUserDB) SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
 	// remove existing roles,
@@ -712,7 +710,7 @@ func (pgdb *PostgresUserDB) SetUserRoles(user *auth.AuthUser, roles []string, ad
 
 func (pgdb *PostgresUserDB) AddRoleToUser(user *auth.AuthUser, roleName string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
 	var role *auth.Role
@@ -726,7 +724,7 @@ func (pgdb *PostgresUserDB) AddRoleToUser(user *auth.AuthUser, roleName string, 
 	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserRoleSql, user.Id, role.Id)
 
 	if err != nil {
-		return err
+		return userdb.NewAccountError("could not add role to user")
 	}
 
 	return nil
@@ -737,7 +735,7 @@ func (pgdb *PostgresUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode b
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	uuid, err := sys.Uuid()
+	uuid, err := sys.Uuidv7()
 
 	if err != nil {
 		return err
@@ -760,8 +758,6 @@ func (pgdb *PostgresUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode b
 
 func (pgdb *PostgresUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.AuthUser, error) {
 	email, err := mail.ParseAddress(user.Email)
-
-	log.Debug().Msgf("aha %v", email)
 
 	if err != nil {
 		return nil, err
@@ -826,7 +822,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		// user already exists so check if verified
 
 		if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
-			return nil, fmt.Errorf("user already registered: please sign up with a different email address")
+			return nil, userdb.NewAccountError("user already registered: please sign up with a different email address")
 		}
 
 		// if user is not verified, update the password since we assume
@@ -837,7 +833,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		err := pgdb.SetPassword(authUser, password)
 
 		if err != nil {
-			return nil, fmt.Errorf("user already registered: please sign up with another email address")
+			return nil, userdb.NewAccountError("user already registered: please sign up with another email address")
 		}
 
 		// ensure user is the updated version
@@ -847,10 +843,10 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	// try to create user if user does not exist
 
 	// Create a publicId for the user id
-	publicId, err := sys.Uuid() // sys.NanoId()
+	publicId, err := sys.Uuidv7() // sys.NanoId()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not create uuid for user")
+		return nil, userdb.NewAccountError("could not create uuid for user")
 	}
 
 	hash := ""

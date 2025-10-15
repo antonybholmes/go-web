@@ -592,12 +592,10 @@ func (mydb *MySQLUserDB) SetIsVerified(userId string) error {
 
 func (mydb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error {
 	if user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	var err error
-
-	err = userdb.CheckPassword(password)
+	err := userdb.CheckPassword(password)
 
 	if err != nil {
 		return err
@@ -608,10 +606,10 @@ func (mydb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error
 	_, err = mydb.db.Exec(SetPasswordSql, hash, user.PublicId)
 
 	if err != nil {
-		return fmt.Errorf("could not update password")
+		return userdb.NewAccountError("could not update password")
 	}
 
-	return err
+	return nil
 }
 
 // func (mydb *mydb) SetUsername(publicId string, username string) error {
@@ -677,7 +675,7 @@ func (mydb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 
 	if !adminMode {
 		if user.IsLocked {
-			return fmt.Errorf("account is locked and cannot be edited")
+			return userdb.NewAccountError("account is locked and cannot be edited")
 		}
 
 		err := userdb.CheckUsername(username)
@@ -696,11 +694,10 @@ func (mydb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 	_, err := mydb.db.Exec(SetInfoSql, username, firstName, lastName, user.PublicId)
 
 	if err != nil {
-		log.Debug().Msgf("%s", err)
-		return fmt.Errorf("could not update user info")
+		return userdb.NewAccountError("could not update user info")
 	}
 
-	return err
+	return nil
 }
 
 // func (mydb *mydb) SetEmail(publicId string, email string) error {
@@ -778,7 +775,7 @@ func (mydb *MySQLUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode bool
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	uuid, err := sys.Uuid()
+	uuid, err := sys.Uuidv7()
 
 	if err != nil {
 		return err
@@ -888,7 +885,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	// try to create user if user does not exist
 
 	// Create a publicId for the user id
-	publicId, err := sys.Uuid() // sys.NanoId()
+	publicId, err := sys.Uuidv7() // sys.NanoId()
 
 	if err != nil {
 		return nil, fmt.Errorf("could not create uuid for user")
