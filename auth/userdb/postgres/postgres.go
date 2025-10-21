@@ -88,14 +88,15 @@ const (
 	WHERE users_roles.user_id = $1 AND roles.id = users_roles.role_id 
 	ORDER BY roles.name`
 
-	InsertUserSql = `INSERT IGNORE INTO users 
+	InsertUserSql = `INSERT INTO users 
 	(public_id, username, email, password, first_name, last_name, email_verified_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	VALUES ($1, $2, $3, $4, $5, $6, $7) 
+	ON CONFLICT DO NOTHING`
 
 	DeleteRolesSql    = "DELETE FROM users_roles WHERE user_id = $1"
-	InsertUserRoleSql = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES($1, $2)"
+	InsertUserRoleSql = "INSERT INTO users_roles (user_id, role_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
-	InsertApiKeySql = "INSERT IGNORE INTO api_keys (user_id, api_key) VALUES($1, $2)"
+	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
 	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.public_id = $1`
 	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.public_id = $2`
