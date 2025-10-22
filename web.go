@@ -272,10 +272,10 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 
 	cookie, err := c.Request.Cookie(CsrfCookieName)
 
-	if err == nil {
+	if err == nil && cookie != nil {
 		parts := strings.Split(cookie.Value, "|")
 
-		if len(parts) == 2 {
+		if len(parts) > 1 {
 			csrfToken = parts[0]
 			timestampStr := parts[1]
 
@@ -297,7 +297,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			return "", err
 		}
 
-		timestampStr := time.Now().Format(time.RFC3339)
+		timestampStr := time.Now().UTC().Format(time.RFC3339)
 
 		// Set the CSRF token in a session cookie
 		http.SetCookie(c.Writer, &http.Cookie{
@@ -308,7 +308,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			Secure:   true,
 			HttpOnly: false, // must be readable from JS!
 			SameSite: http.SameSiteNoneMode,
-			Expires:  time.Now().Add(CsrfMaxAgeMins),
+			Expires:  time.Now().UTC().Add(CsrfMaxAgeMins),
 		})
 	}
 
