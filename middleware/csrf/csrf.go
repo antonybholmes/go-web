@@ -1,8 +1,12 @@
-package middleware
+package csrf
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
@@ -15,6 +19,8 @@ type (
 		s string
 	}
 )
+
+const CsrfCookieName string = "csrf_token"
 
 var (
 	ErrCSRFTokenMissing = NewCSRFError("token missing")
@@ -30,7 +36,7 @@ func NewCSRFError(s string) error {
 }
 
 func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
-	token, err := web.GenerateCSRFToken()
+	token, err := GenerateCSRFToken()
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -38,7 +44,7 @@ func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  web.CsrfCookieName,
+		Name:  CsrfCookieName,
 		Value: token,
 		Path:  "/",
 		//Domain:   "ed.site.com", // or leave empty if called via ed.site.com
@@ -55,7 +61,7 @@ func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 
 func CSRFCookieMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, err := c.Cookie(web.CsrfCookieName)
+		_, err := c.Cookie(CsrfCookieName)
 
 		if err == nil {
 			// Cookie exists, do nothing
@@ -82,7 +88,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		cookieToken, err := c.Cookie(web.CsrfCookieName)
+		cookieToken, err := c.Cookie(CsrfCookieName)
 
 		if err != nil {
 			web.ForbiddenResp(c, ErrCSRFTokenMissing)
@@ -102,4 +108,72 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func GenerateCSRFToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	// make cookie safe
+	return base64.RawURLEncoding.EncodeToString(b), nil //StdEncoding
+}
+
+type CsrfTokenResp struct {
+	CsrfToken string `json:"csrfToken"`
+}
+
+func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
+	var csrfToken string
+	needNewToken := true
+
+	cookie, err := c.Request.Cookie(CsrfCookieName)
+
+	if err == nil && cookie != nil {
+		parts := strings.Split(cookie.Value, "|")
+
+		if len(parts) > 1 {
+			csrfToken = parts[0]
+			timestampStr := parts[1]
+
+			timestampInt, err := time.Parse(time.RFC3339, timestampStr)
+
+			if err == nil {
+				if time.Since(timestampInt) < auth.Ttl10Mins {
+					needNewToken = false
+				}
+			}
+		}
+	}
+
+	if needNewToken {
+		csrfToken, err := GenerateCSRFToken()
+
+		if err != nil {
+			web.InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
+			return "", err
+		}
+
+		timestampStr := time.Now().UTC().Format(time.RFC3339)
+
+		// Set the CSRF token in a session cookie
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:  CsrfCookieName,
+			Value: fmt.Sprintf("%s|%s", csrfToken, timestampStr),
+			Path:  "/",
+			//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+			Secure:   true,
+			HttpOnly: false, // must be readable from JS!
+			SameSite: http.SameSiteNoneMode,
+			Expires:  time.Now().UTC().Add(auth.Ttl10Mins),
+		})
+	}
+
+	web.MakeDataResp(c, "", &CsrfTokenResp{
+		CsrfToken: csrfToken,
+	})
+
+	return csrfToken, nil
 }

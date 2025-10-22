@@ -1,14 +1,11 @@
 package web
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,13 +28,13 @@ type (
 const (
 	//SESSION_PUBLICID   string = "publicId"
 	//SESSION_ROLES      string = "roles"
-	SessionUser      string        = "user"
-	SessionCsrfToken string        = "csrfToken"
-	SessionCreatedAt string        = "createdAt"
-	SessionExpiresAt string        = "expiresAt"
-	CsrfCookieName   string        = "csrf_token"
-	CsrfMaxAgeMins   time.Duration = time.Minute * 10
-	HeaderXCsrfToken string        = "X-CSRF-Token"
+	SessionUser      string = "user"
+	SessionCsrfToken string = "csrfToken"
+	SessionCreatedAt string = "createdAt"
+	SessionExpiresAt string = "expiresAt"
+
+	//CsrfMaxAgeMins   time.Duration = time.Minute * 10
+	HeaderXCsrfToken string = "X-CSRF-Token"
 )
 
 var (
@@ -249,72 +246,4 @@ func MakeOkResp(c *gin.Context, message string) {
 
 func MakeSuccessResp(c *gin.Context, message string, success bool) {
 	MakeDataResp(c, message, &SuccessResp{Success: success})
-}
-
-func GenerateCSRFToken() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	// make cookie safe
-	return base64.RawURLEncoding.EncodeToString(b), nil //StdEncoding
-}
-
-type CsrfTokenResp struct {
-	CsrfToken string `json:"csrfToken"`
-}
-
-func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
-	var csrfToken string
-	needNewToken := true
-
-	cookie, err := c.Request.Cookie(CsrfCookieName)
-
-	if err == nil && cookie != nil {
-		parts := strings.Split(cookie.Value, "|")
-
-		if len(parts) > 1 {
-			csrfToken = parts[0]
-			timestampStr := parts[1]
-
-			timestampInt, err := time.Parse(time.RFC3339, timestampStr)
-
-			if err == nil {
-				if time.Since(timestampInt) < CsrfMaxAgeMins {
-					needNewToken = false
-				}
-			}
-		}
-	}
-
-	if needNewToken {
-		csrfToken, err := GenerateCSRFToken()
-
-		if err != nil {
-			InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
-			return "", err
-		}
-
-		timestampStr := time.Now().UTC().Format(time.RFC3339)
-
-		// Set the CSRF token in a session cookie
-		http.SetCookie(c.Writer, &http.Cookie{
-			Name:  CsrfCookieName,
-			Value: fmt.Sprintf("%s|%s", csrfToken, timestampStr),
-			Path:  "/",
-			//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
-			Secure:   true,
-			HttpOnly: false, // must be readable from JS!
-			SameSite: http.SameSiteNoneMode,
-			Expires:  time.Now().UTC().Add(CsrfMaxAgeMins),
-		})
-	}
-
-	MakeDataResp(c, "", &CsrfTokenResp{
-		CsrfToken: csrfToken,
-	})
-
-	return csrfToken, nil
 }
