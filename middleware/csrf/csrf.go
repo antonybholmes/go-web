@@ -20,7 +20,7 @@ type (
 	}
 )
 
-const CsrfCookieName string = "csrf_token"
+const CsrfCookieName string = "csrf-token"
 
 var (
 	ErrCSRFTokenMissing = NewCSRFError("token missing")
@@ -96,13 +96,27 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		parts := strings.Split(cookieToken, "|")
+
+		if len(parts) < 2 {
+			web.ForbiddenResp(c, ErrCSRFTokenInvalid)
+			return
+		}
+
+		csrfToken := parts[0]
+
+		if csrfToken == "" {
+			web.ForbiddenResp(c, ErrCSRFTokenInvalid)
+			return
+		}
+
 		headerToken := c.GetHeader(web.HeaderXCsrfToken)
 
-		if headerToken == "" || headerToken != cookieToken {
+		if headerToken == "" || headerToken != csrfToken {
 			web.ForbiddenResp(c, ErrCSRFTokenInvalid)
 
 			// Optionally, you can also log the error
-			log.Error().Msgf("CSRF token mismatch: cookie=%s, header=%s", cookieToken, headerToken)
+			log.Error().Msgf("CSRF token mismatch: cookie=%s, header=%s", csrfToken, headerToken)
 			return
 		}
 
@@ -129,10 +143,10 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 	var csrfToken string
 	needNewToken := true
 
-	cookie, err := c.Request.Cookie(CsrfCookieName)
+	cookie, err := c.Cookie(CsrfCookieName)
 
-	if err == nil && cookie != nil {
-		parts := strings.Split(cookie.Value, "|")
+	if err == nil {
+		parts := strings.Split(cookie, "|")
 
 		if len(parts) > 1 {
 			csrfToken = parts[0]
