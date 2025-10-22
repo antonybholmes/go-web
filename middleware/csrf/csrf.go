@@ -92,7 +92,6 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 
 		if err != nil {
 			web.ForbiddenResp(c, ErrCSRFTokenMissing)
-
 			return
 		}
 
@@ -152,10 +151,10 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			csrfToken = parts[0]
 			timestampStr := parts[1]
 
-			timestampInt, err := time.Parse(time.RFC3339, timestampStr)
+			timestamp, err := time.Parse(time.RFC3339, timestampStr)
 
 			if err == nil {
-				if time.Since(timestampInt) < auth.Ttl10Mins {
+				if time.Since(timestamp) < auth.Ttl10Mins {
 					needNewToken = false
 				}
 			}
@@ -170,18 +169,21 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			return "", err
 		}
 
-		timestampStr := time.Now().UTC().Format(time.RFC3339)
+		now := time.Now().UTC()
 
 		// Set the CSRF token in a session cookie
 		http.SetCookie(c.Writer, &http.Cookie{
-			Name:  CsrfCookieName,
-			Value: fmt.Sprintf("%s|%s", csrfToken, timestampStr),
-			Path:  "/",
-			//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+			Name: CsrfCookieName,
+			// include timestamp in cookie so we can check age. Since cookie
+			// has expire time, even if user tries to modify timestamp, cookie will
+			// eventually expire.
+			Value:    fmt.Sprintf("%s|%s", csrfToken, now.Format(time.RFC3339)),
+			Path:     "/",
+			MaxAge:   int(auth.Ttl10Mins.Seconds()),
 			Secure:   true,
 			HttpOnly: false, // must be readable from JS!
 			SameSite: http.SameSiteNoneMode,
-			Expires:  time.Now().UTC().Add(auth.Ttl10Mins),
+			//Expires:  now.Add(auth.Ttl10Mins),
 		})
 	}
 
