@@ -8,19 +8,36 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+)
+
+type (
+	ReqJwt struct {
+		Jwt string `json:"jwt"`
+	}
+
+	ConnectionError struct {
+		Message string
+	}
+
+	HTTPError struct {
+		Message string `json:"error"`
+		Code    int    `json:"-"`
+	}
 )
 
 const (
 	//SESSION_PUBLICID   string = "publicId"
 	//SESSION_ROLES      string = "roles"
-	SessionUser      string = "user"
-	SessionCsrfToken string = "csrfToken"
-	SessionCreatedAt string = "createdAt"
-	SessionExpiresAt string = "expiresAt"
-	CsrfCookieName   string = "csrf_token"
-	HeaderXCsrfToken string = "X-CSRF-Token"
+	SessionUser      string        = "user"
+	SessionCsrfToken string        = "csrfToken"
+	SessionCreatedAt string        = "createdAt"
+	SessionExpiresAt string        = "expiresAt"
+	CsrfCookieName   string        = "csrf_token"
+	CsrfMaxAgeMins   time.Duration = time.Minute * 10
+	HeaderXCsrfToken string        = "X-CSRF-Token"
 )
 
 var (
@@ -36,12 +53,8 @@ var (
 // 	Expires string `json:"expires"`
 // }
 
-type ReqJwt struct {
-	Jwt string `json:"jwt"`
-}
-
-type ConnectionError struct {
-	Message string
+func (e HTTPError) Error() string {
+	return e.Message
 }
 
 func (e *ConnectionError) Error() string {
@@ -55,15 +68,6 @@ func NewConnectionError(message string) *ConnectionError {
 func IsConnectionError(err error) bool {
 	_, ok := err.(*ConnectionError)
 	return ok
-}
-
-type HTTPError struct {
-	Message string `json:"error"`
-	Code    int    `json:"-"`
-}
-
-func (e HTTPError) Error() string {
-	return e.Message
 }
 
 func InvalidEmailReq(c *gin.Context) {
@@ -263,23 +267,50 @@ type CsrfTokenResp struct {
 }
 
 func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
-	csrfToken, err := GenerateCSRFToken()
+	var csrfToken string
+	needNewToken := true
 
-	if err != nil {
-		InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
-		return "", err
+	cookie, err := c.Request.Cookie(CsrfCookieName)
+
+	if err == nil {
+		parts := strings.Split(cookie.Value, "|")
+
+		if len(parts) == 2 {
+			csrfToken = parts[0]
+			timestampStr := parts[1]
+
+			timestampInt, err := time.Parse(time.RFC3339, timestampStr)
+
+			if err == nil {
+				if time.Since(timestampInt) < CsrfMaxAgeMins {
+					needNewToken = false
+				}
+			}
+		}
 	}
 
-	// Set the CSRF token in a session cookie
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  CsrfCookieName,
-		Value: csrfToken,
-		Path:  "/",
-		//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
-		Secure:   true,
-		HttpOnly: false, // must be readable from JS!
-		SameSite: http.SameSiteNoneMode,
-	})
+	if needNewToken {
+		csrfToken, err := GenerateCSRFToken()
+
+		if err != nil {
+			InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
+			return "", err
+		}
+
+		timestampStr := time.Now().Format(time.RFC3339)
+
+		// Set the CSRF token in a session cookie
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:  CsrfCookieName,
+			Value: fmt.Sprintf("%s|%s", csrfToken, timestampStr),
+			Path:  "/",
+			//MaxAge:   auth.MAX_AGE_30_DAYS_SECS, // 0 means until browser closes
+			Secure:   true,
+			HttpOnly: false, // must be readable from JS!
+			SameSite: http.SameSiteNoneMode,
+			Expires:  time.Now().Add(CsrfMaxAgeMins),
+		})
+	}
 
 	MakeDataResp(c, "", &CsrfTokenResp{
 		CsrfToken: csrfToken,
