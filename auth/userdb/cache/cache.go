@@ -4,7 +4,6 @@ import (
 	"net/mail"
 	"sync"
 
-	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/userdb"
 	"github.com/antonybholmes/go-web/auth/userdb/postgres"
@@ -80,7 +79,7 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return instance.FindUserByEmail(email)
 }
 
-func UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
+func UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error) {
 	return instance.UserRoles(user)
 }
 
@@ -103,20 +102,20 @@ func UserRoleList(user *auth.AuthUser) ([]string, error) {
 	return ret, nil
 }
 
-func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
+// func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
 
-	roles, err := instance.UserRoleList(user)
+// 	roles, err := instance.UserRoleList(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	roleSet := sys.NewStringSet()
+// 	roleSet := sys.NewStringSet()
 
-	roleSet.ListUpdate(roles)
+// 	roleSet.ListUpdate(roles)
 
-	return roleSet, nil
-}
+// 	return roleSet, nil
+// }
 
 func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {
 	return instance.Permissions(user)
@@ -186,8 +185,8 @@ func SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool)
 	return instance.SetEmailAddress(user, address, adminMode)
 }
 
-func SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error {
-	return instance.SetUserRoles(user, roles, adminMode)
+func SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error {
+	return instance.SetUserGroups(user, groups, adminMode)
 }
 
 func DeleteUser(publicId string) error {

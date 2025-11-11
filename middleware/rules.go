@@ -12,8 +12,8 @@ func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) 
 	parseFunc := ParseUserJWT(claimsParser)
 
 	return func(c *gin.Context) {
-		// extract user from context
-		user, err := parseFunc(c)
+		// extract userToken from context
+		userToken, err := parseFunc(c)
 
 		if err != nil {
 			c.Error(err)
@@ -22,11 +22,11 @@ func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) 
 		}
 
 		// use pointer to token
-		c.Set("user", &user)
+		c.Set("user", &userToken)
 
-		log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), user.Type, user.Roles)
+		log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
-		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), user.Type, user.Roles)
+		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
 		if err != nil {
 			log.Debug().Msgf("Access denied: %v", err)

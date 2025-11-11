@@ -49,18 +49,19 @@ type (
 
 		AddRolesToUser(authUser *auth.AuthUser) error
 
-		UserRoleList(user *auth.AuthUser) ([]string, error)
+		//UserRoleList(user *auth.AuthUser) ([]string, error)
 
 		AddApiKeysToUser(authUser *auth.AuthUser) error
 
 		UserApiKeys(user *auth.AuthUser) ([]string, error)
-		UserRoles(user *auth.AuthUser) ([]*auth.Role, error)
+		UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error)
 
 		PermissionList(user *auth.AuthUser) ([]string, error)
 
 		Roles() ([]*auth.Role, error)
 
 		FindRoleByName(name string) (*auth.Role, error)
+		FindGroupByName(name string) (*auth.Group, error)
 
 		// Get a list of permissions for a user
 		Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
@@ -81,11 +82,11 @@ type (
 		// change a user's email address
 		SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error
 
-		// set a user's roles
-		SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error
+		// set a user's groups
+		SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error
 
-		// add a role to a user
-		AddRoleToUser(user *auth.AuthUser, roleName string, adminMode bool) error
+		// add a group to a user
+		AddUserToGroup(user *auth.AuthUser, group string, adminMode bool) error
 
 		// create a new api key for a user, adminMode allows creating keys for other users
 		CreateApiKeyForUser(user *auth.AuthUser, adminMode bool) error

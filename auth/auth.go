@@ -31,11 +31,16 @@ const (
 	Ttl20Mins time.Duration = time.Minute * 20
 	Ttl15Mins time.Duration = time.Minute * 15
 
-	RoleSuper  = "Super"
-	RoleAdmin  = "Admin"
-	RoleUser   = "User"
-	RoleSignin = "Signin"
-	RoleRdf    = "RDF"
+	RoleSuper = "super:*"
+	RoleAdmin = "admin:*"
+	//RoleUser  = "user:*"
+	RoleLogin   = "user:login"
+	RoleRdfRead = "rdf:read"
+
+	GroupUser  = "user"
+	GroupAdmin = "admin"
+	GroupSuper = "super"
+	GroupLogin = "login"
 )
 
 var (
@@ -87,7 +92,7 @@ type Permission struct {
 	Id          uint   `json:"-"`
 }
 
-type Role struct {
+type Group struct {
 	PublicId    string `json:"publicId"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -95,20 +100,22 @@ type Role struct {
 	Id uint `json:"-" db:"id"`
 }
 
+type Role = Group
+
 type AuthUser struct {
-	PublicId        string        `json:"publicId"`
-	FirstName       string        `json:"firstName"`
-	LastName        string        `json:"lastName"`
-	Username        string        `json:"username"`
-	Email           string        `json:"email"`
-	HashedPassword  string        `json:"-"`
-	Roles           []string      `json:"roles"`
-	ApiKeys         []string      `json:"apiKeys"`
-	Id              uint          `json:"id"`
-	CreatedAt       time.Duration `json:"-"`
-	UpdatedAt       time.Duration `json:"-"`
-	EmailVerifiedAt time.Duration `json:"-"`
-	IsLocked        bool          `json:"isLocked"`
+	PublicId        string             `json:"publicId"`
+	FirstName       string             `json:"firstName"`
+	LastName        string             `json:"lastName"`
+	Username        string             `json:"username"`
+	Email           string             `json:"email"`
+	HashedPassword  string             `json:"-"`
+	Roles           []*RolePermissions `json:"roles"`
+	ApiKeys         []string           `json:"apiKeys"`
+	Id              uint               `json:"id"`
+	CreatedAt       time.Duration      `json:"-"`
+	UpdatedAt       time.Duration      `json:"-"`
+	EmailVerifiedAt time.Duration      `json:"-"`
+	IsLocked        bool               `json:"isLocked"`
 }
 
 // The admin view adds roles to each user as it is assumed this
@@ -212,8 +219,8 @@ func HasAdminRole(roles *sys.StringSet) bool {
 	return HasSuperRole(roles) || roles.Has(RoleAdmin)
 }
 
-func HasSignInRole(roles *sys.StringSet) bool {
-	return HasAdminRole(roles) || roles.Has(RoleSignin)
+func HasLoginInRole(roles *sys.StringSet) bool {
+	return HasAdminRole(roles) || roles.Has(RoleLogin)
 }
 
 // // Generate a one time code

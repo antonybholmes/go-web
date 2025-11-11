@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/antonybholmes/go-web"
@@ -155,6 +156,9 @@ func (otp *OTP) getOTP(email string) (string, error) {
 
 func (otp *OTP) storeOTP(email string, code string) error {
 	key := makeOTPKey(email)
+
+	log.Debug().Msgf("otp %s %s %s", key, code, otp.ttl)
+
 	return otp.RedisClient.Set(otp.Context, key, code, otp.ttl).Err() // expires in 5 mins
 }
 
@@ -181,8 +185,10 @@ func (otp *OTP) ValidateOTP(email string, input string) error {
 		return fmt.Errorf("otp codes do not match for email %s", email)
 	}
 
-	// Remove after use
-	err = otp.deleteOTP(email)
+	// Remove otp after successful validation in production
+	if os.Getenv("APP_ENV") != "development" {
+		err = otp.deleteOTP(email)
+	}
 
 	if err != nil {
 		return fmt.Errorf("failed to delete otp for email %s: %w", email, err)

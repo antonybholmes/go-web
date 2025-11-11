@@ -77,14 +77,26 @@ const (
 	permissions.id = roles_permissions.permission_id 
 	ORDER BY permissions.name`
 
+	// UserRolesSql string = `SELECT DISTINCT
+	// roles.id,
+	// roles.public_id,
+	// roles.name,
+	// roles.description
+	// FROM users_roles, roles
+	// WHERE users_roles.user_id = ? AND roles.id = users_roles.role_id
+	// ORDER BY roles.name`
+
 	UserRolesSql string = `SELECT DISTINCT 
-	roles.id, 
-	roles.public_id, 
-	roles.name, 
-	roles.description
-	FROM users_roles, roles 
-	WHERE users_roles.user_id = ? AND roles.id = users_roles.role_id 
-	ORDER BY roles.name`
+		r.name as role,
+		p.name AS permission
+		FROM users u
+		JOIN user_groups ug ON u.id = ug.user_id
+		JOIN group_roles gr ON ug.group_id = gr.group_id
+		JOIN role_permissions rp ON gr.role_id = rp.role_id
+		JOIN roles r ON rp.role_id = r.id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE u.id = ?
+		ORDER BY r.name, p.name`
 
 	InsertUserSql = `INSERT IGNORE INTO users 
 	(public_id, username, email, password, first_name, last_name, email_verified_at) 
@@ -113,6 +125,13 @@ const (
 	roles.name,
 	roles.description 
 	FROM roles WHERE roles.name = ?`
+
+	GroupSql = `SELECT 
+	groups.id, 
+	groups.public_id, 
+	groups.name,
+	groups.description 
+	FROM groups WHERE groups.name = ?`
 )
 
 func NewMySQLUserDB() *MySQLUserDB {
@@ -212,7 +231,7 @@ func (mydb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, err
 	for rows.Next() {
 		// need to initialize slices here to avoid nil
 		authUser := auth.AuthUser{
-			Roles:   make([]string, 0, 5),
+			Roles:   make([]*auth.RolePermissions, 0, 5),
 			ApiKeys: make([]string, 0, 5),
 		}
 
@@ -258,16 +277,10 @@ func (mydb *MySQLUserDB) DeleteUser(publicId string) error {
 		return err
 	}
 
-	roles, err := mydb.UserRoleList(authUser)
+	roles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(authUser.Roles)) //auth.MakeClaim(roles)
 
-	if err != nil {
-		return err
-	}
-
-	claim := auth.MakeClaim(roles)
-
-	if strings.Contains(claim, auth.RoleSuper) {
-		return fmt.Errorf("cannot delete superuser account")
+	if auth.HasAdminRole(roles) {
+		return fmt.Errorf("cannot delete admin account")
 	}
 
 	_, err = mydb.db.Exec(DeleteUserSql, publicId)
@@ -372,7 +385,7 @@ func (mydb *MySQLUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error) {
 
 func (mydb *MySQLUserDB) AddRolesToUser(authUser *auth.AuthUser) error {
 
-	roles, err := mydb.UserRoleList(authUser)
+	roles, err := mydb.UserRoles(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
@@ -383,23 +396,23 @@ func (mydb *MySQLUserDB) AddRolesToUser(authUser *auth.AuthUser) error {
 	return nil
 }
 
-func (mydb *MySQLUserDB) UserRoleList(user *auth.AuthUser) ([]string, error) {
+// func (mydb *MySQLUserDB) UserRoleList(user *auth.AuthUser) ([]string, error) {
 
-	roles, err := mydb.UserRoles(user)
+// 	roles, err := mydb.UserRoles(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	ret := make([]string, len(roles))
+// 	ret := make([]string, len(roles))
 
-	for ri, role := range roles {
-		ret[ri] = role.Name
-	}
+// 	for ri, role := range roles {
+// 		ret[ri] = role.Name
+// 	}
 
-	return ret, nil
+// 	return ret, nil
 
-}
+// }
 
 func (mydb *MySQLUserDB) AddApiKeysToUser(authUser *auth.AuthUser) error {
 
@@ -442,7 +455,7 @@ func (mydb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 	return keys, nil
 }
 
-func (mydb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
+func (mydb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error) {
 
 	rows, err := mydb.db.Query(UserRolesSql, user.Id)
 
@@ -452,17 +465,31 @@ func (mydb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.Role, error) {
 
 	defer rows.Close()
 
-	roles := make([]*auth.Role, 0, 10)
+	roles := make([]*auth.RolePermissions, 0, 10)
+
+	var currentRole *auth.RolePermissions = nil
+	var role string
+	var permission string
 
 	for rows.Next() {
-		var role auth.Role
-		err := rows.Scan(&role.Id, &role.PublicId, &role.Name, &role.Description)
+
+		err := rows.Scan(&role, &permission)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
 		}
 
-		roles = append(roles, &role)
+		// check if new role and append to array
+		if currentRole == nil || currentRole.Name != role {
+			currentRole = &auth.RolePermissions{
+				Name:        role,
+				Permissions: make([]string, 0, 10),
+			}
+			roles = append(roles, currentRole)
+		}
+
+		// add permission to current role
+		currentRole.Permissions = append(currentRole.Permissions, permission)
 	}
 
 	return roles, nil
@@ -528,6 +555,22 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.Role, error) {
 	}
 
 	return roles, nil
+}
+
+func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.Group, error) {
+
+	var group auth.Group
+
+	err := mydb.db.QueryRow(GroupSql, name).Scan(&group.Id,
+		&group.PublicId,
+		&group.Name,
+		&group.Description)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, err
 }
 
 func (mydb *MySQLUserDB) FindRoleByName(name string) (*auth.Role, error) {
@@ -725,7 +768,7 @@ func (mydb *MySQLUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.Addr
 	return err
 }
 
-func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, roles []string, adminMode bool) error {
+func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, groups []string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
@@ -737,8 +780,8 @@ func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, roles []string, admin
 		return err
 	}
 
-	for _, role := range roles {
-		err = mydb.AddRoleToUser(user, role, adminMode)
+	for _, group := range groups {
+		err = mydb.AddUserToGroup(user, group, adminMode)
 
 		if err != nil {
 			return err
@@ -748,20 +791,20 @@ func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, roles []string, admin
 	return nil
 }
 
-func (mydb *MySQLUserDB) AddRoleToUser(user *auth.AuthUser, roleName string, adminMode bool) error {
+func (mydb *MySQLUserDB) AddUserToGroup(user *auth.AuthUser, group string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	var role *auth.Role
+	var g *auth.Group
 
-	role, err := mydb.FindRoleByName(roleName)
+	g, err := mydb.FindGroupByName(group)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = mydb.db.Exec(InsertUserRoleSql, user.Id, role.Id)
+	_, err = mydb.db.Exec(InsertUserRoleSql, user.Id, g.Id)
 
 	if err != nil {
 		return err
@@ -932,13 +975,13 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	}
 
 	// Give user standard role and ability to login
-	err = mydb.AddRoleToUser(authUser, auth.RoleUser, true)
+	// err = mydb.AddUserToGroup(authUser, auth.GroupUser, true)
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	err = mydb.AddRoleToUser(authUser, auth.RoleSignin, true)
+	err = mydb.AddUserToGroup(authUser, auth.GroupLogin, true)
 
 	if err != nil {
 		return nil, err

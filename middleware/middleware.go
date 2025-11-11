@@ -154,8 +154,8 @@ func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
 }
 
 // Reads the token and parses the authorization JWT. If no jwt is present, returns an error.
-func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenClaims, error) {
-	return func(c *gin.Context) (*auth.TokenClaims, error) {
+func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
+	return func(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
 
 		tokenString, err := ParseToken(c)
 
@@ -164,7 +164,7 @@ func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.TokenC
 			return nil, err
 		}
 
-		claims := auth.TokenClaims{}
+		claims := auth.AuthUserJwtClaims{}
 
 		err = claimsParser(tokenString, &claims)
 
@@ -208,7 +208,7 @@ func UserJWTMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 
 // checks that user exists in context and calls f with the claims
 // if it does.
-func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims *auth.TokenClaims)) {
+func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims *auth.AuthUserJwtClaims)) {
 
 	// user is a jwt
 	user, ok := c.Get("user")
@@ -219,7 +219,7 @@ func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims 
 		return
 	}
 
-	claims := user.(*auth.TokenClaims)
+	claims := user.(*auth.AuthUserJwtClaims)
 
 	f(c, claims)
 }
@@ -228,7 +228,7 @@ func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Debug().Msgf("Handler: %s", c.FullPath())
 
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
 			if claims.Type != tokenType {
 				web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
@@ -260,9 +260,9 @@ func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
 
 func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
+			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))) {
 				web.ForbiddenResp(c, auth.ErrUserIsNotAdmin)
 
 				return
@@ -275,9 +275,9 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 
 func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasSignInRole(sys.NewStringSet().ListUpdate(claims.Roles)) {
+			if !auth.HasLoginInRole(sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))) {
 				web.ForbiddenResp(c, auth.ErrUserCannotLogin)
 				return
 			}
@@ -372,11 +372,11 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 	//roleSet := sys.NewStringSet().UpdateFromList(roles)
 
 	return func(c *gin.Context) {
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.TokenClaims) {
+		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
 			//log.Debug().Msgf("claims %v", claims)
 
-			userRoles := sys.NewStringSet().ListUpdate(claims.Roles)
+			userRoles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))
 
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list

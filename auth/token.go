@@ -3,11 +3,13 @@ package auth
 import (
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"net/mail"
 	"strings"
 	"time"
 
 	"github.com/antonybholmes/go-sys/env"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -24,7 +26,51 @@ import (
 // 	OTP_TOKEN            TokenType = 7
 // )
 
-type TokenType = string
+type (
+	TokenType = string
+
+	RolePermissions struct {
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
+	}
+
+	AuthUserJwtClaims struct {
+		jwt.RegisteredClaims
+		UserId          string   `json:"userId"` // the publicId of the user
+		Data            string   `json:"data,omitempty"`
+		OneTimePasscode string   `json:"otp,omitempty"`
+		Scope           []string `json:"scope,omitempty"`
+		//Roles           []string    `json:"roles,omitempty"`
+		Roles       []*RolePermissions `json:"roles,omitempty"`
+		RedirectUrl string             `json:"redirectUrl,omitempty"`
+		Type        TokenType          `json:"type"`
+	}
+
+	Auth0TokenClaims struct {
+		jwt.RegisteredClaims
+		Name  string `json:"https://edb.rdf-lab.org/name"`
+		Email string `json:"https://edb.rdf-lab.org/email"`
+	}
+
+	ClerkTokenClaims struct {
+		jwt.RegisteredClaims
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+
+	SupabaseTokenClaims struct {
+		jwt.RegisteredClaims
+		//Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+
+	TokenCreator struct {
+		secret         *rsa.PrivateKey
+		accessTokenTTL time.Duration
+		otpTokenTTL    time.Duration
+		shortTTL       time.Duration
+	}
+)
 
 const (
 	TokenTypeVerifyEmail   TokenType = "verify_email"
@@ -46,35 +92,6 @@ const (
 var (
 	ErrInvalidTokenType = errors.New("invalid token type")
 )
-
-type TokenClaims struct {
-	jwt.RegisteredClaims
-	UserId          string    `json:"userId"` // the publicId of the user
-	Data            string    `json:"data,omitempty"`
-	OneTimePasscode string    `json:"otp,omitempty"`
-	Scope           []string  `json:"scope,omitempty"`
-	Roles           []string  `json:"roles,omitempty"`
-	RedirectUrl     string    `json:"redirectUrl,omitempty"`
-	Type            TokenType `json:"type"`
-}
-
-type Auth0TokenClaims struct {
-	jwt.RegisteredClaims
-	Name  string `json:"https://edb.rdf-lab.org/name"`
-	Email string `json:"https://edb.rdf-lab.org/email"`
-}
-
-type ClerkTokenClaims struct {
-	jwt.RegisteredClaims
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-type SupabaseTokenClaims struct {
-	jwt.RegisteredClaims
-	//Name  string `json:"name"`
-	Email string `json:"email"`
-}
 
 //type RoleMap map[string][]string
 
@@ -105,17 +122,24 @@ type SupabaseTokenClaims struct {
 // 	}
 // }
 
+// FlattenRoles converts a slice of RolePermissions to a flat slice of strings
+// in the format "role:permission"
+func FlattenRoles(roles []*RolePermissions) []string {
+	ret := make([]string, 0, len(roles)*2)
+
+	for _, rp := range roles {
+		for _, p := range rp.Permissions {
+			ret = append(ret, fmt.Sprintf("%s:%s", rp.Name, p))
+		}
+	}
+
+	return ret
+}
+
 // Claims are space separated strings to match
 // the scope spec and reduce jwt complexity
 func MakeClaim(claims []string) string {
 	return strings.Join(claims, JwtClaimSep)
-}
-
-type TokenCreator struct {
-	secret         *rsa.PrivateKey
-	accessTokenTTL time.Duration
-	otpTokenTTL    time.Duration
-	shortTTL       time.Duration
 }
 
 func NewTokenCreator(secret *rsa.PrivateKey) *TokenCreator {
@@ -142,9 +166,9 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, er
 		TtlHour)
 }
 
-func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []string) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []*RolePermissions) (string, error) {
 
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             TokenTypeAccess,
@@ -154,9 +178,9 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []str
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []string) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []*RolePermissions) (string, error) {
 
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId: publicId,
 		//IpAddr:           ipAddr,
 		Type:             TokenTypeUpdate,
@@ -171,7 +195,7 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
 
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId:           authUser.PublicId,
 		Data:             authUser.FirstName,
 		Type:             TokenTypeVerifyEmail,
@@ -183,7 +207,7 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 }
 
 func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId: user.PublicId,
 		// include first name to personalize reset
 		Data:             user.FirstName,
@@ -196,7 +220,7 @@ func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (
 
 func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId:           user.PublicId,
 		Data:             email.Address,
 		Type:             TokenTypeChangeEmail,
@@ -212,7 +236,7 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
 
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId: userId,
 		Type:   TokenTypePasswordless,
 		// This is so the frontend can redirect itself to another page to make
@@ -231,7 +255,7 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 }
 
 func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId:           user.PublicId,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
@@ -252,7 +276,7 @@ func (tc *TokenCreator) BasicToken(c *gin.Context,
 	publicId string,
 	tokenType TokenType,
 	ttl time.Duration) (string, error) {
-	claims := TokenClaims{
+	claims := AuthUserJwtClaims{
 		UserId:           publicId,
 		Type:             tokenType,
 		RegisteredClaims: makeDefaultClaimsWithTTL(ttl),
