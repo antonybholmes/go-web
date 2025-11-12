@@ -88,17 +88,17 @@ const (
 	// WHERE users_roles.user_id = $1 AND roles.id = users_roles.role_id
 	// ORDER BY roles.name`
 
-	UserRolesSql string = `SELECT DISTINCT 
-		r.name as role,
-		p.name AS permission
-		FROM users u
-		JOIN user_groups ug ON u.id = ug.user_id
-		JOIN group_roles gr ON ug.group_id = gr.group_id
-		JOIN role_permissions rp ON gr.role_id = rp.role_id
-		JOIN roles r ON rp.role_id = r.id
-		JOIN permissions p ON rp.permission_id = p.id
-		WHERE u.id = $1
-		ORDER BY r.name, p.name`
+	// UserRolesSql string = `SELECT DISTINCT
+	// 	r.name as role,
+	// 	p.name AS permission
+	// 	FROM users u
+	// 	JOIN user_groups ug ON u.id = ug.user_id
+	// 	JOIN group_roles gr ON ug.group_id = gr.group_id
+	// 	JOIN role_permissions rp ON gr.role_id = rp.role_id
+	// 	JOIN roles r ON rp.role_id = r.id
+	// 	JOIN permissions p ON rp.permission_id = p.id
+	// 	WHERE u.id = $1
+	// 	ORDER BY r.name, p.name`
 
 	UserGroupsSql string = `SELECT DISTINCT
 		g.public_id as group_public_id,
@@ -111,7 +111,7 @@ const (
 		JOIN user_groups ug ON u.id = ug.user_id
 		JOIN group_roles gr ON ug.group_id = gr.group_id
 		JOIN role_permissions rp ON gr.role_id = rp.role_id
-		JOIN groups g ON rp.group_id = g.id
+		JOIN groups g ON gr.group_id = g.id
 		JOIN roles r ON rp.role_id = r.id
 		JOIN permissions p ON rp.permission_id = p.id
 		WHERE u.id = $1
@@ -268,9 +268,7 @@ func (pgdb *PostgresUserDB) DeleteUser(publicId string) error {
 	// 	return err
 	// }
 
-	groups := sys.NewStringSet().ListUpdate(auth.FlattenGroups(authUser.Groups)) //auth.MakeClaim(roles)
-
-	if auth.HasAdminRole(groups) {
+	if auth.UserHasAdminRole(authUser) {
 		return fmt.Errorf("cannot delete admin account")
 	}
 
@@ -379,6 +377,8 @@ func (pgdb *PostgresUserDB) AddGroupsToUser(authUser *auth.AuthUser) error {
 
 	groups, err := pgdb.UserGroups(authUser)
 
+	log.Debug().Msgf("add groups to user %s: %v", authUser.Username, groups)
+
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
@@ -449,7 +449,9 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
 func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 
-	rows, err := pgdb.db.Query(pgdb.ctx, UserRolesSql, user.Id)
+	log.Debug().Msgf("getting user groups for %s %d", user.PublicId, user.Id)
+
+	rows, err := pgdb.db.Query(pgdb.ctx, UserGroupsSql, user.Id)
 
 	if err != nil {
 		return nil, fmt.Errorf("user roles not found")
@@ -472,7 +474,7 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 
 	for rows.Next() {
 
-		err := rows.Scan(&group, &groupPublicId, &role, &rolePublicId, &permission, &permissionPublicId)
+		err := rows.Scan(&groupPublicId, &group, &rolePublicId, &role, &permissionPublicId, &permission)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
@@ -1024,7 +1026,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	log.Debug().Msgf("created user %v", authUser)
 
 	// Give user standard role and ability to login
-	err = pgdb.AddUserToGroup(authUser, auth.GroupLogin, true)
+	err = pgdb.AddUserToGroup(authUser, auth.GroupWebUsers, true)
 
 	if err != nil {
 		log.Debug().Msgf("error adding user to group %s %v", publicId, err)

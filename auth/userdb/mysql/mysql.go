@@ -286,9 +286,7 @@ func (mydb *MySQLUserDB) DeleteUser(publicId string) error {
 		return err
 	}
 
-	roles := sys.NewStringSet().ListUpdate(auth.FlattenGroups(authUser.Groups)) //auth.MakeClaim(roles)
-
-	if auth.HasAdminRole(roles) {
+	if auth.UserHasAdminRole(authUser) {
 		return fmt.Errorf("cannot delete admin account")
 	}
 
@@ -626,8 +624,7 @@ func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
 
 	err := mydb.db.QueryRow(GroupSql, name).Scan(&group.Id,
 		&group.PublicId,
-		&group.Name,
-		&group.Description)
+		&group.Name)
 
 	if err != nil {
 		return nil, err
@@ -1044,7 +1041,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	// 	return nil, err
 	// }
 
-	err = mydb.AddUserToGroup(authUser, auth.GroupLogin, true)
+	err = mydb.AddUserToGroup(authUser, auth.GroupWebUsers, true)
 
 	if err != nil {
 		return nil, err

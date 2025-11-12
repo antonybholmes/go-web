@@ -262,7 +262,7 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasAdminRole(sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))) {
+			if !auth.HasAdminRole(claims.Roles) {
 				web.ForbiddenResp(c, auth.ErrUserIsNotAdmin)
 
 				return
@@ -277,7 +277,7 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasLoginInRole(sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))) {
+			if !auth.HasWebLoginInRole(claims.Roles) {
 				web.ForbiddenResp(c, auth.ErrUserCannotLogin)
 				return
 			}
@@ -376,11 +376,11 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 
 			//log.Debug().Msgf("claims %v", claims)
 
-			userRoles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))
-
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list
-			if !auth.HasAdminRole(userRoles) {
+			if !auth.HasAdminRole(claims.Roles) {
+				userRoles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))
+
 				if !userRoles.ListContains(roles) {
 					web.ForbiddenResp(c, auth.ErrInvalidRoles)
 					return

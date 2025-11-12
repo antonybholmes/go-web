@@ -257,23 +257,23 @@ func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path str
 
 func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, roles []*auth.RolePermissions) error {
 
+	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, roles=%v", method, path, tokenType, roles)
+
 	matchingRoles, err := re.GetMatchingRoles(method, tokenType, path)
 
 	if err != nil {
 		return err
 	}
 
-	roleList := auth.FlattenRoles(roles)
-
 	// route must contain at least one of the user's roles
 
-	roleSet := sys.NewStringSet().ListUpdate(roleList)
-
-	if auth.HasAdminRole(roleSet) {
+	if auth.HasAdminRole(roles) {
 		// Admin has access to everything
-		log.Debug().Msgf("Access allowed for admin roles %v", roleList)
+		log.Debug().Msgf("Access allowed for admin roles %v", roles)
 		return nil
 	}
+
+	roleList := auth.FlattenRoles(roles)
 
 	userRoles := matchingRoles.WhichList(roleList)
 

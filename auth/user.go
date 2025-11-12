@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
@@ -27,7 +28,7 @@ type (
 	RBACEntity struct {
 		PublicId    string `json:"publicId"`
 		Name        string `json:"name"`
-		Description string `json:"description"`
+		Description string `json:"description,omitempty"`
 		Id          uint   `json:"-"`
 	}
 
@@ -61,16 +62,16 @@ type (
 )
 
 const (
-	RoleSuper = "super:*"
-	RoleAdmin = "admin:*"
+	RoleSuper = "SuperAccess:*.*"
+	RoleAdmin = "AdminAccess:*:*"
 	//RoleUser  = "user:*"
-	RoleLogin   = "user:login"
-	RoleRdfRead = "rdf:read"
+	RoleWebLogin = "web:login"
+	RoleRdfRead  = "rdf:read:*"
 
-	GroupUser  = "user"
-	GroupAdmin = "admin"
-	GroupSuper = "super"
-	GroupLogin = "login"
+	GroupUser     = "Users"
+	GroupAdmin    = "Admins"
+	GroupSuper    = "SuperUsers"
+	GroupWebUsers = "WebUsers"
 )
 
 // The admin view adds roles to each user as it is assumed this
@@ -132,16 +133,49 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 	return nil
 }
 
-func HasSuperRole(roles *sys.StringSet) bool {
-	return roles.Has(RoleSuper)
+func HasPermission(groups []*RBACGroup, f func(permissions *sys.StringSet) bool) bool {
+	permissions := sys.NewStringSet()
+
+	for _, g := range groups {
+		for _, r := range g.Roles {
+			for _, p := range r.Permissions {
+				permissions.Add(p.Name)
+			}
+		}
+
+	}
+
+	return f(permissions)
 }
 
-func HasAdminRole(roles *sys.StringSet) bool {
-	return HasSuperRole(roles) || roles.Has(RoleAdmin)
+func userHasRole(groups []*RBACGroup, f func(roles *sys.StringSet) bool) bool {
+	roles := sys.NewStringSet()
+
+	for _, g := range groups {
+		for _, r := range g.Roles {
+			roles.Add(r.Name)
+		}
+	}
+
+	return f(roles)
 }
 
-func HasLoginInRole(roles *sys.StringSet) bool {
-	return HasAdminRole(roles) || roles.Has(RoleLogin)
+func UserHasSuperRole(user *AuthUser) bool {
+	return userHasRole(user.Groups, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleSuper)
+	})
+}
+
+func UserHasAdminRole(user *AuthUser) bool {
+	return userHasRole(user.Groups, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
+	})
+}
+
+func UserHasWebLoginInRole(user *AuthUser) bool {
+	return userHasRole(user.Groups, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleWebLogin)
+	})
 }
 
 func FlattenGroups(groups []*RBACGroup) []string {
@@ -151,6 +185,57 @@ func FlattenGroups(groups []*RBACGroup) []string {
 		for _, r := range g.Roles {
 			for _, p := range r.Permissions {
 				ret = append(ret, fmt.Sprintf("%s:%s:%s", g.Name, r.Name, p.Name))
+			}
+		}
+	}
+
+	return ret
+}
+
+// Return just the unique role:permission strings from groups
+func FlattenRolePermissionsFromGroups(groups []*RBACGroup) []string {
+	roles := sys.NewStringSet()
+
+	for _, g := range groups {
+		for _, r := range g.Roles {
+			for _, p := range r.Permissions {
+				roles.Add(fmt.Sprintf("%s:%s", r.Name, p.Name))
+			}
+		}
+	}
+
+	ret := make([]string, 0, roles.Len())
+
+	ret = append(ret, roles.Keys()...)
+
+	slices.Sort(ret)
+
+	return ret
+}
+
+// Simplify groups to role permissions for use in tokens etc which
+// don't need the full group structure but just the roles and permissions
+func GroupsToRolePermissions(user *AuthUser) []*RolePermissions {
+	ret := make([]*RolePermissions, 0, len(user.Groups)*2)
+
+	roleMap := make(map[string]*RolePermissions)
+
+	for _, g := range user.Groups {
+		for _, r := range g.Roles {
+			rp, ok := roleMap[r.Name]
+
+			if !ok {
+				rp = &RolePermissions{
+					Name:        r.Name,
+					Permissions: make([]string, 0, len(r.Permissions)),
+				}
+
+				roleMap[r.Name] = rp
+				ret = append(ret, rp)
+			}
+
+			for _, p := range r.Permissions {
+				rp.Permissions = append(rp.Permissions, p.Name)
 			}
 		}
 	}

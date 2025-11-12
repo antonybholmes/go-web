@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-sys/env"
 
 	"github.com/gin-gonic/gin"
@@ -134,6 +135,36 @@ func FlattenRoles(roles []*RolePermissions) []string {
 	}
 
 	return ret
+}
+
+func hasRole(roles []*RolePermissions, f func(roles *sys.StringSet) bool) bool {
+	roleSet := sys.NewStringSet()
+
+	for _, rp := range roles {
+		for _, p := range rp.Permissions {
+			roleSet.Add(fmt.Sprintf("%s:%s", rp.Name, p))
+		}
+	}
+
+	return f(roleSet)
+}
+
+func HasSuperRole(roles []*RolePermissions) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleSuper)
+	})
+}
+
+func HasAdminRole(roles []*RolePermissions) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
+	})
+}
+
+func HasWebLoginInRole(roles []*RolePermissions) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleWebLogin)
+	})
 }
 
 // Claims are space separated strings to match
