@@ -43,8 +43,12 @@ func NumUsers() (uint, error) {
 	return instance.NumUsers()
 }
 
-func Roles() ([]*auth.Role, error) {
+func Roles() ([]*auth.RBACRole, error) {
 	return instance.Roles()
+}
+
+func Groups() ([]*auth.RBACGroup, error) {
+	return instance.Groups()
 }
 
 func Users(records uint, offset uint) ([]*auth.AuthUser, error) {
@@ -79,28 +83,28 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return instance.FindUserByEmail(email)
 }
 
-func UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error) {
-	return instance.UserRoles(user)
+func UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
+	return instance.UserGroups(user)
 }
 
-// returns a string list of a user's roles
-func UserRoleList(user *auth.AuthUser) ([]string, error) {
+// // returns a string list of a user's roles
+// func UserGroupList(user *auth.AuthUser) ([]string, error) {
 
-	roles, err := instance.UserRoles(user)
+// 	roles, err := instance.UserGroups(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// map roles to strings
-	ret := make([]string, len(roles))
+// 	// map roles to strings
+// 	ret := make([]string, len(roles))
 
-	for ri, role := range roles {
-		ret[ri] = role.Name
-	}
+// 	for ri, role := range roles {
+// 		ret[ri] = role.Name
+// 	}
 
-	return ret, nil
-}
+// 	return ret, nil
+// }
 
 // func UserRoleSet(user *auth.AuthUser) (*sys.StringSet, error) {
 
@@ -117,13 +121,13 @@ func UserRoleList(user *auth.AuthUser) ([]string, error) {
 // 	return roleSet, nil
 // }
 
-func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {
-	return instance.Permissions(user)
-}
+// func UserPermissions(user *auth.AuthUser) ([]*auth.Permission, error) {
+// 	return instance.Permissions(user)
+// }
 
-func PermissionList(user *auth.AuthUser) ([]string, error) {
-	return instance.PermissionList(user)
-}
+// func PermissionList(user *auth.AuthUser) ([]string, error) {
+// 	return instance.PermissionList(user)
+// }
 
 // func PublicUserRolePermissions(user *auth.AuthUser) (*[]auth.PublicRole, error) {
 // 	return instance.PublicUserRolePermissions(user)

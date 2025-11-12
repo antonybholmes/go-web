@@ -124,14 +124,14 @@ const (
 	roles.public_id, 
 	roles.name,
 	roles.description 
-	FROM roles WHERE roles.name = ?`
+	FROM roles`
 
 	GroupSql = `SELECT 
 	groups.id, 
 	groups.public_id, 
 	groups.name,
 	groups.description 
-	FROM groups WHERE groups.name = ?`
+	FROM groups`
 )
 
 func NewMySQLUserDB() *MySQLUserDB {
@@ -231,7 +231,7 @@ func (mydb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, err
 	for rows.Next() {
 		// need to initialize slices here to avoid nil
 		authUser := auth.AuthUser{
-			Roles:   make([]*auth.RolePermissions, 0, 5),
+			Groups:  make([]*auth.RBACGroup, 0, 5),
 			ApiKeys: make([]string, 0, 5),
 		}
 
@@ -257,7 +257,7 @@ func (mydb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, err
 
 		//log.Debug().Msgf("this user %v", authUser)
 
-		err = mydb.AddRolesToUser(&authUser)
+		err = mydb.AddGroupsToUser(&authUser)
 
 		if err != nil {
 			return nil, err
@@ -277,7 +277,7 @@ func (mydb *MySQLUserDB) DeleteUser(publicId string) error {
 		return err
 	}
 
-	roles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(authUser.Roles)) //auth.MakeClaim(roles)
+	roles := sys.NewStringSet().ListUpdate(auth.FlattenGroups(authUser.Groups)) //auth.MakeClaim(roles)
 
 	if auth.HasAdminRole(roles) {
 		return fmt.Errorf("cannot delete admin account")
@@ -348,7 +348,7 @@ func (mydb *MySQLUserDB) findUser(row *sql.Row) (*auth.AuthUser, error) {
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	err = mydb.AddRolesToUser(&authUser)
+	err = mydb.AddGroupsToUser(&authUser)
 
 	if err != nil {
 		return nil, err
@@ -383,15 +383,15 @@ func (mydb *MySQLUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error) {
 	return mydb.FindUserById(userId)
 }
 
-func (mydb *MySQLUserDB) AddRolesToUser(authUser *auth.AuthUser) error {
+func (mydb *MySQLUserDB) AddGroupsToUser(authUser *auth.AuthUser) error {
 
-	roles, err := mydb.UserRoles(authUser)
+	groups, err := mydb.UserGroups(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser.Roles = append(authUser.Roles, roles...)
+	authUser.Groups = append(authUser.Groups, groups...)
 
 	return nil
 }
@@ -455,7 +455,7 @@ func (mydb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 	return keys, nil
 }
 
-func (mydb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error) {
+func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 
 	rows, err := mydb.db.Query(UserRolesSql, user.Id)
 
@@ -465,53 +465,78 @@ func (mydb *MySQLUserDB) UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions
 
 	defer rows.Close()
 
-	roles := make([]*auth.RolePermissions, 0, 10)
+	groups := make([]*auth.RBACGroup, 0, 10)
 
-	var currentRole *auth.RolePermissions = nil
+	var currentGroup *auth.RBACGroup = nil
+	var currentRole *auth.RBACRole = nil
+	var currentPermission *auth.RBACPermission = nil
+
+	var groupPublicId string
+	var group string
+	var rolePublicId string
 	var role string
+	var permissionPublicId string
 	var permission string
 
 	for rows.Next() {
 
-		err := rows.Scan(&role, &permission)
+		err := rows.Scan(&group, &groupPublicId, &role, &rolePublicId, &permission, &permissionPublicId)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
 		}
 
-		// check if new role and append to array
-		if currentRole == nil || currentRole.Name != role {
-			currentRole = &auth.RolePermissions{
-				Name:        role,
-				Permissions: make([]string, 0, 10),
-			}
-			roles = append(roles, currentRole)
+		if currentGroup == nil || currentGroup.Name != group {
+			currentGroup = &auth.RBACGroup{
+				RBACEntity: auth.RBACEntity{
+					Name:     group,
+					PublicId: groupPublicId,
+				},
+				Roles: make([]*auth.RBACRole, 0, 10)}
+			groups = append(groups, currentGroup)
 		}
 
-		// add permission to current role
-		currentRole.Permissions = append(currentRole.Permissions, permission)
+		if currentRole == nil || currentRole.Name != role {
+			currentRole = &auth.RBACRole{
+				RBACEntity: auth.RBACEntity{
+					Name:     role,
+					PublicId: rolePublicId,
+				},
+				Permissions: make([]*auth.RBACPermission, 0, 10),
+			}
+
+			currentGroup.Roles = append(currentGroup.Roles, currentRole)
+		}
+
+		currentPermission = &auth.RBACPermission{
+			Name:     permission,
+			PublicId: permissionPublicId,
+		}
+
+		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
+
 	}
 
-	return roles, nil
+	return groups, nil
 }
 
-func (mydb *MySQLUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
+// func (mydb *MySQLUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
 
-	permissions, err := mydb.Permissions(user)
+// 	permissions, err := mydb.Permissions(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	ret := make([]string, len(permissions))
+// 	ret := make([]string, len(permissions))
 
-	for pi, permission := range permissions {
-		ret[pi] = permission.Name
-	}
+// 	for pi, permission := range permissions {
+// 		ret[pi] = permission.Name
+// 	}
 
-	return ret, nil
+// 	return ret, nil
 
-}
+// }
 
 // func (mydb *mydb) Query(query string, args ...any) (*sql.Rows, error) {
 // 	return mydb.db.Query(query, args...)
@@ -528,7 +553,36 @@ func (mydb *MySQLUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
 // 	return mydb.db.QueryRow(query, args...)
 // }
 
-func (mydb *MySQLUserDB) Roles() ([]*auth.Role, error) {
+func (mydb *MySQLUserDB) Groups() ([]*auth.RBACGroup, error) {
+
+	rows, err := mydb.db.Query(GroupSql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var groups []*auth.RBACGroup
+
+	for rows.Next() {
+		var group auth.RBACGroup
+		err := rows.Scan(&group.Id,
+			&group.PublicId,
+			&group.Name,
+			&group.Description)
+
+		if err != nil {
+			return nil, err
+		}
+
+		groups = append(groups, &group)
+	}
+
+	return groups, nil
+}
+
+func (mydb *MySQLUserDB) Roles() ([]*auth.RBACRole, error) {
 
 	rows, err := mydb.db.Query(RolesSql)
 
@@ -538,10 +592,10 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.Role, error) {
 
 	defer rows.Close()
 
-	var roles []*auth.Role
+	var roles []*auth.RBACRole
 
 	for rows.Next() {
-		var role auth.Role
+		var role auth.RBACRole
 		err := rows.Scan(&role.Id,
 			&role.PublicId,
 			&role.Name,
@@ -557,9 +611,9 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.Role, error) {
 	return roles, nil
 }
 
-func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.Group, error) {
+func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
 
-	var group auth.Group
+	var group auth.RBACGroup
 
 	err := mydb.db.QueryRow(GroupSql, name).Scan(&group.Id,
 		&group.PublicId,
@@ -573,9 +627,9 @@ func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.Group, error) {
 	return &group, err
 }
 
-func (mydb *MySQLUserDB) FindRoleByName(name string) (*auth.Role, error) {
+func (mydb *MySQLUserDB) FindRoleByName(name string) (*auth.RBACRole, error) {
 
-	var role auth.Role
+	var role auth.RBACRole
 
 	err := mydb.db.QueryRow(RoleSql, name).Scan(&role.Id,
 		&role.PublicId,
@@ -589,32 +643,32 @@ func (mydb *MySQLUserDB) FindRoleByName(name string) (*auth.Role, error) {
 	return &role, err
 }
 
-func (mydb *MySQLUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
+// func (mydb *MySQLUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
 
-	rows, err := mydb.db.Query(PermissionsSql, user.Id)
+// 	rows, err := mydb.db.Query(PermissionsSql, user.Id)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	permissions := make([]*auth.Permission, 0, 10)
+// 	permissions := make([]*auth.Permission, 0, 10)
 
-	for rows.Next() {
-		var permission auth.Permission
+// 	for rows.Next() {
+// 		var permission auth.Permission
 
-		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
+// 		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
 
-		if err != nil {
-			return nil, err
-		}
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		permissions = append(permissions, &permission)
-	}
+// 		permissions = append(permissions, &permission)
+// 	}
 
-	return permissions, nil
-}
+// 	return permissions, nil
+// }
 
 func (mydb *MySQLUserDB) SetIsVerified(userId string) error {
 
@@ -796,7 +850,7 @@ func (mydb *MySQLUserDB) AddUserToGroup(user *auth.AuthUser, group string, admin
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	var g *auth.Group
+	var g *auth.RBACGroup
 
 	g, err := mydb.FindGroupByName(group)
 

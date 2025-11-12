@@ -100,13 +100,30 @@ const (
 		WHERE u.id = $1
 		ORDER BY r.name, p.name`
 
+	UserGroupsSql string = `SELECT DISTINCT
+		g.public_id as group_public_id,
+		g.name as group,
+		r.public_id as role_public_id,
+		r.name as role,
+		p.public_id as permission_public_id,
+		p.name AS permission
+		FROM users u
+		JOIN user_groups ug ON u.id = ug.user_id
+		JOIN group_roles gr ON ug.group_id = gr.group_id
+		JOIN role_permissions rp ON gr.role_id = rp.role_id
+		JOIN groups g ON rp.group_id = g.id
+		JOIN roles r ON rp.role_id = r.id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE u.id = $1
+		ORDER BY g.name, r.name, p.name`
+
 	InsertUserSql = `INSERT INTO users 
 	(public_id, username, email, password, first_name, last_name, email_verified_at) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7) 
 	ON CONFLICT DO NOTHING`
 
-	DeleteRolesSql    = "DELETE FROM users_roles WHERE user_id = $1"
-	InsertUserRoleSql = "INSERT INTO users_roles (user_id, role_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
+	DeleteRolesSql     = "DELETE FROM users_roles WHERE user_id = $1"
+	InsertUserGroupSql = "INSERT INTO users_groups (user_id, group_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
 	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
@@ -126,14 +143,22 @@ const (
 	roles.public_id, 
 	roles.name,
 	roles.description 
-	FROM roles WHERE roles.name = $1`
+	FROM roles`
+
+	GroupsSql = `SELECT 
+	groups.id, 
+	groups.public_id, 
+	groups.name,
+	groups.description 
+	FROM groups`
 
 	GroupSql = `SELECT 
 	groups.id, 
 	groups.public_id, 
 	groups.name,
 	groups.description 
-	FROM groups WHERE groups.name = $1`
+	FROM groups
+	WHERE groups.name = $1`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -190,7 +215,7 @@ func (pgdb *PostgresUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, 
 	for rows.Next() {
 		// need to initialize slices here to avoid nil
 		authUser := auth.AuthUser{
-			Roles:   make([]*auth.RolePermissions, 0, 5),
+			Groups:  make([]*auth.RBACGroup, 0, 5),
 			ApiKeys: make([]string, 0, 5),
 		}
 
@@ -216,7 +241,7 @@ func (pgdb *PostgresUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, 
 
 		//log.Debug().Msgf("this user %v", authUser)
 
-		err = pgdb.AddRolesToUser(&authUser)
+		err = pgdb.AddGroupsToUser(&authUser)
 
 		if err != nil {
 			return nil, err
@@ -238,13 +263,13 @@ func (pgdb *PostgresUserDB) DeleteUser(publicId string) error {
 
 	//roles, err := pgdb.UserRoleList(authUser)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	roles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(authUser.Roles)) //auth.MakeClaim(roles)
+	groups := sys.NewStringSet().ListUpdate(auth.FlattenGroups(authUser.Groups)) //auth.MakeClaim(roles)
 
-	if auth.HasAdminRole(roles) {
+	if auth.HasAdminRole(groups) {
 		return fmt.Errorf("cannot delete admin account")
 	}
 
@@ -313,7 +338,7 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	err = pgdb.AddRolesToUser(&authUser)
+	err = pgdb.AddGroupsToUser(&authUser)
 
 	if err != nil {
 		log.Debug().Msgf("error adding roles to user %s %v", authUser.PublicId, err)
@@ -349,15 +374,15 @@ func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error)
 	return pgdb.FindUserById(userId)
 }
 
-func (pgdb *PostgresUserDB) AddRolesToUser(authUser *auth.AuthUser) error {
+func (pgdb *PostgresUserDB) AddGroupsToUser(authUser *auth.AuthUser) error {
 
-	roles, err := pgdb.UserRoles(authUser)
+	groups, err := pgdb.UserGroups(authUser)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
 	}
 
-	authUser.Roles = append(authUser.Roles, roles...)
+	authUser.Groups = append(authUser.Groups, groups...)
 
 	return nil
 }
@@ -421,7 +446,7 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 	return keys, nil
 }
 
-func (pgdb *PostgresUserDB) UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error) {
+func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 
 	rows, err := pgdb.db.Query(pgdb.ctx, UserRolesSql, user.Id)
 
@@ -431,52 +456,78 @@ func (pgdb *PostgresUserDB) UserRoles(user *auth.AuthUser) ([]*auth.RolePermissi
 
 	defer rows.Close()
 
-	roles := make([]*auth.RolePermissions, 0, 10)
+	groups := make([]*auth.RBACGroup, 0, 10)
 
-	var currentRole *auth.RolePermissions = nil
+	var currentGroup *auth.RBACGroup = nil
+	var currentRole *auth.RBACRole = nil
+	var currentPermission *auth.RBACPermission = nil
+
+	var groupPublicId string
+	var group string
+	var rolePublicId string
 	var role string
+	var permissionPublicId string
 	var permission string
 
 	for rows.Next() {
 
-		err := rows.Scan(&role, &permission)
+		err := rows.Scan(&group, &groupPublicId, &role, &rolePublicId, &permission, &permissionPublicId)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
 		}
 
-		if currentRole == nil || currentRole.Name != role {
-			currentRole = &auth.RolePermissions{
-				Name:        role,
-				Permissions: make([]string, 0, 10),
-			}
-			roles = append(roles, currentRole)
+		if currentGroup == nil || currentGroup.Name != group {
+			currentGroup = &auth.RBACGroup{
+				RBACEntity: auth.RBACEntity{
+					Name:     group,
+					PublicId: groupPublicId,
+				},
+				Roles: make([]*auth.RBACRole, 0, 10)}
+			groups = append(groups, currentGroup)
 		}
 
-		// add permission to current role
-		currentRole.Permissions = append(currentRole.Permissions, permission)
+		if currentRole == nil || currentRole.Name != role {
+			currentRole = &auth.RBACRole{
+				RBACEntity: auth.RBACEntity{
+					Name:     role,
+					PublicId: rolePublicId,
+				},
+				Permissions: make([]*auth.RBACPermission, 0, 10),
+			}
+
+			currentGroup.Roles = append(currentGroup.Roles, currentRole)
+		}
+
+		currentPermission = &auth.RBACPermission{
+			Name:     permission,
+			PublicId: permissionPublicId,
+		}
+
+		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
+
 	}
 
-	return roles, nil
+	return groups, nil
 }
 
-func (pgdb *PostgresUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
+// func (pgdb *PostgresUserDB) PermissionList(user *auth.AuthUser) ([]string, error) {
 
-	permissions, err := pgdb.Permissions(user)
+// 	permissions, err := pgdb.Permissions(user)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	ret := make([]string, len(permissions))
+// 	ret := make([]string, len(permissions))
 
-	for pi, permission := range permissions {
-		ret[pi] = permission.Name
-	}
+// 	for pi, permission := range permissions {
+// 		ret[pi] = permission.Name
+// 	}
 
-	return ret, nil
+// 	return ret, nil
 
-}
+// }
 
 // func (pgdb *pgdb) Query(pgdb.ctx,query string, args ...any) (*sql.Rows, error) {
 // 	return pgdb.db.Query(pgdb.ctx,query, args...)
@@ -493,7 +544,36 @@ func (pgdb *PostgresUserDB) PermissionList(user *auth.AuthUser) ([]string, error
 // 	return pgdb.db.QueryRow(pgdb.ctx,query, args...)
 // }
 
-func (pgdb *PostgresUserDB) Roles() ([]*auth.Role, error) {
+func (pgdb *PostgresUserDB) Groups() ([]*auth.RBACGroup, error) {
+
+	rows, err := pgdb.db.Query(pgdb.ctx, GroupsSql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var groups []*auth.RBACGroup
+
+	for rows.Next() {
+		var group auth.RBACGroup
+		err := rows.Scan(&group.Id,
+			&group.PublicId,
+			&group.Name,
+			&group.Description)
+
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, &group)
+
+	}
+
+	return groups, nil
+}
+
+func (pgdb *PostgresUserDB) Roles() ([]*auth.RBACRole, error) {
 
 	rows, err := pgdb.db.Query(pgdb.ctx, RolesSql)
 
@@ -503,10 +583,10 @@ func (pgdb *PostgresUserDB) Roles() ([]*auth.Role, error) {
 
 	defer rows.Close()
 
-	var roles []*auth.Role
+	var roles []*auth.RBACRole
 
 	for rows.Next() {
-		var role auth.Role
+		var role auth.RBACRole
 		err := rows.Scan(&role.Id,
 			&role.PublicId,
 			&role.Name,
@@ -522,9 +602,9 @@ func (pgdb *PostgresUserDB) Roles() ([]*auth.Role, error) {
 	return roles, nil
 }
 
-func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.Role, error) {
+func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) {
 
-	var role auth.Role
+	var role auth.RBACRole
 
 	err := pgdb.db.QueryRow(pgdb.ctx, RoleSql, name).Scan(&role.Id,
 		&role.PublicId,
@@ -538,9 +618,9 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.Role, error) {
 	return &role, nil
 }
 
-func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.Group, error) {
+func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
 
-	var group auth.Group
+	var group auth.RBACGroup
 
 	err := pgdb.db.QueryRow(pgdb.ctx, GroupSql, name).Scan(&group.Id,
 		&group.PublicId,
@@ -548,38 +628,38 @@ func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.Group, error) {
 		&group.Description)
 
 	if err != nil {
-		return nil, userdb.NewAccountError(fmt.Sprintf("%s role not found", name))
+		return nil, userdb.NewAccountError(fmt.Sprintf("%s group not found", name))
 	}
 
 	return &group, nil
 }
 
-func (pgdb *PostgresUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
+// func (pgdb *PostgresUserDB) Permissions(user *auth.AuthUser) ([]*auth.Permission, error) {
 
-	rows, err := pgdb.db.Query(pgdb.ctx, PermissionsSql, user.Id)
+// 	rows, err := pgdb.db.Query(pgdb.ctx, PermissionsSql, user.Id)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	permissions := make([]*auth.Permission, 0, 10)
+// 	permissions := make([]*auth.Permission, 0, 10)
 
-	for rows.Next() {
-		var permission auth.Permission
+// 	for rows.Next() {
+// 		var permission auth.Permission
 
-		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
+// 		err := rows.Scan(&permission.Id, &permission.PublicId, &permission.Name, &permission.Description)
 
-		if err != nil {
-			return nil, err
-		}
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		permissions = append(permissions, &permission)
-	}
+// 		permissions = append(permissions, &permission)
+// 	}
 
-	return permissions, nil
-}
+// 	return permissions, nil
+// }
 
 func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 
@@ -763,18 +843,16 @@ func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group string, ad
 		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	var role *auth.Role
-
-	role, err := pgdb.FindGroupByName(group)
+	g, err := pgdb.FindGroupByName(group)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserRoleSql, user.Id, role.Id)
+	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, g.Id)
 
 	if err != nil {
-		return userdb.NewAccountError("could not add role to user")
+		return userdb.NewAccountError("could not add user to group")
 	}
 
 	return nil

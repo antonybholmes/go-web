@@ -47,24 +47,25 @@ type (
 
 		FindUserByApiKey(key string) (*auth.AuthUser, error)
 
-		AddRolesToUser(authUser *auth.AuthUser) error
+		AddGroupsToUser(authUser *auth.AuthUser) error
 
 		//UserRoleList(user *auth.AuthUser) ([]string, error)
 
 		AddApiKeysToUser(authUser *auth.AuthUser) error
 
 		UserApiKeys(user *auth.AuthUser) ([]string, error)
-		UserRoles(user *auth.AuthUser) ([]*auth.RolePermissions, error)
+		UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
 
-		PermissionList(user *auth.AuthUser) ([]string, error)
+		//PermissionList(user *auth.AuthUser) ([]string, error)
 
-		Roles() ([]*auth.Role, error)
+		Roles() ([]*auth.RBACRole, error)
+		Groups() ([]*auth.RBACGroup, error)
 
-		FindRoleByName(name string) (*auth.Role, error)
-		FindGroupByName(name string) (*auth.Group, error)
+		FindRoleByName(name string) (*auth.RBACRole, error)
+		FindGroupByName(name string) (*auth.RBACGroup, error)
 
 		// Get a list of permissions for a user
-		Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
+		//Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
 
 		// Mark a user's email as verified
 		SetIsVerified(userId string) error

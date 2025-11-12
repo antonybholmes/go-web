@@ -14,6 +14,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type (
+	UrlReq struct {
+		Url string `json:"url"`
+	}
+
+	RedirectUrlReq struct {
+		// the url that should form the email link in any emails that are sent
+		//Url string `json:"url"`
+		// The url the callback url should redirect to once it completes
+		RedirectUrl string `json:"redirectUrl"`
+	}
+)
+
 const (
 	MaxAgeYearSecs   = 31536000
 	MaxAge30DaysSecs = 2592000
@@ -30,17 +43,6 @@ const (
 	Ttl10Mins time.Duration = time.Minute * 10
 	Ttl20Mins time.Duration = time.Minute * 20
 	Ttl15Mins time.Duration = time.Minute * 15
-
-	RoleSuper = "super:*"
-	RoleAdmin = "admin:*"
-	//RoleUser  = "user:*"
-	RoleLogin   = "user:login"
-	RoleRdfRead = "rdf:read"
-
-	GroupUser  = "user"
-	GroupAdmin = "admin"
-	GroupSuper = "super"
-	GroupLogin = "login"
 )
 
 var (
@@ -58,65 +60,6 @@ var (
 	ErrInvalidUsername             = errors.New("invalid username")
 	ErrCreatingSession             = errors.New("error creating session")
 )
-
-type JwtInfo struct {
-	UserId string `json:"userId"`
-	//Name  string `json:"name"`
-	Type TokenType `json:"type"`
-	//IpAddr  string `json:"ipAddr"`
-	Expires string `json:"expires"`
-}
-
-type UrlReq struct {
-	Url string `json:"url"`
-}
-
-type RedirectUrlReq struct {
-	// the url that should form the email link in any emails that are sent
-	//Url string `json:"url"`
-	// The url the callback url should redirect to once it completes
-	RedirectUrl string `json:"redirectUrl"`
-}
-
-type User struct {
-	FirstName string `db:"first_name"`
-	LastName  string `db:"last_name"`
-	UserName  string `db:"username"`
-	Email     string `db:"email"`
-}
-
-type Permission struct {
-	PublicId    string `json:"publicId"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Id          uint   `json:"-"`
-}
-
-type Group struct {
-	PublicId    string `json:"publicId"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	//Permissions []Permission `json:"permissions"`
-	Id uint `json:"-" db:"id"`
-}
-
-type Role = Group
-
-type AuthUser struct {
-	PublicId        string             `json:"publicId"`
-	FirstName       string             `json:"firstName"`
-	LastName        string             `json:"lastName"`
-	Username        string             `json:"username"`
-	Email           string             `json:"email"`
-	HashedPassword  string             `json:"-"`
-	Roles           []*RolePermissions `json:"roles"`
-	ApiKeys         []string           `json:"apiKeys"`
-	Id              uint               `json:"id"`
-	CreatedAt       time.Duration      `json:"-"`
-	UpdatedAt       time.Duration      `json:"-"`
-	EmailVerifiedAt time.Duration      `json:"-"`
-	IsLocked        bool               `json:"isLocked"`
-}
 
 // The admin view adds roles to each user as it is assumed this
 // will be used for listing users for an admin dashboard where you
@@ -193,64 +136,8 @@ func TokenErrorResp(c *gin.Context) {
 // 		UpdatedAt: updated}
 // }
 
-func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
-	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
-}
-
-// func (user *AuthUser) IsSuper() bool {
-// 	return IsSuper(user.Roles)
-// }
-
-// func (user *AuthUser) IsAdmin() bool {
-// 	return IsAdmin(user.Roles)
-// }
-
-// // Returns true if user is an admin or super, or is a member of
-// // the login group
-// func (user *AuthUser) CanLogin() bool {
-// 	return CanLogin(user.Roles)
-// }
-
-func HasSuperRole(roles *sys.StringSet) bool {
-	return roles.Has(RoleSuper)
-}
-
-func HasAdminRole(roles *sys.StringSet) bool {
-	return HasSuperRole(roles) || roles.Has(RoleAdmin)
-}
-
-func HasLoginInRole(roles *sys.StringSet) bool {
-	return HasAdminRole(roles) || roles.Has(RoleLogin)
-}
-
-// // Generate a one time code
-// func RandCode() string {
-// 	return randomstring.CookieFriendlyString(32)
-// }
-
 func HashPassword(password string) string {
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
-}
-
-func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
-
-	// password not set, so no need to check
-	if len(hashedPassword) == 0 {
-		return nil
-	}
-
-	// Since we'll be getting the hashed password from the DB it
-	// will be a string so we'll need to convert it to a byte slice
-
-	//log.Printf("comp %s %s\n", string(user.HashedPassword), string(plainPwd))
-
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPwd))
-
-	if err != nil {
-		return fmt.Errorf("passwords do not match")
-	}
-
-	return nil
 }
 
 // Only to be used for database update events.
