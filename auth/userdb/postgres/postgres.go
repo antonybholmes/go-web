@@ -122,8 +122,8 @@ const (
 	VALUES ($1, $2, $3, $4, $5, $6, $7) 
 	ON CONFLICT DO NOTHING`
 
-	DeleteRolesSql     = "DELETE FROM users_roles WHERE user_id = $1"
-	InsertUserGroupSql = "INSERT INTO users_groups (user_id, group_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
+	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = $1"
+	InsertUserGroupSql  = "INSERT INTO user_groups (user_id, group_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
 	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
@@ -824,7 +824,7 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 	}
 
 	// remove existing roles,
-	_, err := pgdb.db.Exec(pgdb.ctx, DeleteRolesSql, user.Id)
+	_, err := pgdb.db.Exec(pgdb.ctx, DeleteUserGroupsSql, user.Id)
 
 	if err != nil {
 		return err
