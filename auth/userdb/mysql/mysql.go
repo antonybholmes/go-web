@@ -618,7 +618,7 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.RBACRole, error) {
 	return roles, nil
 }
 
-func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
+func (mydb *MySQLUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
 
 	var group auth.RBACGroup
 
@@ -858,7 +858,7 @@ func (mydb *MySQLUserDB) AddUserToGroup(user *auth.AuthUser, group string, admin
 
 	var g *auth.RBACGroup
 
-	g, err := mydb.FindGroupByName(group)
+	g, err := mydb.FindGroup(group)
 
 	if err != nil {
 		return err

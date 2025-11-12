@@ -62,7 +62,7 @@ type (
 		Groups() ([]*auth.RBACGroup, error)
 
 		FindRoleByName(name string) (*auth.RBACRole, error)
-		FindGroupByName(name string) (*auth.RBACGroup, error)
+		FindGroup(name string) (*auth.RBACGroup, error)
 
 		// Get a list of permissions for a user
 		//Permissions(user *auth.AuthUser) ([]*auth.Permission, error)

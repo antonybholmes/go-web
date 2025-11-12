@@ -52,7 +52,7 @@ type UserBodyReq struct {
 	FirstName       string   `json:"firstName"`
 	LastName        string   `json:"lastName"`
 	ApiKey          string   `json:"apiKey"`
-	Roles           []string `json:"roles"`
+	Groups          []string `json:"groups"`
 	EmailIsVerified bool     `json:"emailIsVerified"`
 	StaySignedIn    bool     `json:"staySignedIn"`
 }

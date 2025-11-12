@@ -159,7 +159,7 @@ const (
 	groups.name,
 	groups.description 
 	FROM groups
-	WHERE groups.name = $1`
+	WHERE groups.public_id = $1 OR groups.name = $1`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -377,7 +377,7 @@ func (pgdb *PostgresUserDB) AddGroupsToUser(authUser *auth.AuthUser) error {
 
 	groups, err := pgdb.UserGroups(authUser)
 
-	log.Debug().Msgf("add groups to user %s: %v", authUser.Username, groups)
+	//log.Debug().Msgf("add groups to user %s: %v", authUser.Username, groups)
 
 	if err != nil {
 		return err //fmt.Errorf("there was an error with the database query")
@@ -621,7 +621,8 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) 
 	return &role, nil
 }
 
-func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
+// FindGroupByName finds group by public id or name
+func (pgdb *PostgresUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
 
 	var group auth.RBACGroup
 
@@ -830,8 +831,8 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 		return err
 	}
 
-	for _, role := range groups {
-		err = pgdb.AddUserToGroup(user, role, adminMode)
+	for _, group := range groups {
+		err = pgdb.AddUserToGroup(user, group, adminMode)
 
 		if err != nil {
 			return err
@@ -846,15 +847,18 @@ func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group string, ad
 		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	g, err := pgdb.FindGroupByName(group)
+	g, err := pgdb.FindGroup(group)
 
 	if err != nil {
 		return err
 	}
 
+	log.Debug().Msgf("add user to group %s %d %d", group, user.Id, g.Id)
+
 	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, g.Id)
 
 	if err != nil {
+		log.Debug().Msgf("error adding user to group %v", err)
 		return userdb.NewAccountError("could not add user to group")
 	}
 
