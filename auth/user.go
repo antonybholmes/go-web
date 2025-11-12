@@ -32,7 +32,13 @@ type (
 		Id          uint   `json:"-"`
 	}
 
-	RBACPermission = RBACEntity
+	RBACPermission struct {
+		PublicId    string `json:"publicId"`
+		Description string `json:"description,omitempty"`
+		Resource    string `json:"resource"`
+		Action      string `json:"action"`
+		Id          uint   `json:"-"`
+	}
 
 	RBACRole struct {
 		RBACEntity
@@ -62,8 +68,8 @@ type (
 )
 
 const (
-	RoleSuper = "SuperAccess:*.*"
-	RoleAdmin = "AdminAccess:*:*"
+	RoleSuper = "SuperAccess::*.*"
+	RoleAdmin = "AdminAccess::*:*"
 	//RoleUser  = "user:*"
 	RoleWebLogin = "web:login"
 	RoleRdfRead  = "rdf:read:*"
@@ -133,21 +139,6 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 	return nil
 }
 
-func HasPermission(groups []*RBACGroup, f func(permissions *sys.StringSet) bool) bool {
-	permissions := sys.NewStringSet()
-
-	for _, g := range groups {
-		for _, r := range g.Roles {
-			for _, p := range r.Permissions {
-				permissions.Add(p.Name)
-			}
-		}
-
-	}
-
-	return f(permissions)
-}
-
 func userHasRole(groups []*RBACGroup, f func(roles *sys.StringSet) bool) bool {
 	roles := sys.NewStringSet()
 
@@ -184,7 +175,7 @@ func FlattenGroups(groups []*RBACGroup) []string {
 	for _, g := range groups {
 		for _, r := range g.Roles {
 			for _, p := range r.Permissions {
-				ret = append(ret, fmt.Sprintf("%s:%s:%s", g.Name, r.Name, p.Name))
+				ret = append(ret, fmt.Sprintf("%s::%s::%s:%s", g.Name, r.Name, p.Resource, p.Action))
 			}
 		}
 	}
@@ -199,7 +190,7 @@ func FlattenRolePermissionsFromGroups(groups []*RBACGroup) []string {
 	for _, g := range groups {
 		for _, r := range g.Roles {
 			for _, p := range r.Permissions {
-				roles.Add(fmt.Sprintf("%s:%s", r.Name, p.Name))
+				roles.Add(fmt.Sprintf("%s::%s:%s", r.Name, p.Resource, p.Action))
 			}
 		}
 	}
@@ -235,7 +226,7 @@ func GroupsToRolePermissions(user *AuthUser) []*RolePermissions {
 			}
 
 			for _, p := range r.Permissions {
-				rp.Permissions = append(rp.Permissions, p.Name)
+				rp.Permissions = append(rp.Permissions, fmt.Sprintf("%s:%s", p.Resource, p.Action))
 			}
 		}
 	}

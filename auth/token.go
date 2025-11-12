@@ -130,7 +130,7 @@ func FlattenRoles(roles []*RolePermissions) []string {
 
 	for _, rp := range roles {
 		for _, p := range rp.Permissions {
-			ret = append(ret, fmt.Sprintf("%s:%s", rp.Name, p))
+			ret = append(ret, fmt.Sprintf("%s::%s", rp.Name, p))
 		}
 	}
 
@@ -142,7 +142,7 @@ func hasRole(roles []*RolePermissions, f func(roles *sys.StringSet) bool) bool {
 
 	for _, rp := range roles {
 		for _, p := range rp.Permissions {
-			roleSet.Add(fmt.Sprintf("%s:%s", rp.Name, p))
+			roleSet.Add(fmt.Sprintf("%s::%s", rp.Name, p))
 		}
 	}
 

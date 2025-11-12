@@ -106,7 +106,10 @@ const (
 		r.public_id as role_public_id,
 		r.name as role,
 		p.public_id as permission_public_id,
-		p.name AS permission
+		res.public_id as resource_public_id,
+		res.name as resource,
+		a.public_id as action_public_id,
+		a.name as action
 		FROM users u
 		JOIN user_groups ug ON u.id = ug.user_id
 		JOIN group_roles gr ON ug.group_id = gr.group_id
@@ -114,13 +117,15 @@ const (
 		JOIN groups g ON gr.group_id = g.id
 		JOIN roles r ON rp.role_id = r.id
 		JOIN permissions p ON rp.permission_id = p.id
+		JOIN resources res ON p.resource_id = res.id
+		JOIN actions a ON p.action_id = a.id
 		WHERE u.id = $1
-		ORDER BY g.name, r.name, p.name`
+		ORDER BY g.name, r.name, res.name, a.name`
 
 	InsertUserSql = `INSERT INTO users 
-	(public_id, username, email, password, first_name, last_name, email_verified_at) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7) 
-	ON CONFLICT DO NOTHING`
+		(public_id, username, email, password, first_name, last_name, email_verified_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		ON CONFLICT DO NOTHING`
 
 	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = $1"
 	InsertUserGroupSql  = "INSERT INTO user_groups (user_id, group_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
@@ -139,27 +144,27 @@ const (
 	CountUsersSql = `SELECT COUNT(ID) FROM users`
 
 	RoleSql = `SELECT 
-	roles.id, 
-	roles.public_id, 
-	roles.name,
-	roles.description 
-	FROM roles`
+		roles.id, 
+		roles.public_id, 
+		roles.name,
+		roles.description 
+		FROM roles`
 
 	GroupsSql = `SELECT 
-	groups.id, 
-	groups.public_id, 
-	groups.name,
-	groups.description 
-	FROM groups
-	ORDER BY groups.name`
+		groups.id, 
+		groups.public_id, 
+		groups.name,
+		groups.description 
+		FROM groups
+		ORDER BY groups.name`
 
 	GroupSql = `SELECT 
-	groups.id, 
-	groups.public_id, 
-	groups.name,
-	groups.description 
-	FROM groups
-	WHERE groups.public_id = $1 OR groups.name = $1`
+		groups.id, 
+		groups.public_id, 
+		groups.name,
+		groups.description 
+		FROM groups
+		WHERE groups.public_id = $1 OR groups.name = $1`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -470,11 +475,22 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 	var rolePublicId string
 	var role string
 	var permissionPublicId string
-	var permission string
+	var resourcePublicId string
+	var resource string
+	var actionPublicId string
+	var action string
 
 	for rows.Next() {
 
-		err := rows.Scan(&groupPublicId, &group, &rolePublicId, &role, &permissionPublicId, &permission)
+		err := rows.Scan(&groupPublicId,
+			&group,
+			&rolePublicId,
+			&role,
+			&permissionPublicId,
+			&resourcePublicId,
+			&resource,
+			&actionPublicId,
+			&action)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
@@ -503,8 +519,10 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 		}
 
 		currentPermission = &auth.RBACPermission{
-			Name:     permission,
+
 			PublicId: permissionPublicId,
+			Resource: resource,
+			Action:   action,
 		}
 
 		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
