@@ -150,7 +150,8 @@ const (
 	groups.public_id, 
 	groups.name,
 	groups.description 
-	FROM groups`
+	FROM groups
+	ORDER BY groups.name`
 
 	GroupSql = `SELECT 
 	groups.id, 

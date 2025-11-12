@@ -126,12 +126,21 @@ const (
 	roles.description 
 	FROM roles`
 
-	GroupSql = `SELECT 
-	groups.id, 
-	groups.public_id, 
-	groups.name,
-	groups.description 
-	FROM groups`
+	GroupsSql = `SELECT 
+		groups.id, 
+		groups.public_id, 
+		groups.name,
+		groups.description 
+		FROM groups
+		ORDER BY groups.name`
+
+	GroupSql = `SELECT
+		groups.id,
+		groups.public_id,
+		groups.name,
+		groups.description
+		FROM groups
+		WHERE groups.name = ?`
 )
 
 func NewMySQLUserDB() *MySQLUserDB {
@@ -555,7 +564,7 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 
 func (mydb *MySQLUserDB) Groups() ([]*auth.RBACGroup, error) {
 
-	rows, err := mydb.db.Query(GroupSql)
+	rows, err := mydb.db.Query(GroupsSql)
 
 	if err != nil {
 		return nil, err
