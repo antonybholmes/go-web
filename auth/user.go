@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
@@ -168,60 +167,60 @@ func UserHasWebLoginInRole(user *AuthUser) bool {
 	})
 }
 
-func FlattenGroups(groups []*RBACGroup) []string {
-	ret := make([]string, 0, len(groups)*2)
+// func FlattenGroups(groups []*RBACGroup) []string {
+// 	ret := make([]string, 0, len(groups))
 
-	for _, g := range groups {
-		for _, r := range g.Roles {
-			for _, p := range r.Permissions {
-				ret = append(ret, fmt.Sprintf("%s::%s::%s:%s", g.Name, r.Name, p.Resource, p.Action))
-			}
-		}
-	}
+// 	for _, g := range groups {
+// 		for _, r := range g.Roles {
+// 			for _, p := range r.Permissions {
+// 				ret = append(ret, fmt.Sprintf("%s::%s::%s:%s", g.Name, r.Name, p.Resource, p.Action))
+// 			}
+// 		}
+// 	}
 
-	return ret
-}
+// 	return ret
+// }
 
 // Return just the unique role:permission strings from groups
-func FlattenRolePermissionsFromGroups(groups []*RBACGroup) []string {
-	roles := sys.NewStringSet()
+// func FlattenRolePermissionsFromGroups(groups []*RBACGroup) *sys.StringSet {
+// 	roles := sys.NewStringSet()
 
-	for _, g := range groups {
-		for _, r := range g.Roles {
-			for _, p := range r.Permissions {
-				roles.Add(fmt.Sprintf("%s::%s:%s", r.Name, p.Resource, p.Action))
-			}
-		}
-	}
+// 	for _, g := range groups {
+// 		for _, r := range g.Roles {
+// 			for _, p := range r.Permissions {
+// 				roles.Add(FormatRole(r.Name, p.Resource, p.Action))
+// 			}
+// 		}
+// 	}
 
-	ret := make([]string, 0, roles.Len())
+// 	//ret := make([]string, 0, roles.Len())
 
-	ret = append(ret, roles.Keys()...)
+// 	//ret = append(ret, roles.Keys()...)
 
-	slices.Sort(ret)
+// 	//slices.Sort(ret)
 
-	return ret
-}
+// 	return roles //.Keys()
+// }
 
-// Simplify groups to role permissions for use in tokens etc which
+// Simplify user groups to role permissions for use in tokens etc which
 // don't need the full group structure but just the roles and permissions
-func GroupsToRolePermissions(user *AuthUser) []*Role {
-	ret := make([]*Role, 0, len(user.Groups)*2)
+func GetRolesFromUser(user *AuthUser) []*Role {
+	ret := make([]*Role, 0, len(user.Groups))
 
-	roleMap := make(map[string]*Role)
+	used := sys.NewStringSet()
 
 	for _, g := range user.Groups {
 		for _, r := range g.Roles {
-			rp, ok := roleMap[r.Name]
+			// skip if we have already added this role
+			if used.Has(r.PublicId) {
+				continue
+			}
 
-			if !ok {
-				rp = &Role{
-					Name:        r.Name,
-					Permissions: make([]*Permission, 0, len(r.Permissions)),
-				}
+			used.Add(r.PublicId)
 
-				roleMap[r.Name] = rp
-				ret = append(ret, rp)
+			rp := &Role{
+				Name:        r.Name,
+				Permissions: make([]*Permission, 0, len(r.Permissions)),
 			}
 
 			for _, p := range r.Permissions {
@@ -230,6 +229,8 @@ func GroupsToRolePermissions(user *AuthUser) []*Role {
 					Action:   p.Action,
 				})
 			}
+
+			ret = append(ret, rp)
 		}
 	}
 
