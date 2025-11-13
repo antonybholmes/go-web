@@ -483,6 +483,7 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 	var rolePublicId string
 	var role string
 	var permissionPublicId string
+	var permission string
 	var resourcePublicId string
 	var resource string
 	var actionPublicId string
@@ -490,7 +491,16 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 
 	for rows.Next() {
 
-		err := rows.Scan(&group, &groupPublicId, &role, &rolePublicId, &permissionPublicId, &resourcePublicId, &resource, &actionPublicId, &action)
+		err := rows.Scan(&group,
+			&groupPublicId,
+			&role,
+			&rolePublicId,
+			&permissionPublicId,
+			&permission,
+			&resourcePublicId,
+			&resource,
+			&actionPublicId,
+			&action)
 
 		if err != nil {
 			return nil, fmt.Errorf("user roles not found")
@@ -520,7 +530,10 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 
 		currentPermission = &auth.RBACPermission{
 
-			PublicId: permissionPublicId,
+			RBACEntity: auth.RBACEntity{
+				Name:     permission,
+				PublicId: permissionPublicId,
+			},
 			Resource: resource,
 			Action:   action,
 		}

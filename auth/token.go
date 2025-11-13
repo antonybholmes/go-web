@@ -30,9 +30,14 @@ import (
 type (
 	TokenType = string
 
-	RolePermissions struct {
-		Name        string   `json:"name"`
-		Permissions []string `json:"permissions"`
+	Permission struct {
+		Resource string `json:"resource"`
+		Action   string `json:"action"`
+	}
+
+	Role struct {
+		Name        string        `json:"name"`
+		Permissions []*Permission `json:"permissions"`
 	}
 
 	AuthUserJwtClaims struct {
@@ -42,9 +47,9 @@ type (
 		OneTimePasscode string   `json:"otp,omitempty"`
 		Scope           []string `json:"scope,omitempty"`
 		//Roles           []string    `json:"roles,omitempty"`
-		Roles       []*RolePermissions `json:"roles,omitempty"`
-		RedirectUrl string             `json:"redirectUrl,omitempty"`
-		Type        TokenType          `json:"type"`
+		Roles       []*Role   `json:"roles,omitempty"`
+		RedirectUrl string    `json:"redirectUrl,omitempty"`
+		Type        TokenType `json:"type"`
 	}
 
 	Auth0TokenClaims struct {
@@ -123,45 +128,56 @@ var (
 // 	}
 // }
 
-// FlattenRoles converts a slice of RolePermissions to a flat slice of strings
-// in the format "role:permission"
-func FlattenRoles(roles []*RolePermissions) []string {
-	ret := make([]string, 0, len(roles)*2)
+func FormatRole(roleName, resource, action string) string {
+	return fmt.Sprintf("%s::%s:%s", roleName, resource, action)
+}
 
-	for _, rp := range roles {
-		for _, p := range rp.Permissions {
-			ret = append(ret, fmt.Sprintf("%s::%s", rp.Name, p))
-		}
+func FlattenRole(role *Role) []string {
+	ret := make([]string, 0, len(role.Permissions))
+
+	for _, p := range role.Permissions {
+		ret = append(ret, FormatRole(role.Name, p.Resource, p.Action))
 	}
 
 	return ret
 }
 
-func hasRole(roles []*RolePermissions, f func(roles *sys.StringSet) bool) bool {
+// FlattenRoles converts a slice of RolePermissions to a flat slice of strings
+// in the format "role:permission"
+func FlattenRoles(roles []*Role) []string {
+	ret := make([]string, 0, len(roles)*2)
+
+	for _, rp := range roles {
+		ret = append(ret, FlattenRole(rp)...)
+	}
+
+	return ret
+}
+
+func hasRole(roles []*Role, f func(roles *sys.StringSet) bool) bool {
 	roleSet := sys.NewStringSet()
 
 	for _, rp := range roles {
-		for _, p := range rp.Permissions {
-			roleSet.Add(fmt.Sprintf("%s::%s", rp.Name, p))
-		}
+		roleSet.ListUpdate(FlattenRole(rp))
+
 	}
 
 	return f(roleSet)
 }
 
-func HasSuperRole(roles []*RolePermissions) bool {
+func HasSuperRole(roles []*Role) bool {
 	return hasRole(roles, func(roles *sys.StringSet) bool {
 		return roles.Has(RoleSuper)
 	})
 }
 
-func HasAdminRole(roles []*RolePermissions) bool {
+func HasAdminRole(roles []*Role) bool {
 	return hasRole(roles, func(roles *sys.StringSet) bool {
 		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
 	})
 }
 
-func HasWebLoginInRole(roles []*RolePermissions) bool {
+func HasWebLoginInRole(roles []*Role) bool {
 	return hasRole(roles, func(roles *sys.StringSet) bool {
 		return roles.Has(RoleWebLogin)
 	})
@@ -197,7 +213,7 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, er
 		TtlHour)
 }
 
-func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []*RolePermissions) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []*Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
 		UserId: publicId,
@@ -209,7 +225,7 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []*Ro
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []*RolePermissions) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []*Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
 		UserId: publicId,

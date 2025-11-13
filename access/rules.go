@@ -70,14 +70,14 @@ func makeWildcardRuleKey(method, tokenType string) string {
 
 type RuleEngine struct {
 	//rules map[string]map[string]map[string]map[string]*sys.StringSet
-	rules         map[string]*sys.StringSet
-	wildcardRules map[string]map[string]*sys.StringSet
+	rules         map[string]*sys.Set[string]
+	wildcardRules map[string]map[string]*sys.Set[string]
 }
 
 func NewRuleEngine() *RuleEngine {
 	return &RuleEngine{
-		rules:         make(map[string]*sys.StringSet),
-		wildcardRules: make(map[string]map[string]*sys.StringSet),
+		rules:         make(map[string]*sys.Set[string]),
+		wildcardRules: make(map[string]map[string]*sys.Set[string]),
 	}
 }
 
@@ -128,7 +128,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 				} else {
 					key := makeWildcardRuleKey(methodType, tokenType)
 					if re.wildcardRules[key] == nil {
-						re.wildcardRules[key] = make(map[string]*sys.StringSet)
+						re.wildcardRules[key] = make(map[string]*sys.Set[string])
 					}
 					re.wildcardRules[key][path] = sys.NewStringSet().ListUpdate(t.Roles)
 				}
@@ -156,7 +156,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
 }
 
-func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path string) (*sys.Set[string], error) {
 	log.Debug().Msgf("GetWildCardRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
 	key := makeWildcardRuleKey(method, tokenType)
@@ -204,7 +204,7 @@ func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path str
 	return nil, fmt.Errorf("no rules found")
 }
 
-func (re *RuleEngine) getExactRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+func (re *RuleEngine) getExactRoles(method string, tokenType string, path string) (*sys.Set[string], error) {
 	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
 	// matchTypeRules, ok := re.rules[MATCH_TYPE_EXACT]
@@ -237,7 +237,7 @@ func (re *RuleEngine) getExactRoles(method string, tokenType string, path string
 	return rules, nil
 }
 
-func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path string) (*sys.StringSet, error) {
+func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path string) (*sys.Set[string], error) {
 	method = strings.ToLower(method)
 	tokenType = strings.ToLower(tokenType)
 	// normalize path by removing trailing slash if present
@@ -255,7 +255,7 @@ func (re *RuleEngine) GetMatchingRoles(method string, tokenType string, path str
 
 }
 
-func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, roles []*auth.RolePermissions) error {
+func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, roles []*auth.Role) error {
 
 	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, roles=%v", method, path, tokenType, roles)
 

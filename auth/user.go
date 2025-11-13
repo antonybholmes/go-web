@@ -33,11 +33,10 @@ type (
 	}
 
 	RBACPermission struct {
-		PublicId    string `json:"publicId"`
-		Description string `json:"description,omitempty"`
-		Resource    string `json:"resource"`
-		Action      string `json:"action"`
-		Id          uint   `json:"-"`
+		RBACEntity
+		Resource string `json:"resource"`
+		Action   string `json:"action"`
+		Id       uint   `json:"-"`
 	}
 
 	RBACRole struct {
@@ -206,19 +205,19 @@ func FlattenRolePermissionsFromGroups(groups []*RBACGroup) []string {
 
 // Simplify groups to role permissions for use in tokens etc which
 // don't need the full group structure but just the roles and permissions
-func GroupsToRolePermissions(user *AuthUser) []*RolePermissions {
-	ret := make([]*RolePermissions, 0, len(user.Groups)*2)
+func GroupsToRolePermissions(user *AuthUser) []*Role {
+	ret := make([]*Role, 0, len(user.Groups)*2)
 
-	roleMap := make(map[string]*RolePermissions)
+	roleMap := make(map[string]*Role)
 
 	for _, g := range user.Groups {
 		for _, r := range g.Roles {
 			rp, ok := roleMap[r.Name]
 
 			if !ok {
-				rp = &RolePermissions{
+				rp = &Role{
 					Name:        r.Name,
-					Permissions: make([]string, 0, len(r.Permissions)),
+					Permissions: make([]*Permission, 0, len(r.Permissions)),
 				}
 
 				roleMap[r.Name] = rp
@@ -226,7 +225,10 @@ func GroupsToRolePermissions(user *AuthUser) []*RolePermissions {
 			}
 
 			for _, p := range r.Permissions {
-				rp.Permissions = append(rp.Permissions, fmt.Sprintf("%s:%s", p.Resource, p.Action))
+				rp.Permissions = append(rp.Permissions, &Permission{
+					Resource: p.Resource,
+					Action:   p.Action,
+				})
 			}
 		}
 	}

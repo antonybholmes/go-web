@@ -22,11 +22,11 @@ func RefreshToken(c *gin.Context, user *auth.AuthUser) (string, error) {
 	return tc.RefreshToken(c, user)
 }
 
-func AccessToken(c *gin.Context, publicId string, roles []*auth.RolePermissions) (string, error) {
+func AccessToken(c *gin.Context, publicId string, roles []*auth.Role) (string, error) {
 	return tc.AccessToken(c, publicId, roles)
 }
 
-func UpdateToken(c *gin.Context, publicId string, roles []*auth.RolePermissions) (string, error) {
+func UpdateToken(c *gin.Context, publicId string, roles []*auth.Role) (string, error) {
 	return tc.UpdateToken(c, publicId, roles)
 }
 

@@ -51,33 +51,33 @@ const (
 	FindUserByUsernameSql string = SelectUsersSql + ` WHERE users.username = $1`
 
 	FindUserByApiKeySql string = `SELECT 
-	id, user_id, api_key
-	FROM api_keys 
-	WHERE api_key = $1`
+		id, user_id, api_key
+		FROM api_keys 
+		WHERE api_key = $1`
 
 	UsersApiKeysSql string = `SELECT 
-	id, api_key
-	FROM api_keys 
-	WHERE user_id = $1
-	ORDER BY api_key`
+		id, api_key
+		FROM api_keys 
+		WHERE user_id = $1
+		ORDER BY api_key`
 
 	RolesSql string = `SELECT 
-	id, 
-	public_id, 
-	name, 
-	description
-	FROM roles 
-	ORDER BY roles.name`
+		id, 
+		public_id, 
+		name, 
+		description
+		FROM roles 
+		ORDER BY roles.name`
 
 	PermissionsSql string = `SELECT DISTINCT 
-	permissions.id, 
-	permissions.public_id, 
-	permissions.name, 
-	permissions.description
-	FROM users_roles, roles_permissions, permissions 
-	WHERE users_roles.user_id = $1 AND roles_permissions.role_id = users_roles.role_id AND 
-	permissions.id = roles_permissions.permission_id 
-	ORDER BY permissions.name`
+		permissions.id, 
+		permissions.public_id, 
+		permissions.name, 
+		permissions.description
+		FROM users_roles, roles_permissions, permissions 
+		WHERE users_roles.user_id = $1 AND roles_permissions.role_id = users_roles.role_id AND 
+		permissions.id = roles_permissions.permission_id 
+		ORDER BY permissions.name`
 
 	// UserRolesSql string = `SELECT DISTINCT
 	// roles.id,
@@ -101,11 +101,15 @@ const (
 	// 	ORDER BY r.name, p.name`
 
 	UserGroupsSql string = `SELECT DISTINCT
+		g.id as group_id,
 		g.public_id as group_public_id,
 		g.name as group,
+		r.id as role_id,
 		r.public_id as role_public_id,
 		r.name as role,
+		p.id as permission_id,
 		p.public_id as permission_public_id,
+		p.name as permission,
 		res.public_id as resource_public_id,
 		res.name as resource,
 		a.public_id as action_public_id,
@@ -470,11 +474,15 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 	var currentRole *auth.RBACRole = nil
 	var currentPermission *auth.RBACPermission = nil
 
+	var groupId uint
 	var groupPublicId string
 	var group string
+	var roleId uint
 	var rolePublicId string
 	var role string
+	var permissionId uint
 	var permissionPublicId string
+	var permission string
 	var resourcePublicId string
 	var resource string
 	var actionPublicId string
@@ -482,11 +490,16 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 
 	for rows.Next() {
 
-		err := rows.Scan(&groupPublicId,
+		err := rows.Scan(
+			&groupId,
+			&groupPublicId,
 			&group,
+			&roleId,
 			&rolePublicId,
 			&role,
+			&permissionId,
 			&permissionPublicId,
+			&permission,
 			&resourcePublicId,
 			&resource,
 			&actionPublicId,
@@ -499,6 +512,7 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 		if currentGroup == nil || currentGroup.Name != group {
 			currentGroup = &auth.RBACGroup{
 				RBACEntity: auth.RBACEntity{
+					Id:       groupId,
 					Name:     group,
 					PublicId: groupPublicId,
 				},
@@ -509,6 +523,7 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 		if currentRole == nil || currentRole.Name != role {
 			currentRole = &auth.RBACRole{
 				RBACEntity: auth.RBACEntity{
+					Id:       roleId,
 					Name:     role,
 					PublicId: rolePublicId,
 				},
@@ -520,7 +535,11 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 
 		currentPermission = &auth.RBACPermission{
 
-			PublicId: permissionPublicId,
+			RBACEntity: auth.RBACEntity{
+				Id:       permissionId,
+				Name:     permission,
+				PublicId: permissionPublicId,
+			},
 			Resource: resource,
 			Action:   action,
 		}
