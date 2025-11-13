@@ -345,39 +345,9 @@ func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
 		return "", err
 	}
 
-	//log.Debug().Msgf("token %s", t)
-
 	return t, nil
 }
 
 func makeDefaultClaimsWithTTL(ttl time.Duration) jwt.RegisteredClaims {
 	return jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
 }
-
-// Get the unique permissions associated with a user based
-// on their jwt permissions
-/* func RolesToPermissions(roleMap *RoleMap) []string {
-	permissionSet := make(map[string]struct{})
-
-	for role := range *roleMap {
-
-		for _, permission := range (*roleMap)[role] {
-			_, ok := permissionSet[permission]
-
-			if !ok {
-				permissionSet[permission] = struct{}{}
-			}
-		}
-	}
-
-	// sort
-	ret := make([]string, 0, len(permissionSet))
-
-	for permission := range permissionSet {
-		ret = append(ret, permission)
-	}
-
-	sort.Strings(ret)
-
-	return ret
-} */
