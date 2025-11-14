@@ -4,10 +4,10 @@ import (
 	"crypto/rsa"
 	"errors"
 
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 )
 
 var (

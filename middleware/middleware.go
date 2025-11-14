@@ -12,8 +12,8 @@ import (
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-contrib/sessions"
 
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 
 	"github.com/golang-jwt/jwt/v5"
 )

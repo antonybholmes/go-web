@@ -11,7 +11,7 @@ import (
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rs/zerolog/log"
+	"github.com/antonybholmes/go-sys/log"
 )
 
 // See https://echo.labstack.com/docs/cookbook/jwt#login

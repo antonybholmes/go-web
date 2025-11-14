@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web/auth"
-	"github.com/rs/zerolog/log"
 )
 
 // func matchesWildcardRule(rulePath, actualPath string) bool {

@@ -1,10 +1,10 @@
 package middleware
 
 import (
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/access"
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 )
 
 func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) gin.HandlerFunc {

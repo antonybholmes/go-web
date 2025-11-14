@@ -26,19 +26,19 @@ const (
 
 	// postgres version
 	SelectUsersSql string = `SELECT 
-	id, 
-	public_id, 
-	first_name, 
-	last_name, 
-	username, 
-	email, 
-	is_locked, 
-	password, 
-	FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, 
-	FLOOR(EXTRACT(EPOCH FROM created_at)) as created_at, 
-	FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
-	FROM users
-	`
+		id, 
+		public_id, 
+		first_name, 
+		last_name, 
+		username, 
+		email, 
+		is_locked, 
+		password, 
+		FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, 
+		FLOOR(EXTRACT(EPOCH FROM created_at)) as created_at, 
+		FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+		FROM users
+		`
 
 	UsersSql string = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT $1 OFFSET $2`
 

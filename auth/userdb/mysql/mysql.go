@@ -12,8 +12,8 @@ import (
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/userdb"
 
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/go-sql-driver/mysql"
-	"github.com/rs/zerolog/log"
 )
 
 type MySQLUserDB struct {
