@@ -333,6 +333,7 @@ func (pgdb *PostgresUserDB) FindUserById(id string) (*auth.AuthUser, error) {
 // 	return pgdb.findUser(publicId, pgdb.db.QueryRow(pgdb.ctx, FindUserByPublicIdSql, publicId))
 // }
 
+// Helper function used by various FindUser methods. Converts a db row to an AuthUser
 func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, error) {
 
 	var authUser auth.AuthUser

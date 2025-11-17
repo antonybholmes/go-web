@@ -47,6 +47,7 @@ type (
 	}
 
 	AuthUser struct {
+		Id string `json:"id"`
 		//PublicId        string        `json:"publicId"`
 		FirstName       string        `json:"firstName"`
 		LastName        string        `json:"lastName"`
@@ -55,7 +56,6 @@ type (
 		HashedPassword  string        `json:"-"`
 		Groups          []*RBACGroup  `json:"groups"`
 		ApiKeys         []string      `json:"apiKeys"`
-		Id              string        `json:"id"`
 		CreatedAt       time.Duration `json:"-"`
 		UpdatedAt       time.Duration `json:"-"`
 		EmailVerifiedAt time.Duration `json:"-"`
