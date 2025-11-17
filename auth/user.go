@@ -18,10 +18,10 @@ type (
 	}
 
 	User struct {
+		Email     string `db:"email"`
+		UserName  string `db:"username"`
 		FirstName string `db:"first_name"`
 		LastName  string `db:"last_name"`
-		UserName  string `db:"username"`
-		Email     string `db:"email"`
 	}
 
 	RBACEntity struct {
