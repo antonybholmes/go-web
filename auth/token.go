@@ -208,15 +208,15 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 
 func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, error) {
 	return tc.BasicToken(c,
-		user.PublicId,
+		user.Id,
 		TokenTypeRefresh,
 		TtlHour)
 }
 
-func (tc *TokenCreator) AccessToken(c *gin.Context, publicId string, roles []*Role) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
-		UserId: publicId,
+		UserId: userId,
 		//IpAddr:           ipAddr,
 		Type:             TokenTypeAccess,
 		Roles:            roles,
@@ -243,7 +243,7 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 	// 	VERIFY_EMAIL_TOKEN)
 
 	claims := AuthUserJwtClaims{
-		UserId:           authUser.PublicId,
+		UserId:           authUser.Id,
 		Data:             authUser.FirstName,
 		Type:             TokenTypeVerifyEmail,
 		RedirectUrl:      visitUrl,
@@ -255,7 +255,7 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 
 func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
 	claims := AuthUserJwtClaims{
-		UserId: user.PublicId,
+		UserId: user.Id,
 		// include first name to personalize reset
 		Data:             user.FirstName,
 		Type:             TokenTypeResetPassword,
@@ -268,7 +268,7 @@ func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (
 func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := AuthUserJwtClaims{
-		UserId:           user.PublicId,
+		UserId:           user.Id,
 		Data:             email.Address,
 		Type:             TokenTypeChangeEmail,
 		OneTimePasscode:  CreateOTP(user),
@@ -303,7 +303,7 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 
 func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := AuthUserJwtClaims{
-		UserId:           user.PublicId,
+		UserId:           user.Id,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),

@@ -245,7 +245,6 @@ func (mydb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, err
 		}
 
 		err := rows.Scan(&authUser.Id,
-			&authUser.PublicId,
 			&authUser.FirstName,
 			&authUser.LastName,
 			&authUser.Username,
@@ -324,7 +323,7 @@ func (mydb *MySQLUserDB) FindUserByUsername(username string) (*auth.AuthUser, er
 	return mydb.findUser(mydb.db.QueryRow(FindUserByUsernameSql, username))
 }
 
-func (mydb *MySQLUserDB) FindUserById(id uint) (*auth.AuthUser, error) {
+func (mydb *MySQLUserDB) FindUserById(id string) (*auth.AuthUser, error) {
 	return mydb.findUser(mydb.db.QueryRow(FindUserByIdSql, id))
 }
 
@@ -338,7 +337,6 @@ func (mydb *MySQLUserDB) findUser(row *sql.Row) (*auth.AuthUser, error) {
 	//var updatedAt int64
 
 	err := row.Scan(&authUser.Id,
-		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -376,8 +374,8 @@ func (mydb *MySQLUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error) {
 		return nil, fmt.Errorf("api key is not in valid format")
 	}
 
-	var id uint
-	var userId uint
+	var id string
+	var userId string
 	//var createdAt int64
 
 	err := mydb.db.QueryRow(FindUserByApiKeySql, key).Scan(&id,
@@ -478,28 +476,28 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 	var currentRole *auth.RBACRole = nil
 	var currentPermission *auth.RBACPermission = nil
 
-	var groupPublicId string
+	var groupId string
 	var group string
-	var rolePublicId string
+	var roleId string
 	var role string
-	var permissionPublicId string
+	var permissionId string
 	var permission string
-	var resourcePublicId string
+	var resourceId string
 	var resource string
-	var actionPublicId string
+	var actionId string
 	var action string
 
 	for rows.Next() {
 
 		err := rows.Scan(&group,
-			&groupPublicId,
+			&groupId,
 			&role,
-			&rolePublicId,
-			&permissionPublicId,
+			&roleId,
+			&permissionId,
 			&permission,
-			&resourcePublicId,
+			&resourceId,
 			&resource,
-			&actionPublicId,
+			&actionId,
 			&action)
 
 		if err != nil {
@@ -509,8 +507,8 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 		if currentGroup == nil || currentGroup.Name != group {
 			currentGroup = &auth.RBACGroup{
 				RBACEntity: auth.RBACEntity{
-					Name:     group,
-					PublicId: groupPublicId,
+					Name: group,
+					Id:   groupId,
 				},
 				Roles: make([]*auth.RBACRole, 0, 10)}
 			groups = append(groups, currentGroup)
@@ -519,8 +517,8 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 		if currentRole == nil || currentRole.Name != role {
 			currentRole = &auth.RBACRole{
 				RBACEntity: auth.RBACEntity{
-					Name:     role,
-					PublicId: rolePublicId,
+					Name: role,
+					Id:   roleId,
 				},
 				Permissions: make([]*auth.RBACPermission, 0, 10),
 			}
@@ -531,8 +529,8 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 		currentPermission = &auth.RBACPermission{
 
 			RBACEntity: auth.RBACEntity{
-				Name:     permission,
-				PublicId: permissionPublicId,
+				Name: permission,
+				Id:   permissionId,
 			},
 			Resource: resource,
 			Action:   action,
@@ -593,7 +591,6 @@ func (mydb *MySQLUserDB) Groups() ([]*auth.RBACGroup, error) {
 	for rows.Next() {
 		var group auth.RBACGroup
 		err := rows.Scan(&group.Id,
-			&group.PublicId,
 			&group.Name,
 			&group.Description)
 
@@ -622,7 +619,6 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.RBACRole, error) {
 	for rows.Next() {
 		var role auth.RBACRole
 		err := rows.Scan(&role.Id,
-			&role.PublicId,
 			&role.Name,
 			&role.Description)
 
@@ -641,7 +637,6 @@ func (mydb *MySQLUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
 	var group auth.RBACGroup
 
 	err := mydb.db.QueryRow(GroupSql, name).Scan(&group.Id,
-		&group.PublicId,
 		&group.Name)
 
 	if err != nil {
@@ -656,7 +651,6 @@ func (mydb *MySQLUserDB) FindRoleByName(name string) (*auth.RBACRole, error) {
 	var role auth.RBACRole
 
 	err := mydb.db.QueryRow(RoleSql, name).Scan(&role.Id,
-		&role.PublicId,
 		&role.Name,
 		&role.Description)
 
@@ -724,7 +718,7 @@ func (mydb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error
 
 	hash := auth.HashPassword(password)
 
-	_, err = mydb.db.Exec(SetPasswordSql, hash, user.PublicId)
+	_, err = mydb.db.Exec(SetPasswordSql, hash, user.Id)
 
 	if err != nil {
 		return userdb.NewAccountError("could not update password")
@@ -812,7 +806,7 @@ func (mydb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 		}
 	}
 
-	_, err := mydb.db.Exec(SetInfoSql, username, firstName, lastName, user.PublicId)
+	_, err := mydb.db.Exec(SetInfoSql, username, firstName, lastName, user.Id)
 
 	if err != nil {
 		return userdb.NewAccountError("could not update user info")
@@ -837,7 +831,7 @@ func (mydb *MySQLUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.Addr
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	_, err := mydb.db.Exec(SetEmailSql, address.Address, user.PublicId)
+	_, err := mydb.db.Exec(SetEmailSql, address.Address, user.Id)
 
 	if err != nil {
 		return fmt.Errorf("could not update email address")
@@ -1059,7 +1053,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	// 	return nil, err
 	// }
 
-	err = mydb.AddUserToGroup(authUser, auth.GroupWebUsers, true)
+	err = mydb.AddUserToGroup(authUser, auth.GroupLogin, true)
 
 	if err != nil {
 		return nil, err

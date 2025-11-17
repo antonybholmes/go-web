@@ -26,8 +26,7 @@ const (
 
 	// postgres version
 	SelectUsersSql string = `SELECT 
-		id, 
-		public_id, 
+		id,
 		first_name, 
 		last_name, 
 		username, 
@@ -44,7 +43,7 @@ const (
 
 	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = $1`
 
-	FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = $1`
+	//FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = $1`
 
 	FindUserByEmailSql string = SelectUsersSql + ` WHERE users.email = $1`
 
@@ -63,7 +62,6 @@ const (
 
 	RolesSql string = `SELECT 
 		id, 
-		public_id, 
 		name, 
 		description
 		FROM roles 
@@ -71,7 +69,6 @@ const (
 
 	PermissionsSql string = `SELECT DISTINCT 
 		permissions.id, 
-		permissions.public_id, 
 		permissions.name, 
 		permissions.description
 		FROM users_roles, roles_permissions, permissions 
@@ -102,17 +99,14 @@ const (
 
 	UserGroupsSql string = `SELECT DISTINCT
 		g.id as group_id,
-		g.public_id as group_public_id,
 		g.name as group,
 		r.id as role_id,
-		r.public_id as role_public_id,
 		r.name as role,
 		p.id as permission_id,
-		p.public_id as permission_public_id,
 		p.name as permission,
-		res.public_id as resource_public_id,
+		res.id as resource_id,
 		res.name as resource,
-		a.public_id as action_public_id,
+		a.id as action_id,
 		a.name as action
 		FROM users u
 		JOIN user_groups ug ON u.id = ug.user_id
@@ -126,9 +120,29 @@ const (
 		WHERE u.id = $1
 		ORDER BY g.name, r.name, res.name, a.name`
 
+	UserRolesSql string = `SELECT DISTINCT
+		r.id as role_id,
+		r.name as role,
+		p.id as permission_id,
+		p.name as permission,
+		res.id as resource_id,
+		res.name as resource,
+		a.id as action_id,
+		a.name as action
+		FROM users u
+		JOIN user_groups ug ON u.id = ug.user_id
+		JOIN group_roles gr ON ug.group_id = gr.group_id
+		JOIN role_permissions rp ON gr.role_id = rp.role_id
+		JOIN roles r ON rp.role_id = r.id
+		JOIN permissions p ON rp.permission_id = p.id
+		JOIN resources res ON p.resource_id = res.id
+		JOIN actions a ON p.action_id = a.id
+		WHERE u.id = $1
+		ORDER BY r.name, res.name, a.name`
+
 	InsertUserSql = `INSERT INTO users 
-		(public_id, username, email, password, first_name, last_name, email_verified_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		(username, email, password, first_name, last_name, email_verified_at) 
+		VALUES ($1, $2, $3, $4, $5, $6) 
 		ON CONFLICT DO NOTHING`
 
 	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = $1"
@@ -136,39 +150,36 @@ const (
 
 	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
-	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.public_id = $1`
-	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.public_id = $2`
-	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.public_id = $2`
+	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.id = $1`
+	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.id = $2`
+	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.id = $2`
 
-	SetInfoSql  = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.public_id = $4`
-	SetEmailSql = `UPDATE users SET email = $1 WHERE users.public_id = $2`
+	SetInfoSql  = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.id = $4`
+	SetEmailSql = `UPDATE users SET email = $1 WHERE users.id = $2`
 
-	DeleteUserSql = `DELETE FROM users WHERE public_id = $1`
+	DeleteUserSql = `DELETE FROM users WHERE id = $1`
 
 	CountUsersSql = `SELECT COUNT(ID) FROM users`
 
 	RoleSql = `SELECT 
 		roles.id, 
-		roles.public_id, 
 		roles.name,
 		roles.description 
 		FROM roles`
 
 	GroupsSql = `SELECT 
 		groups.id, 
-		groups.public_id, 
 		groups.name,
 		groups.description 
 		FROM groups
 		ORDER BY groups.name`
 
 	GroupSql = `SELECT 
-		groups.id, 
-		groups.public_id, 
+		groups.id,
 		groups.name,
 		groups.description 
 		FROM groups
-		WHERE groups.public_id = $1 OR groups.name = $1`
+		WHERE groups.id = $1 OR groups.name = $1`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -230,7 +241,6 @@ func (pgdb *PostgresUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, 
 		}
 
 		err := rows.Scan(&authUser.Id,
-			&authUser.PublicId,
 			&authUser.FirstName,
 			&authUser.LastName,
 			&authUser.Username,
@@ -263,9 +273,9 @@ func (pgdb *PostgresUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, 
 	return authUsers, nil
 }
 
-func (pgdb *PostgresUserDB) DeleteUser(publicId string) error {
+func (pgdb *PostgresUserDB) DeleteUser(id string) error {
 
-	authUser, err := pgdb.FindUserByPublicId(publicId)
+	authUser, err := pgdb.FindUserById(id)
 
 	if err != nil {
 		return err
@@ -281,7 +291,7 @@ func (pgdb *PostgresUserDB) DeleteUser(publicId string) error {
 		return fmt.Errorf("cannot delete admin account")
 	}
 
-	_, err = pgdb.db.Exec(pgdb.ctx, DeleteUserSql, publicId)
+	_, err = pgdb.db.Exec(pgdb.ctx, DeleteUserSql, id)
 
 	if err != nil {
 		return err
@@ -315,13 +325,13 @@ func (pgdb *PostgresUserDB) FindUserByUsername(username string) (*auth.AuthUser,
 	return pgdb.findUser(username, pgdb.db.QueryRow(pgdb.ctx, FindUserByUsernameSql, username))
 }
 
-func (pgdb *PostgresUserDB) FindUserById(id uint) (*auth.AuthUser, error) {
-	return pgdb.findUser(fmt.Sprintf("%d", id), pgdb.db.QueryRow(pgdb.ctx, FindUserByIdSql, id))
+func (pgdb *PostgresUserDB) FindUserById(id string) (*auth.AuthUser, error) {
+	return pgdb.findUser(id, pgdb.db.QueryRow(pgdb.ctx, FindUserByIdSql, id))
 }
 
-func (pgdb *PostgresUserDB) FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
-	return pgdb.findUser(publicId, pgdb.db.QueryRow(pgdb.ctx, FindUserByPublicIdSql, publicId))
-}
+// func (pgdb *PostgresUserDB) FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
+// 	return pgdb.findUser(publicId, pgdb.db.QueryRow(pgdb.ctx, FindUserByPublicIdSql, publicId))
+// }
 
 func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, error) {
 
@@ -329,7 +339,6 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 	//var updatedAt int64
 
 	err := row.Scan(&authUser.Id,
-		&authUser.PublicId,
 		&authUser.FirstName,
 		&authUser.LastName,
 		&authUser.Username,
@@ -349,7 +358,7 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 	err = pgdb.AddGroupsToUser(&authUser)
 
 	if err != nil {
-		log.Debug().Msgf("error adding roles to user %s %v", authUser.PublicId, err)
+		log.Error().Msgf("error adding roles to user %s %v", authUser.Id, err)
 		return nil, err
 	}
 
@@ -369,7 +378,7 @@ func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error)
 	}
 
 	var id uint
-	var userId uint
+	var userId string
 	//var createdAt int64
 
 	err := pgdb.db.QueryRow(pgdb.ctx, FindUserByApiKeySql, key).Scan(&id,
@@ -458,7 +467,7 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
 func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 
-	log.Debug().Msgf("getting user groups for %s %d", user.PublicId, user.Id)
+	log.Debug().Msgf("getting user groups for %s", user.Id)
 
 	rows, err := pgdb.db.Query(pgdb.ctx, UserGroupsSql, user.Id)
 
@@ -474,47 +483,41 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 	var currentRole *auth.RBACRole = nil
 	var currentPermission *auth.RBACPermission = nil
 
-	var groupId uint
-	var groupPublicId string
+	var groupId string
 	var group string
-	var roleId uint
-	var rolePublicId string
+	var roleId string
 	var role string
-	var permissionId uint
-	var permissionPublicId string
+	var permissionId string
 	var permission string
-	var resourcePublicId string
+	var resourceId string
 	var resource string
-	var actionPublicId string
+	var actionId string
 	var action string
 
 	for rows.Next() {
 
 		err := rows.Scan(
 			&groupId,
-			&groupPublicId,
 			&group,
 			&roleId,
-			&rolePublicId,
 			&role,
 			&permissionId,
-			&permissionPublicId,
 			&permission,
-			&resourcePublicId,
+			&resourceId,
 			&resource,
-			&actionPublicId,
+			&actionId,
 			&action)
 
 		if err != nil {
-			return nil, fmt.Errorf("user roles not found")
+			log.Error().Msgf("error scanning user groups %v", err)
+			return nil, fmt.Errorf("user roles not found: %v", err)
 		}
 
 		if currentGroup == nil || currentGroup.Name != group {
 			currentGroup = &auth.RBACGroup{
 				RBACEntity: auth.RBACEntity{
-					Id:       groupId,
-					Name:     group,
-					PublicId: groupPublicId,
+					Id:   groupId,
+					Name: group,
 				},
 				Roles: make([]*auth.RBACRole, 0, 10)}
 			groups = append(groups, currentGroup)
@@ -523,9 +526,8 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 		if currentRole == nil || currentRole.Name != role {
 			currentRole = &auth.RBACRole{
 				RBACEntity: auth.RBACEntity{
-					Id:       roleId,
-					Name:     role,
-					PublicId: rolePublicId,
+					Id:   roleId,
+					Name: role,
 				},
 				Permissions: make([]*auth.RBACPermission, 0, 10),
 			}
@@ -536,9 +538,8 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 		currentPermission = &auth.RBACPermission{
 
 			RBACEntity: auth.RBACEntity{
-				Id:       permissionId,
-				Name:     permission,
-				PublicId: permissionPublicId,
+				Id:   permissionId,
+				Name: permission,
 			},
 			Resource: resource,
 			Action:   action,
@@ -599,7 +600,6 @@ func (pgdb *PostgresUserDB) Groups() ([]*auth.RBACGroup, error) {
 	for rows.Next() {
 		var group auth.RBACGroup
 		err := rows.Scan(&group.Id,
-			&group.PublicId,
 			&group.Name,
 			&group.Description)
 
@@ -628,7 +628,6 @@ func (pgdb *PostgresUserDB) Roles() ([]*auth.RBACRole, error) {
 	for rows.Next() {
 		var role auth.RBACRole
 		err := rows.Scan(&role.Id,
-			&role.PublicId,
 			&role.Name,
 			&role.Description)
 
@@ -647,7 +646,6 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) 
 	var role auth.RBACRole
 
 	err := pgdb.db.QueryRow(pgdb.ctx, RoleSql, name).Scan(&role.Id,
-		&role.PublicId,
 		&role.Name,
 		&role.Description)
 
@@ -664,7 +662,6 @@ func (pgdb *PostgresUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
 	var group auth.RBACGroup
 
 	err := pgdb.db.QueryRow(pgdb.ctx, GroupSql, name).Scan(&group.Id,
-		&group.PublicId,
 		&group.Name,
 		&group.Description)
 
@@ -734,7 +731,7 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) er
 
 	hash := auth.HashPassword(password)
 
-	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, hash, user.PublicId)
+	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, hash, user.Id)
 
 	if err != nil {
 		return userdb.NewPasswordError("could not update password")
@@ -822,7 +819,7 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 		}
 	}
 
-	_, err := pgdb.db.Exec(pgdb.ctx, SetInfoSql, username, firstName, lastName, user.PublicId)
+	_, err := pgdb.db.Exec(pgdb.ctx, SetInfoSql, username, firstName, lastName, user.Id)
 
 	if err != nil {
 		return userdb.NewAccountError("could not update user info")
@@ -847,7 +844,7 @@ func (pgdb *PostgresUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.A
 		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailSql, address.Address, user.PublicId)
+	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailSql, address.Address, user.Id)
 
 	if err != nil {
 		return userdb.NewAccountError("could not update email address")
@@ -890,7 +887,7 @@ func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group string, ad
 		return err
 	}
 
-	log.Debug().Msgf("add user to group %s %d %d", group, user.Id, g.Id)
+	log.Debug().Msgf("add user to group %s %s %s", group, user.Id, g.Id)
 
 	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, g.Id)
 
@@ -1017,11 +1014,11 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	// try to create user if user does not exist
 
 	// Create a publicId for the user id
-	publicId, err := sys.Uuidv7() // sys.NanoId()
+	//publicId, err := sys.Uuidv7() // sys.NanoId()
 
-	if err != nil {
-		return nil, userdb.NewAccountError("could not create uuid for user")
-	}
+	//if err != nil {
+	//	return nil, userdb.NewAccountError("could not create uuid for user")
+	//}
 
 	hash := ""
 
@@ -1038,11 +1035,10 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		emailVerifiedAt = time.Now().Format(time.RFC3339)
 	}
 
-	log.Debug().Msgf("%s %s %s", publicId, email.Address, emailVerifiedAt)
+	log.Debug().Msgf("%s %s", email.Address, emailVerifiedAt)
 
 	_, err = pgdb.db.Exec(pgdb.ctx,
 		InsertUserSql,
-		publicId,
 		userName,
 		email.Address,
 		hash,
@@ -1052,12 +1048,12 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	)
 
 	if err != nil {
-		log.Debug().Msgf("error making person %s %v", publicId, err)
+		log.Debug().Msgf("error making person %s %v", email.Address, err)
 		return nil, err
 	}
 
 	// Call function again to get the user details
-	authUser, err = pgdb.FindUserByPublicId(publicId)
+	authUser, err = pgdb.FindUserByEmail(email)
 
 	if err != nil {
 		log.Debug().Msgf("find by error user %v", err)
@@ -1067,10 +1063,10 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	log.Debug().Msgf("created user %v", authUser)
 
 	// Give user standard role and ability to login
-	err = pgdb.AddUserToGroup(authUser, auth.GroupWebUsers, true)
+	err = pgdb.AddUserToGroup(authUser, auth.GroupLogin, true)
 
 	if err != nil {
-		log.Debug().Msgf("error adding user to group %s %v", publicId, err)
+		log.Debug().Msgf("error adding user to group %s %v", email.Address, err)
 		return nil, err
 	}
 

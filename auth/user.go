@@ -25,17 +25,15 @@ type (
 	}
 
 	RBACEntity struct {
-		PublicId    string `json:"publicId"`
+		Id          string `json:"id"`
 		Name        string `json:"name"`
 		Description string `json:"description,omitempty"`
-		Id          uint   `json:"-"`
 	}
 
 	RBACPermission struct {
 		RBACEntity
 		Resource string `json:"resource"`
 		Action   string `json:"action"`
-		Id       uint   `json:"-"`
 	}
 
 	RBACRole struct {
@@ -49,7 +47,7 @@ type (
 	}
 
 	AuthUser struct {
-		PublicId        string        `json:"publicId"`
+		//PublicId        string        `json:"publicId"`
 		FirstName       string        `json:"firstName"`
 		LastName        string        `json:"lastName"`
 		Username        string        `json:"username"`
@@ -57,7 +55,7 @@ type (
 		HashedPassword  string        `json:"-"`
 		Groups          []*RBACGroup  `json:"groups"`
 		ApiKeys         []string      `json:"apiKeys"`
-		Id              uint          `json:"id"`
+		Id              string        `json:"id"`
 		CreatedAt       time.Duration `json:"-"`
 		UpdatedAt       time.Duration `json:"-"`
 		EmailVerifiedAt time.Duration `json:"-"`
@@ -66,16 +64,16 @@ type (
 )
 
 const (
-	RoleSuper = "SuperAccess::*.*"
-	RoleAdmin = "AdminAccess::*:*"
+	RoleSuper = "root::*.*"
+	RoleAdmin = "admin::*:*"
 	//RoleUser  = "user:*"
 	RoleWebLogin = "web:login"
 	RoleRdfRead  = "rdf:read:*"
 
-	GroupUser     = "Users"
-	GroupAdmin    = "Admins"
-	GroupSuper    = "SuperUsers"
-	GroupWebUsers = "WebUsers"
+	GroupUser  = "users"
+	GroupAdmin = "admins"
+	GroupSuper = "superusers"
+	GroupLogin = "login"
 )
 
 // The admin view adds roles to each user as it is assumed this
@@ -212,11 +210,11 @@ func GetRolesFromUser(user *AuthUser) []*Role {
 	for _, g := range user.Groups {
 		for _, r := range g.Roles {
 			// skip if we have already added this role
-			if used.Has(r.PublicId) {
+			if used.Has(r.Id) {
 				continue
 			}
 
-			used.Add(r.PublicId)
+			used.Add(r.Id)
 
 			rp := &Role{
 				Name:        r.Name,

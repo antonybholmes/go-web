@@ -63,13 +63,13 @@ func CreateUserFromOAuth2(name string, email *mail.Address) (*auth.AuthUser, err
 	return instance.CreateUserFromOAuth2(name, email)
 }
 
-func FindUserById(id uint) (*auth.AuthUser, error) {
+func FindUserById(id string) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
 
-func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
-	return instance.FindUserByPublicId(uuid)
-}
+// func FindUserByPublicId(uuid string) (*auth.AuthUser, error) {
+// 	return instance.FindUserByPublicId(uuid)
+// }
 
 func FindUserByUsername(username string) (*auth.AuthUser, error) {
 	return instance.FindUserByUsername(username)

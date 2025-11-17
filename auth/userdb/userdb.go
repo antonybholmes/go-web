@@ -41,9 +41,9 @@ type (
 
 		FindUserByUsername(username string) (*auth.AuthUser, error)
 
-		FindUserById(id uint) (*auth.AuthUser, error)
+		FindUserById(id string) (*auth.AuthUser, error)
 
-		FindUserByPublicId(publicId string) (*auth.AuthUser, error)
+		//FindUserByPublicId(publicId string) (*auth.AuthUser, error)
 
 		FindUserByApiKey(key string) (*auth.AuthUser, error)
 
