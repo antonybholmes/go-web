@@ -87,7 +87,7 @@ type (
 		SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error
 
 		// add a group to a user
-		AddUserToGroup(user *auth.AuthUser, group string, adminMode bool) error
+		AddUserToGroup(user *auth.AuthUser, group *auth.RBACGroup, adminMode bool) error
 
 		// create a new api key for a user, adminMode allows creating keys for other users
 		CreateApiKeyForUser(user *auth.AuthUser, adminMode bool) error

@@ -872,7 +872,13 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 	}
 
 	for _, group := range groups {
-		err = pgdb.AddUserToGroup(user, group, adminMode)
+		g, err := pgdb.FindGroup(group)
+
+		if err != nil {
+			return err
+		}
+
+		err = pgdb.AddUserToGroup(user, g, adminMode)
 
 		if err != nil {
 			log.Error().Msgf("sdsdfsdfsdf %v %v", group, err)
@@ -883,20 +889,14 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 	return nil
 }
 
-func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group string, adminMode bool) error {
+func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group *auth.RBACGroup, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	g, err := pgdb.FindGroup(group)
+	log.Debug().Msgf("add user to group %s %s %s", group, user.Id, group.Id)
 
-	if err != nil {
-		return err
-	}
-
-	log.Debug().Msgf("add user to group %s %s %s", group, user.Id, g.Id)
-
-	_, err = pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, g.Id)
+	_, err := pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, group.Id)
 
 	if err != nil {
 		log.Debug().Msgf("error adding user to group %v", err)
@@ -1069,8 +1069,14 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 
 	log.Debug().Msgf("created user %v", authUser)
 
+	group, err := pgdb.FindGroup(auth.GroupLogin)
+
+	if err != nil {
+		return nil, err
+	}
+
 	// Give user standard role and ability to login
-	err = pgdb.AddUserToGroup(authUser, auth.GroupLogin, true)
+	err = pgdb.AddUserToGroup(authUser, group, true)
 
 	if err != nil {
 		log.Debug().Msgf("error adding user to group %s %v", email.Address, err)

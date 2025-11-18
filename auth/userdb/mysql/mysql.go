@@ -853,7 +853,13 @@ func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, groups []string, admi
 	}
 
 	for _, group := range groups {
-		err = mydb.AddUserToGroup(user, group, adminMode)
+		g, err := mydb.FindGroup(group)
+
+		if err != nil {
+			return err
+		}
+
+		err = mydb.AddUserToGroup(user, g, adminMode)
 
 		if err != nil {
 			return err
@@ -863,20 +869,12 @@ func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, groups []string, admi
 	return nil
 }
 
-func (mydb *MySQLUserDB) AddUserToGroup(user *auth.AuthUser, group string, adminMode bool) error {
+func (mydb *MySQLUserDB) AddUserToGroup(user *auth.AuthUser, group *auth.RBACGroup, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	var g *auth.RBACGroup
-
-	g, err := mydb.FindGroup(group)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = mydb.db.Exec(InsertUserRoleSql, user.Id, g.Id)
+	_, err := mydb.db.Exec(InsertUserRoleSql, user.Id, group.Id)
 
 	if err != nil {
 		return err
@@ -1053,7 +1051,13 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	// 	return nil, err
 	// }
 
-	err = mydb.AddUserToGroup(authUser, auth.GroupLogin, true)
+	group, err := mydb.FindGroup(auth.GroupLogin)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = mydb.AddUserToGroup(authUser, group, true)
 
 	if err != nil {
 		return nil, err
