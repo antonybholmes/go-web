@@ -864,10 +864,7 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 	// remove existing roles,
 	_, err := pgdb.db.Exec(pgdb.ctx, DeleteUserGroupsSql, user.Id)
 
-	log.Debug().Msgf("set user groups ssss %s %v", user.Username, groups)
-
 	if err != nil {
-		log.Error().Msgf("ssssssss %v", groups)
 		return err
 	}
 
@@ -881,8 +878,7 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 		err = pgdb.AddUserToGroup(user, g, adminMode)
 
 		if err != nil {
-			log.Error().Msgf("sdsdfsdfsdf %v %v", group, err)
-			return err
+			return userdb.NewAccountError(fmt.Sprintf("could not add user to group %s: %v", group, err))
 		}
 	}
 
@@ -894,13 +890,10 @@ func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group *auth.RBAC
 		return userdb.NewAccountError("account is locked and cannot be edited")
 	}
 
-	log.Debug().Msgf("add user to group %s %s %s", group, user.Id, group.Id)
-
 	_, err := pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, group.Id)
 
 	if err != nil {
-		log.Debug().Msgf("error adding user to group %v", err)
-		return userdb.NewAccountError("could not add user to group")
+		return userdb.NewAccountError(fmt.Sprintf("could not add user to group: %v", err))
 	}
 
 	return nil

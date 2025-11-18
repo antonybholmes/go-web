@@ -196,5 +196,5 @@ func NewAccountError(s string) *AccountError {
 }
 
 func (e *AccountError) Error() string {
-	return fmt.Sprintf("account info error: %s", e.s)
+	return fmt.Sprintf("account error: %s", e.s)
 }
