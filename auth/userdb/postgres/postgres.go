@@ -41,7 +41,7 @@ const (
 
 	UsersSql string = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT $1 OFFSET $2`
 
-	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = $1`
+	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = $1::uuid`
 
 	//FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = $1`
 
@@ -57,7 +57,7 @@ const (
 	UsersApiKeysSql string = `SELECT 
 		id, api_key
 		FROM api_keys 
-		WHERE user_id = $1
+		WHERE user_id = $1::uuid
 		ORDER BY api_key`
 
 	RolesSql string = `SELECT 
@@ -72,7 +72,7 @@ const (
 		permissions.name, 
 		permissions.description
 		FROM users_roles, roles_permissions, permissions 
-		WHERE users_roles.user_id = $1 AND roles_permissions.role_id = users_roles.role_id AND 
+		WHERE users_roles.user_id = $1::uuid AND roles_permissions.role_id = users_roles.role_id AND 
 		permissions.id = roles_permissions.permission_id 
 		ORDER BY permissions.name`
 
@@ -117,7 +117,7 @@ const (
 		JOIN permissions p ON rp.permission_id = p.id
 		JOIN resources res ON p.resource_id = res.id
 		JOIN actions a ON p.action_id = a.id
-		WHERE u.id = $1
+		WHERE u.id = $1::uuid
 		ORDER BY g.name, r.name, res.name, a.name`
 
 	UserRolesSql string = `SELECT DISTINCT
@@ -137,7 +137,7 @@ const (
 		JOIN permissions p ON rp.permission_id = p.id
 		JOIN resources res ON p.resource_id = res.id
 		JOIN actions a ON p.action_id = a.id
-		WHERE u.id = $1
+		WHERE u.id = $1::uuid
 		ORDER BY r.name, res.name, a.name`
 
 	InsertUserSql = `INSERT INTO users 
