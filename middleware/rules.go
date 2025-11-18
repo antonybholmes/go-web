@@ -29,7 +29,7 @@ func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) 
 		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
 		if err != nil {
-			log.Debug().Msgf("Access denied: %v", err)
+			log.Debug().Msgf("access denied: %v", err)
 			web.ForbiddenResp(c, err)
 			return
 		}

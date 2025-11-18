@@ -25,40 +25,41 @@ import (
 // 	MATCH_TYPE_WILDCARD = "wildcard"
 // )
 
-type JsonTokenRule struct {
-	Type  string   `json:"type"`
-	Roles []string `json:"roles"`
+type (
+	JsonTokenRule struct {
+		Type  string   `json:"type"`
+		Roles []string `json:"roles"`
+	}
+
+	JsonMethodRule struct {
+		Type   string          `json:"type"`
+		Tokens []JsonTokenRule `json:"tokens"`
+	}
+
+	// JSON structure for rules
+	JsonRule struct {
+		Methods []JsonMethodRule `json:"methods"`
+		Path    string           `json:"path"`
+	}
+
+	JsonRules struct {
+		Version string     `json:"version"`
+		Updated string     `json:"updated"`
+		Rules   []JsonRule `json:"rules"`
+	}
+
+	AccessRuleError struct {
+		s string
+	}
+)
+
+func NewAccessRuleError(s string) *AccessRuleError {
+	return &AccessRuleError{s: s}
 }
 
-type JsonMethodRule struct {
-	Type   string          `json:"type"`
-	Tokens []JsonTokenRule `json:"tokens"`
+func (e *AccessRuleError) Error() string {
+	return fmt.Sprintf("access rule error: %s", e.s)
 }
-
-// JSON structure for rules
-type JsonRule struct {
-	Methods []JsonMethodRule `json:"methods"`
-	Path    string           `json:"path"`
-}
-
-type JsonRules struct {
-	Version string     `json:"version"`
-	Updated string     `json:"updated"`
-	Rules   []JsonRule `json:"rules"`
-}
-
-// type TokenRule struct {
-// 	Type  string         `json:"type"`
-// 	Roles *sys.StringSet `json:"roles"`
-// }
-
-// Rule represents an access control rule
-// type Rule struct {
-// 	Method string         `json:"method"`
-// 	Path   string         `json:"path"`
-// 	Token  string         `json:"token"`
-// 	Roles  *sys.StringSet `json:"roles"`
-// }
 
 func makeRuleKey(method, tokenType, path string) string {
 	return strings.ToLower(strings.Join([]string{method, tokenType, path}, "|"))
@@ -227,11 +228,15 @@ func (re *RuleEngine) getExactRoles(method string, tokenType string, path string
 
 	key := makeRuleKey(method, tokenType, path)
 
+	log.Debug().Msgf("Looking for exact rule with key=%s", key)
+
+	log.Debug().Msgf("Available exact rules: %v", strings.Join(sys.SortedMapKeys(re.rules), ", "))
+
 	// Exact match rules, ideally all routes should be exact matches
 	rules, ok := re.rules[key]
 
 	if !ok {
-		return nil, fmt.Errorf("no rules found")
+		return nil, NewAccessRuleError("no rules found")
 	}
 
 	return rules, nil
@@ -269,7 +274,7 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, rol
 
 	if auth.HasAdminRole(roles) {
 		// Admin has access to everything
-		log.Debug().Msgf("Access allowed for admin roles %v", roles)
+		log.Debug().Msgf("access allowed for admin roles %v", roles)
 		return nil
 	}
 
@@ -290,5 +295,5 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, rol
 	// }
 
 	// No rules matched the user's roles, deny access
-	return fmt.Errorf("no matching roles")
+	return NewAccessRuleError("no matching roles")
 }

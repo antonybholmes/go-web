@@ -64,7 +64,7 @@ type (
 )
 
 const (
-	RoleSuper = "root::*.*"
+	RoleSuper = "root::*:*"
 	RoleAdmin = "admin::*:*"
 	//RoleUser  = "user:*"
 	RoleWebLogin = "web:login"
