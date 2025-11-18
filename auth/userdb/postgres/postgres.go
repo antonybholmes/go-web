@@ -666,6 +666,8 @@ func (pgdb *PostgresUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
 		&group.Name,
 		&group.Description)
 
+	//log.Debug().Msgf("find group %v err %v", group, err)
+
 	if err != nil {
 		return nil, userdb.NewAccountError(fmt.Sprintf("%s group not found", name))
 	}
