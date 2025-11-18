@@ -145,19 +145,19 @@ const (
 		VALUES ($1, $2, $3, $4, $5, $6) 
 		ON CONFLICT DO NOTHING`
 
-	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = $1"
+	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = $1::uuid"
 	InsertUserGroupSql  = "INSERT INTO user_groups (user_id, group_id) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
 	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES($1, $2) ON CONFLICT DO NOTHING"
 
-	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.id = $1`
-	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.id = $2`
-	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.id = $2`
+	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.id = $1::uuid`
+	SetPasswordSql      = `UPDATE users SET password = $1 WHERE users.id = $2::uuid`
+	SetUsernameSql      = `UPDATE users SET username = $1 WHERE users.id = $2::uuid`
 
-	SetInfoSql  = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.id = $4`
-	SetEmailSql = `UPDATE users SET email = $1 WHERE users.id = $2`
+	SetInfoSql  = `UPDATE users SET username = $1, first_name = $2, last_name = $3 WHERE users.id = $4::uuid`
+	SetEmailSql = `UPDATE users SET email = $1 WHERE users.id = $2::uuid`
 
-	DeleteUserSql = `DELETE FROM users WHERE id = $1`
+	DeleteUserSql = `DELETE FROM users WHERE id = $1::uuid`
 
 	CountUsersSql = `SELECT COUNT(ID) FROM users`
 
@@ -179,7 +179,7 @@ const (
 		groups.name,
 		groups.description 
 		FROM groups
-		WHERE groups.id = $1 OR groups.name = $1`
+		WHERE groups.id = $1::uuid`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -658,18 +658,18 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) 
 }
 
 // FindGroupByName finds group by public id or name
-func (pgdb *PostgresUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
+func (pgdb *PostgresUserDB) FindGroup(id string) (*auth.RBACGroup, error) {
 
 	var group auth.RBACGroup
 
-	err := pgdb.db.QueryRow(pgdb.ctx, GroupSql, name).Scan(&group.Id,
+	err := pgdb.db.QueryRow(pgdb.ctx, GroupSql, id).Scan(&group.Id,
 		&group.Name,
 		&group.Description)
 
 	//log.Debug().Msgf("find group %v err %v", group, err)
 
 	if err != nil {
-		return nil, userdb.NewAccountError(fmt.Sprintf("%s group not found", name))
+		return nil, userdb.NewAccountError(fmt.Sprintf("%s group not found: %v", id, err))
 	}
 
 	return &group, nil
@@ -864,7 +864,10 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 	// remove existing roles,
 	_, err := pgdb.db.Exec(pgdb.ctx, DeleteUserGroupsSql, user.Id)
 
+	log.Debug().Msgf("set user groups ssss %s %v", user.Username, groups)
+
 	if err != nil {
+		log.Error().Msgf("ssssssss %v", groups)
 		return err
 	}
 
@@ -872,6 +875,7 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 		err = pgdb.AddUserToGroup(user, group, adminMode)
 
 		if err != nil {
+			log.Error().Msgf("sdsdfsdfsdf %v %v", group, err)
 			return err
 		}
 	}

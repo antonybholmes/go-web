@@ -49,7 +49,7 @@ type ApiKeyLoginReq struct {
 // update some of their own info such as name.
 type UserBodyReq struct {
 	RedirectUrlReq
-	PublicId        string   `json:"publicId"`
+	Id              string   `json:"id"`
 	Username        string   `json:"username"`
 	Email           string   `json:"email"`
 	Password        string   `json:"password"`
