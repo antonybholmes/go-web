@@ -228,9 +228,8 @@ func (re *RuleEngine) getExactRoles(method string, tokenType string, path string
 
 	key := makeRuleKey(method, tokenType, path)
 
-	log.Debug().Msgf("Looking for exact rule with key=%s", key)
-
-	log.Debug().Msgf("Available exact rules: %v", strings.Join(sys.SortedMapKeys(re.rules), ", "))
+	//log.Debug().Msgf("Looking for exact rule with key=%s", key)
+	//log.Debug().Msgf("Available exact rules: %v", strings.Join(sys.SortedMapKeys(re.rules), ", "))
 
 	// Exact match rules, ideally all routes should be exact matches
 	rules, ok := re.rules[key]
