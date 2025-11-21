@@ -29,9 +29,9 @@ type (
 	}
 
 	UserDB interface {
-		NumUsers() (uint, error)
+		NumUsers() (int, error)
 
-		Users(records uint, offset uint) ([]*auth.AuthUser, error)
+		Users(records int, offset int) ([]*auth.AuthUser, error)
 
 		DeleteUser(publicId string) error
 

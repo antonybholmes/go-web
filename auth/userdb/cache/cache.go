@@ -39,7 +39,7 @@ func Instance() userdb.UserDB {
 // 	return instance.AutoConn(db)
 // }
 
-func NumUsers() (uint, error) {
+func NumUsers() (int, error) {
 	return instance.NumUsers()
 }
 
@@ -51,7 +51,7 @@ func Groups() ([]*auth.RBACGroup, error) {
 	return instance.Groups()
 }
 
-func Users(records uint, offset uint) ([]*auth.AuthUser, error) {
+func Users(records int, offset int) ([]*auth.AuthUser, error) {
 	return instance.Users(records, offset)
 }
 

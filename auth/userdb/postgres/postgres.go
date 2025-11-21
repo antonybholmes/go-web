@@ -202,9 +202,9 @@ func (pgdb *PostgresUserDB) Db() *pgxpool.Pool {
 	return pgdb.db
 }
 
-func (pgdb *PostgresUserDB) NumUsers() (uint, error) {
+func (pgdb *PostgresUserDB) NumUsers() (int, error) {
 
-	var n uint
+	var n int
 
 	err := pgdb.db.QueryRow(pgdb.ctx, CountUsersSql).Scan(&n)
 
@@ -215,7 +215,7 @@ func (pgdb *PostgresUserDB) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (pgdb *PostgresUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, error) {
+func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, error) {
 	log.Debug().Msgf("users %d %d %s", records, offset, UsersSql)
 
 	rows, err := pgdb.db.Query(pgdb.ctx, UsersSql, records, offset)
@@ -378,7 +378,7 @@ func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error)
 		return nil, fmt.Errorf("api key is not in valid format")
 	}
 
-	var id uint
+	var id int
 	var userId string
 	//var createdAt int64
 
@@ -450,7 +450,7 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
 	keys := make([]string, 0, 10)
 
-	var id uint
+	var id int
 	var key string
 
 	for rows.Next() {

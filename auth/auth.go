@@ -113,7 +113,7 @@ func TokenErrorResp(c *gin.Context) {
 }
 
 // func NewAuthUser(
-// 	id uint,
+// 	id int,
 // 	publicId string,
 // 	firstName string,
 // 	lastName string,
@@ -122,7 +122,7 @@ func TokenErrorResp(c *gin.Context) {
 // 	hashedPassword string,
 // 	isVerified bool,
 // 	//canSignIn bool,
-// 	updated uint64) *AuthUser {
+// 	updated int64) *AuthUser {
 // 	return &AuthUser{
 // 		Id:              id,
 // 		PublicId:        publicId,

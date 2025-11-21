@@ -15,7 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// type TokenType = uint
+// type TokenType = int
 
 // const (
 // 	VERIFY_EMAIL_TOKEN   TokenType = 1

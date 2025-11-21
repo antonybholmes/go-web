@@ -212,9 +212,9 @@ func init() {
 // 	}
 // }
 
-func (userdb *UserDb) NumUsers() (uint, error) {
+func (userdb *UserDb) NumUsers() (int, error) {
 
-	var n uint
+	var n int
 
 	err := userdb.db.QueryRow("SELECT COUNT(ID) FROM users").Scan(&n)
 
@@ -225,7 +225,7 @@ func (userdb *UserDb) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (userdb *UserDb) Users(offset uint, records uint) ([]*AuthUserAdminView, error) {
+func (userdb *UserDb) Users(offset int, records int) ([]*AuthUserAdminView, error) {
 
 	rows, err := userdb.usersStmt.Query(offset, records)
 
@@ -443,7 +443,7 @@ func (userdb *UserDb) updateUserRoles(authUser *AuthUserAdminView) error {
 	return nil
 }
 
-func (userdb *UserDb) RoleList(userId uint) ([]string, error) {
+func (userdb *UserDb) RoleList(userId int) ([]string, error) {
 
 	roles, err := userdb.UserRoles(userId)
 
@@ -539,7 +539,7 @@ func (userdb *UserDb) Role(name string) (*Role, error) {
 	return &role, err
 }
 
-func (userdb *UserDb) UserRoles(userId uint) ([]*Role, error) {
+func (userdb *UserDb) UserRoles(userId int) ([]*Role, error) {
 
 	rows, err := userdb.userRolesStmt.Query(userId)
 

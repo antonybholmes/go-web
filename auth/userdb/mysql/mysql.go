@@ -207,9 +207,9 @@ func (mydb *MySQLUserDB) Db() *sql.DB {
 // 	}
 // }
 
-func (mydb *MySQLUserDB) NumUsers() (uint, error) {
+func (mydb *MySQLUserDB) NumUsers() (int, error) {
 
-	var n uint
+	var n int
 
 	err := mydb.db.QueryRow(CountUsersSql).Scan(&n)
 
@@ -220,7 +220,7 @@ func (mydb *MySQLUserDB) NumUsers() (uint, error) {
 	return n, nil
 }
 
-func (mydb *MySQLUserDB) Users(records uint, offset uint) ([]*auth.AuthUser, error) {
+func (mydb *MySQLUserDB) Users(records int, offset int) ([]*auth.AuthUser, error) {
 	//log.Debug().Msgf("users %d %d", records, offset)
 
 	rows, err := mydb.db.Query(UsersSql, records, offset)
@@ -444,7 +444,7 @@ func (mydb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
 	keys := make([]string, 0, 10)
 
-	var id uint
+	var id int
 	var key string
 
 	for rows.Next() {
