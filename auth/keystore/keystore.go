@@ -34,7 +34,9 @@ func (c *PublicKeyCache) SetTTL(d time.Duration) {
 	c.mu.Unlock()
 }
 
-func (c *PublicKeyCache) Get(userID string) ([]ed25519.PublicKey, bool) {
+// GetUserKeys retrieves the public keys for a user from the cache.
+// Returns the keys and true if found and not expired, else nil and false.
+func (c *PublicKeyCache) GetUserKeys(userID string) ([]ed25519.PublicKey, bool) {
 	c.mu.RLock()
 	item, found := c.items[userID]
 	c.mu.RUnlock()
@@ -46,7 +48,31 @@ func (c *PublicKeyCache) Get(userID string) ([]ed25519.PublicKey, bool) {
 	return item.Keys, true
 }
 
-func (c *PublicKeyCache) Set(userID string, keys []ed25519.PublicKey) {
+func (c *PublicKeyCache) GetUserPublicKeysCached(userID string) ([]ed25519.PublicKey, error) {
+	if keys, ok := c.GetUserKeys(userID); ok {
+		return keys, nil
+	}
+
+	// fallback to DB
+	user, err := userdb.FindUserById(userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	keys, err := userdb.UserPublicKeys(user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.SetUserKeys(userID, keys)
+
+	return keys, nil
+}
+
+// SetUserKeys sets the public keys for a user in the cache.
+func (c *PublicKeyCache) SetUserKeys(userID string, keys []ed25519.PublicKey) {
 	c.mu.Lock()
 	c.items[userID] = PublicKeyCacheItem{
 		Keys:      keys,
@@ -69,6 +95,14 @@ func (c *PublicKeyCache) Cleanup() {
 
 // StartCleanupTicker starts a goroutine that periodically calls Cleanup at the specified interval
 // pkcache.Cache.StartCleanupTicker(5*time.Minute, stop)
+// to stop, close the stop channel
+// e.g., close(stop)
+// Example usage:
+//
+//	stop := make(chan struct{})
+//	pkcache.StartCleanupTicker(5*time.Minute, stop)
+//	// To stop the ticker later:
+//	// close(stop)
 func (c *PublicKeyCache) StartCleanupTicker(interval time.Duration, stopCh <-chan struct{}) {
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -91,39 +125,20 @@ func Instance() *PublicKeyCache {
 	return instance
 }
 
-func GetUserPublicKeysCached(userID string) ([]ed25519.PublicKey, error) {
-	if keys, ok := instance.Get(userID); ok {
-		return keys, nil
-	}
-
-	// fallback to DB
-	user, err := userdb.FindUserById(userID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	keys, err := userdb.UserPublicKeys(user)
-
-	if err != nil {
-		return nil, err
-	}
-
-	instance.Set(userID, keys)
-
-	return keys, nil
-}
-
 func SetCacheTTL(d time.Duration) {
 	instance.SetTTL(d)
 }
 
-func Get(userID string) ([]ed25519.PublicKey, bool) {
-	return instance.Get(userID)
+func GetUserPublicKeysCached(userID string) ([]ed25519.PublicKey, error) {
+	return instance.GetUserPublicKeysCached(userID)
 }
 
-func Set(userID string, keys []ed25519.PublicKey) {
-	instance.Set(userID, keys)
+// func GetUserKeys(userID string) ([]ed25519.PublicKey, bool) {
+// 	return instance.GetUserKeys(userID)
+// }
+
+func SetUserKeys(userID string, keys []ed25519.PublicKey) {
+	instance.SetUserKeys(userID, keys)
 }
 
 func StartCleanupTicker(interval time.Duration, stopCh <-chan struct{}) {

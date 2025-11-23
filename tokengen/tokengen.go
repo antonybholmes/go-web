@@ -9,8 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var tc *auth.TokenCreator
-var once sync.Once
+var (
+	tc   *auth.TokenCreator
+	once sync.Once
+)
 
 func Init(secret *rsa.PrivateKey) {
 	once.Do(func() {

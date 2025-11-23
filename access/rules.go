@@ -51,6 +51,12 @@ type (
 	AccessRuleError struct {
 		s string
 	}
+
+	RuleEngine struct {
+		//rules map[string]map[string]map[string]map[string]*sys.StringSet
+		rules         map[string]*sys.Set[string]
+		wildcardRules map[string]map[string]*sys.Set[string]
+	}
 )
 
 func NewAccessRuleError(s string) *AccessRuleError {
@@ -67,12 +73,6 @@ func makeRuleKey(method, tokenType, path string) string {
 
 func makeWildcardRuleKey(method, tokenType string) string {
 	return strings.ToLower(strings.Join([]string{method, tokenType}, "|"))
-}
-
-type RuleEngine struct {
-	//rules map[string]map[string]map[string]map[string]*sys.StringSet
-	rules         map[string]*sys.Set[string]
-	wildcardRules map[string]map[string]*sys.Set[string]
 }
 
 func NewRuleEngine() *RuleEngine {

@@ -24,59 +24,59 @@ type MySQLUserDB struct {
 const (
 
 	// mysql version
-	SelectUsersSql string = `SELECT
-	id,
-	public_id,
-	first_name,
-	last_name,
-	username,
-	email,
-	is_locked,
-	password,
-	TO_SECONDS(email_verified_at) as email_verified_at,
-	TO_SECONDS(created_at) as created_at,
-	TO_SECONDS(updated_at) as updated_at
-	FROM users
+	SelectUsersSql = `SELECT
+		id,
+		public_id,
+		first_name,
+		last_name,
+		username,
+		email,
+		is_locked,
+		password,
+		TO_SECONDS(email_verified_at) as email_verified_at,
+		TO_SECONDS(created_at) as created_at,
+		TO_SECONDS(updated_at) as updated_at
+		FROM users
 	`
 
-	UsersSql string = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT ? OFFSET ?`
+	UsersSql = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT ? OFFSET ?`
 
-	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = ?`
+	FindUserByIdSql = SelectUsersSql + ` WHERE users.id = ?`
 
-	FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = ?`
+	FindUserByPublicIdSql = SelectUsersSql + ` WHERE users.public_id = ?`
 
-	FindUserByEmailSql string = SelectUsersSql + ` WHERE users.email = ?`
+	FindUserByEmailSql = SelectUsersSql + ` WHERE users.email = ?`
 
-	FindUserByUsernameSql string = SelectUsersSql + ` WHERE users.username = ?`
+	FindUserByUsernameSql = SelectUsersSql + ` WHERE users.username = ?`
 
-	FindUserByApiKeySql string = `SELECT 
-	id, user_id, api_key
-	FROM api_keys 
-	WHERE api_key = ?`
+	FindUserByApiKeySql = `SELECT 
+		id, user_id, api_key
+		FROM api_keys 
+		WHERE api_key = ?`
 
-	UsersApiKeysSql string = `SELECT 
-	id, api_key
-	FROM api_keys 
-	WHERE user_id = ?
-	ORDER BY api_key`
+	UsersApiKeysSql = `SELECT 
+		id, api_key
+		FROM api_keys 
+		WHERE user_id = ?
+		ORDER BY api_key`
 
-	RolesSql string = `SELECT 
-	id, 
-	public_id, 
-	name, 
-	description
-	FROM roles 
-	ORDER BY roles.name`
+	RolesSql = `SELECT 
+		id, 
+		public_id, 
+		name, 
+		description
+		FROM roles 
+		ORDER BY roles.name`
 
-	PermissionsSql string = `SELECT DISTINCT 
-	permissions.id, 
-	permissions.public_id, 
-	permissions.name, 
-	permissions.description
-	FROM users_roles, roles_permissions, permissions 
-	WHERE users_roles.user_id = ? AND roles_permissions.role_id = users_roles.role_id AND 
-	permissions.id = roles_permissions.permission_id 
-	ORDER BY permissions.name`
+	PermissionsSql = `SELECT DISTINCT 
+		permissions.id, 
+		permissions.public_id, 
+		permissions.name, 
+		permissions.description
+		FROM users_roles, roles_permissions, permissions 
+		WHERE users_roles.user_id = ? AND roles_permissions.role_id = users_roles.role_id AND 
+		permissions.id = roles_permissions.permission_id 
+		ORDER BY permissions.name`
 
 	// UserRolesSql string = `SELECT DISTINCT
 	// roles.id,
@@ -87,7 +87,7 @@ const (
 	// WHERE users_roles.user_id = ? AND roles.id = users_roles.role_id
 	// ORDER BY roles.name`
 
-	UserRolesSql string = `SELECT DISTINCT 
+	UserRolesSql = `SELECT DISTINCT 
 		r.name as role,
 		p.name AS permission
 		FROM users u
@@ -100,8 +100,8 @@ const (
 		ORDER BY r.name, p.name`
 
 	InsertUserSql = `INSERT IGNORE INTO users 
-	(public_id, username, email, password, first_name, last_name, email_verified_at) 
-	VALUES (?, ?, ?, ?, ?, ?, ?)`
+		(public_id, username, email, password, first_name, last_name, email_verified_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 	DeleteRolesSql    = "DELETE FROM users_roles WHERE user_id = ?"
 	InsertUserRoleSql = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
@@ -121,11 +121,11 @@ const (
 	CountUsersSql = `SELECT COUNT(ID) FROM users`
 
 	RoleSql = `SELECT 
-	roles.id, 
-	roles.public_id, 
-	roles.name,
-	roles.description 
-	FROM roles`
+		roles.id, 
+		roles.public_id, 
+		roles.name,
+		roles.description 
+		FROM roles`
 
 	GroupsSql = `SELECT 
 		groups.id, 
@@ -462,7 +462,6 @@ func (mydb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 }
 
 func (mydb *MySQLUserDB) UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
-
 	return nil, fmt.Errorf("not implemented")
 }
 

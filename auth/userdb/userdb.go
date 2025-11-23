@@ -57,7 +57,10 @@ type (
 		//AddPublicKeysToUser(authUser *auth.AuthUser, keys []ed25519.PublicKey) error
 
 		UserApiKeys(user *auth.AuthUser) ([]string, error)
+
+		// get the public keys for a user
 		UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error)
+
 		UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
 
 		//PermissionList(user *auth.AuthUser) ([]string, error)
@@ -124,11 +127,11 @@ const (
 )
 
 var (
-	PASSWORD_REGEX = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
-	EMAIL_REGEX    = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
-	USERNAME_REGEX = regexp.MustCompile(`^[\w\-\.@]+$`)
+	PasswordRegex = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
+	EmailRegex    = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
+	UsernameRegex = regexp.MustCompile(`^[\w\-\.@]+$`)
 	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
-	NAME_REGEX = regexp.MustCompile(`^[\w\-\_ ]*$`)
+	NameRegex = regexp.MustCompile(`^[\w\-\_ ]*$`)
 )
 
 // Make sure password meets requirements
@@ -143,7 +146,7 @@ func CheckPassword(password string) error {
 		return NewPasswordError(fmt.Sprintf("password must be at least %d characters", MinPasswordLength))
 	}
 
-	if !PASSWORD_REGEX.MatchString(password) {
+	if !PasswordRegex.MatchString(password) {
 		return NewPasswordError("invalid password")
 	}
 
@@ -156,7 +159,7 @@ func CheckUsername(username string) error {
 		return NewAccountError(fmt.Sprintf("username must be at least %d characters", MinNameLength))
 	}
 
-	if !USERNAME_REGEX.MatchString(username) {
+	if !UsernameRegex.MatchString(username) {
 		return NewAccountError("invalid username")
 	}
 
@@ -168,7 +171,7 @@ func CheckName(name string) error {
 	//	return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
 	//}
 
-	if !NAME_REGEX.MatchString(name) {
+	if !NameRegex.MatchString(name) {
 		return NewAccountError("invalid name")
 	}
 

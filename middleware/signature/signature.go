@@ -1,4 +1,4 @@
-package key
+package signature
 
 import (
 	"bytes"
@@ -13,22 +13,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	HeaderUserID    = "X-User-Id"
+	HeaderTimestamp = "X-Timestamp"
+	HeaderSignature = "X-Signature"
+
+	MaxSkewDefault = 5 * time.Minute
+)
+
+// VerifyEd25519SignatureMiddleware verifies requests signed with Ed25519 signatures.
+// It expects the following headers:
+// - X-User-Id: the user ID whose public key will be used to verify the signature
+// - X-Timestamp: the timestamp of the request in RFC3339Nano format
+// - X-Signature: the base64-encoded Ed25519 signature of the request
+//
+// The signature is computed over a canonical message consisting of:
+// METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + BODY
+//
+// The middleware checks that the timestamp is within maxSkew of the current time
+// to prevent replay attacks. It then retrieves the user's public keys from the keystore
+// and verifies the signature against each key. If verification succeeds, the request
+// is allowed to proceed; otherwise, a 401 Unauthorized response is returned.
+// MaxSkew allows for clock differences between client and server and should be set
+// to a reasonable value (e.g., 5 minutes).
 func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		userID := c.GetHeader("X-User-Id")
+		userID := c.GetHeader(HeaderUserID)
 		if userID == "" {
 			web.UnauthorizedResp(c, "missing X-User-Id")
 			return
 		}
 
-		sigB64 := c.GetHeader("X-Signature")
+		sigB64 := c.GetHeader(HeaderSignature)
 		if sigB64 == "" {
 			web.UnauthorizedResp(c, "missing X-Signature")
 			return
 		}
 
-		ts := c.GetHeader("X-Timestamp")
+		ts := c.GetHeader(HeaderTimestamp)
 		if ts == "" {
 			web.UnauthorizedResp(c, "missing X-Timestamp")
 			return
@@ -69,8 +92,9 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		msg := buildSignedMessage(c.Request.Method, c.Request.URL.Path, ts, bodyBytes)
 
 		// Get all valid keys for user
-		keys, ok := keystore.Get(userID)
-		if !ok {
+		keys, err := keystore.GetUserPublicKeysCached(userID)
+
+		if err != nil {
 			web.UnauthorizedResp(c, "user not found")
 			return
 		}
@@ -85,7 +109,6 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 
 		if !verified {
 			web.UnauthorizedResp(c, "invalid signature")
-
 			return
 		}
 
@@ -95,7 +118,7 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 }
 
 func checkTimestamp(ts time.Time, maxSkew time.Duration) error {
-	now := time.Now() // Local or UTC — does not matter for comparison.
+	now := time.Now().UTC() // Explicitly use UTC for consistent comparison
 
 	// If client timestamp is too far in the future:
 	if ts.After(now.Add(maxSkew)) {

@@ -20,7 +20,10 @@ import (
 // 	}
 // )
 
-const CsrfCookieName string = "csrf-token"
+const (
+	CsrfCookieName         string = "csrf-token"
+	DurationCsrfTokenValid        = auth.Ttl10Mins
+)
 
 var (
 	ErrCSRFTokenMissing = "token missing"
@@ -126,6 +129,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 func GenerateCSRFToken() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
+
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +158,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			timestamp, err := time.Parse(time.RFC3339, timestampStr)
 
 			if err == nil {
-				if time.Since(timestamp) < auth.Ttl10Mins {
+				if time.Since(timestamp) < DurationCsrfTokenValid {
 					needNewToken = false
 				}
 			}
@@ -179,11 +183,11 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			// eventually expire.
 			Value:    fmt.Sprintf("%s|%s", csrfToken, now.Format(time.RFC3339)),
 			Path:     "/",
-			MaxAge:   int(auth.Ttl10Mins.Seconds()),
+			MaxAge:   int(DurationCsrfTokenValid.Seconds()),
 			Secure:   true,
 			HttpOnly: false, // must be readable from JS!
 			SameSite: http.SameSiteNoneMode,
-			//Expires:  now.Add(auth.Ttl10Mins),
+			//Expires:  now.Add(DurationCsrfTokenValid),
 		})
 	}
 

@@ -13,12 +13,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	GlobalOtpMinuteRateKey = "global:otp:minute"
-	GlobalOtpHourRateKey   = "global:otp:hour"
-	GlobalOtpDayRateKey    = "global:otp:day"
-)
-
 type (
 	RateLimitError struct {
 		Message string
@@ -43,6 +37,12 @@ type (
 		globalRateLimit GlobalRateLimit // max attempts allowed across all email addresses
 
 	}
+)
+
+const (
+	GlobalOtpMinuteRateKey = "global:otp:minute"
+	GlobalOtpHourRateKey   = "global:otp:hour"
+	GlobalOtpDayRateKey    = "global:otp:day"
 )
 
 // initialize once. Ideally would be a constant but Go doesn't

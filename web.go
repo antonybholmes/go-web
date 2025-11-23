@@ -27,13 +27,13 @@ type (
 const (
 	//SESSION_PUBLICID   string = "publicId"
 	//SESSION_ROLES      string = "roles"
-	SessionUser      string = "user"
-	SessionCsrfToken string = "csrfToken"
-	SessionCreatedAt string = "createdAt"
-	SessionExpiresAt string = "expiresAt"
+	SessionUser      = "user"
+	SessionCsrfToken = "csrfToken"
+	SessionCreatedAt = "createdAt"
+	SessionExpiresAt = "expiresAt"
 
 	//CsrfMaxAgeMins   time.Duration = time.Minute * 10
-	HeaderXCsrfToken string = "X-CSRF-Token"
+	HeaderXCsrfToken = "X-CSRF-Token"
 )
 
 var (

@@ -11,6 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type SessionInfo struct {
+	AuthUser  *auth.AuthUser `json:"user"`
+	IsValid   bool           `json:"valid"`
+	CreatedAt string         `json:"createdAt"`
+	ExpiresAt string         `json:"expiresAt"`
+	CsrfToken string         `json:"csrfToken"`
+}
+
 var (
 	SessionOptsZero = sessions.Options{
 		Path:     "/",
@@ -28,14 +36,6 @@ var (
 		SameSite: http.SameSiteNoneMode,
 	}
 )
-
-type SessionInfo struct {
-	AuthUser  *auth.AuthUser `json:"user"`
-	IsValid   bool           `json:"valid"`
-	CreatedAt string         `json:"createdAt"`
-	ExpiresAt string         `json:"expiresAt"`
-	CsrfToken string         `json:"csrfToken"`
-}
 
 //var SESSION_OPT_24H *sessions.Options
 //var SESSION_OPT_30_DAYS *sessions.Options

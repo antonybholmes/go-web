@@ -15,18 +15,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// type TokenType = int
-
-// const (
-// 	VERIFY_EMAIL_TOKEN   TokenType = 1
-// 	PASSWORDLESS_TOKEN   TokenType = 2
-// 	RESET_PASSWORD_TOKEN TokenType = 3
-// 	CHANGE_EMAIL_TOKEN   TokenType = 4
-// 	REFRESH_TOKEN        TokenType = 5
-// 	ACCESS_TOKEN         TokenType = 6
-// 	OTP_TOKEN            TokenType = 7
-// )
-
 type (
 	TokenType = string
 

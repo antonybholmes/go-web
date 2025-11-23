@@ -26,7 +26,7 @@ type PostgresUserDB struct {
 const (
 
 	// postgres version
-	SelectUsersSql string = `SELECT 
+	SelectUsersSql = `SELECT 
 		id,
 		first_name, 
 		last_name, 
@@ -40,41 +40,41 @@ const (
 		FROM users
 		`
 
-	UsersSql string = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT $1 OFFSET $2`
+	UsersSql = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT $1 OFFSET $2`
 
-	FindUserByIdSql string = SelectUsersSql + ` WHERE users.id = $1::uuid`
+	FindUserByIdSql = SelectUsersSql + ` WHERE users.id = $1::uuid`
 
 	//FindUserByPublicIdSql string = SelectUsersSql + ` WHERE users.public_id = $1`
 
-	FindUserByEmailSql string = SelectUsersSql + ` WHERE users.email = $1`
+	FindUserByEmailSql = SelectUsersSql + ` WHERE users.email = $1`
 
-	FindUserByUsernameSql string = SelectUsersSql + ` WHERE users.username = $1`
+	FindUserByUsernameSql = SelectUsersSql + ` WHERE users.username = $1`
 
-	FindUserByApiKeySql string = `SELECT 
+	FindUserByApiKeySql = `SELECT 
 		id, user_id, api_key
 		FROM api_keys 
 		WHERE api_key = $1`
 
-	UserApiKeysSql string = `SELECT 
+	UserApiKeysSql = `SELECT 
 		id, api_key
 		FROM api_keys 
 		WHERE user_id = $1::uuid
 		ORDER BY api_key`
 
-	UserPublicKeysSql string = `SELECT 
+	UserPublicKeysSql = `SELECT 
 		id, public_key
 		FROM public_keys 
 		WHERE user_id = $1::uuid
 		ORDER BY public_key`
 
-	RolesSql string = `SELECT 
+	RolesSql = `SELECT 
 		id, 
 		name, 
 		description
 		FROM roles 
 		ORDER BY roles.name`
 
-	PermissionsSql string = `SELECT DISTINCT 
+	PermissionsSql = `SELECT DISTINCT 
 		permissions.id, 
 		permissions.name, 
 		permissions.description
@@ -83,7 +83,7 @@ const (
 		permissions.id = roles_permissions.permission_id 
 		ORDER BY permissions.name`
 
-	// UserRolesSql string = `SELECT DISTINCT
+	// UserRolesSql   = `SELECT DISTINCT
 	// roles.id,
 	// roles.public_id,
 	// roles.name,
@@ -92,7 +92,7 @@ const (
 	// WHERE users_roles.user_id = $1 AND roles.id = users_roles.role_id
 	// ORDER BY roles.name`
 
-	// UserRolesSql string = `SELECT DISTINCT
+	// UserRolesSql   = `SELECT DISTINCT
 	// 	r.name as role,
 	// 	p.name AS permission
 	// 	FROM users u
@@ -104,7 +104,7 @@ const (
 	// 	WHERE u.id = $1
 	// 	ORDER BY r.name, p.name`
 
-	UserGroupsSql string = `SELECT DISTINCT
+	UserGroupsSql = `SELECT DISTINCT
 		g.id as group_id,
 		g.name as group,
 		r.id as role_id,
@@ -127,7 +127,7 @@ const (
 		WHERE u.id = $1::uuid
 		ORDER BY g.name, r.name, res.name, a.name`
 
-	UserRolesSql string = `SELECT DISTINCT
+	UserRolesSql = `SELECT DISTINCT
 		r.id as role_id,
 		r.name as role,
 		p.id as permission_id,
