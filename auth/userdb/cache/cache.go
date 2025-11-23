@@ -1,8 +1,8 @@
 package cache
 
 import (
+	"crypto/ed25519"
 	"net/mail"
-	"sync"
 
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/userdb"
@@ -10,22 +10,7 @@ import (
 )
 
 // pretend its a global const
-var instance userdb.UserDB
-var once sync.Once
-
-func InitCache() {
-
-	//instance, err = auth.NewUserDB(file)
-
-	// once.Do(func() {
-	// 	instance = userdb.NewUserDBMySQL()
-	// })
-
-	once.Do(func() {
-		instance = postgres.NewPostgresUserDB()
-	})
-
-}
+var instance userdb.UserDB = postgres.NewPostgresUserDB()
 
 func Instance() userdb.UserDB {
 	return instance
@@ -85,6 +70,10 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 
 func UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 	return instance.UserGroups(user)
+}
+
+func UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
+	return instance.UserPublicKeys(user)
 }
 
 // // returns a string list of a user's roles

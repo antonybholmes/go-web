@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 	"net/mail"
 	"os"
@@ -54,11 +55,17 @@ const (
 		FROM api_keys 
 		WHERE api_key = $1`
 
-	UsersApiKeysSql string = `SELECT 
+	UserApiKeysSql string = `SELECT 
 		id, api_key
 		FROM api_keys 
 		WHERE user_id = $1::uuid
 		ORDER BY api_key`
+
+	UserPublicKeysSql string = `SELECT 
+		id, public_key
+		FROM public_keys 
+		WHERE user_id = $1::uuid
+		ORDER BY public_key`
 
 	RolesSql string = `SELECT 
 		id, 
@@ -261,7 +268,7 @@ func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, er
 
 		//log.Debug().Msgf("this user %v", authUser)
 
-		err = pgdb.AddGroupsToUser(&authUser)
+		err = pgdb.addGroupsToUser(&authUser)
 
 		if err != nil {
 			return nil, err
@@ -356,7 +363,7 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	err = pgdb.AddGroupsToUser(&authUser)
+	err = pgdb.addGroupsToUser(&authUser)
 
 	if err != nil {
 		log.Error().Msgf("error adding roles to user %s %v", authUser.Id, err)
@@ -392,7 +399,7 @@ func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error)
 	return pgdb.FindUserById(userId)
 }
 
-func (pgdb *PostgresUserDB) AddGroupsToUser(authUser *auth.AuthUser) error {
+func (pgdb *PostgresUserDB) addGroupsToUser(authUser *auth.AuthUser) error {
 
 	groups, err := pgdb.UserGroups(authUser)
 
@@ -440,7 +447,7 @@ func (pgdb *PostgresUserDB) AddApiKeysToUser(authUser *auth.AuthUser) error {
 
 func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 
-	rows, err := pgdb.db.Query(pgdb.ctx, UsersApiKeysSql, user.Id)
+	rows, err := pgdb.db.Query(pgdb.ctx, UserApiKeysSql, user.Id)
 
 	if err != nil {
 		return nil, fmt.Errorf("user roles not found")
@@ -463,6 +470,32 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 		keys = append(keys, key)
 	}
 
+	return keys, nil
+}
+
+func (pgdb *PostgresUserDB) UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
+	rows, err := pgdb.db.Query(pgdb.ctx, UserApiKeysSql, user.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("user public keys not found")
+	}
+
+	defer rows.Close()
+
+	keys := make([]ed25519.PublicKey, 0, 10)
+
+	var id int
+	var key string
+
+	for rows.Next() {
+		err := rows.Scan(&id, &key)
+
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, ed25519.PublicKey(key))
+	}
 	return keys, nil
 }
 

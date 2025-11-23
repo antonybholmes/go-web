@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"crypto/ed25519"
 	"database/sql"
 	"fmt"
 	"net/mail"
@@ -458,6 +459,11 @@ func (mydb *MySQLUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func (mydb *MySQLUserDB) UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
+
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {

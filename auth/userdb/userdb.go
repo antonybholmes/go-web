@@ -1,6 +1,7 @@
 package userdb
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"net/mail"
 	"regexp"
@@ -47,13 +48,16 @@ type (
 
 		FindUserByApiKey(key string) (*auth.AuthUser, error)
 
-		AddGroupsToUser(authUser *auth.AuthUser) error
+		//AddGroupsToUser(authUser *auth.AuthUser) error
 
 		//UserRoleList(user *auth.AuthUser) ([]string, error)
 
-		AddApiKeysToUser(authUser *auth.AuthUser) error
+		//AddApiKeysToUser(authUser *auth.AuthUser) error
+
+		//AddPublicKeysToUser(authUser *auth.AuthUser, keys []ed25519.PublicKey) error
 
 		UserApiKeys(user *auth.AuthUser) ([]string, error)
+		UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error)
 		UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
 
 		//PermissionList(user *auth.AuthUser) ([]string, error)
