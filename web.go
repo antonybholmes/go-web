@@ -1,7 +1,6 @@
 package web
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -38,8 +37,8 @@ const (
 )
 
 var (
-	ErrInvalidEmail = errors.New("invalid email address")
-	ErrInvalidBody  = errors.New("invalid body")
+	ErrInvalidEmail = "invalid email address"
+	ErrInvalidBody  = "invalid body"
 )
 
 // type JwtInfo struct {
@@ -72,51 +71,51 @@ func InvalidEmailReq(c *gin.Context) {
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
-	ForbiddenResp(c, fmt.Errorf("email address not verified"))
+	ForbiddenResp(c, "email address not verified")
 }
 
 func UserDoesNotExistResp(c *gin.Context) {
-	UnauthorizedResp(c, fmt.Errorf("user does not exist"))
+	UnauthorizedResp(c, "user does not exist")
 }
 
 func UserNotAllowedToSignInErrorResp(c *gin.Context) {
-	ForbiddenResp(c, fmt.Errorf("user not allowed to sign in"))
+	ForbiddenResp(c, "user not allowed to sign in")
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	UnauthorizedResp(c, fmt.Errorf("invalid username"))
+	UnauthorizedResp(c, "invalid username")
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
+	UnauthorizedResp(c, "passwords do not match")
 }
 
-func ForbiddenResp(c *gin.Context, err error) {
+func ForbiddenResp(c *gin.Context, err string) {
 	ErrorResp(c, http.StatusForbidden, err)
 }
 
-func UnauthorizedResp(c *gin.Context, err error) {
+func UnauthorizedResp(c *gin.Context, err string) {
 	ErrorResp(c, http.StatusUnauthorized, err)
 }
 
-func InternalErrorResp(c *gin.Context, err error) {
+func InternalErrorResp(c *gin.Context, err string) {
 	ErrorResp(c, http.StatusInternalServerError, err)
 }
 
-func BadReqResp(c *gin.Context, err error) {
+func BadReqResp(c *gin.Context, err string) {
 	ErrorResp(c, http.StatusBadRequest, err)
 }
 
-func TooManyRequestsResp(c *gin.Context, err error) {
+func TooManyRequestsResp(c *gin.Context, err string) {
 	ErrorResp(c, http.StatusTooManyRequests, err)
 }
 
-func ErrorResp(c *gin.Context, status int, err error) {
+func ErrorResp(c *gin.Context, status int, err string) {
 	//c.Error(err).SetMeta(status)
 
 	c.Error(HTTPError{
 		Code:    status,
-		Message: err.Error(),
+		Message: err,
 	})
 	c.Abort()
 }

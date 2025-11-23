@@ -14,26 +14,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type (
-	CSRFError struct {
-		s string
-	}
-)
+// type (
+// 	CSRFError struct {
+// 		s string
+// 	}
+// )
 
 const CsrfCookieName string = "csrf-token"
 
 var (
-	ErrCSRFTokenMissing = NewCSRFError("token missing")
-	ErrCSRFTokenInvalid = NewCSRFError("token invalid")
+	ErrCSRFTokenMissing = "token missing"
+	ErrCSRFTokenInvalid = "token invalid"
 )
 
-func (e *CSRFError) Error() string {
-	return fmt.Sprintf("csrf error: %s", e.s)
-}
+// func (e *CSRFError) Error() string {
+// 	return fmt.Sprintf("csrf error: %s", e.s)
+// }
 
-func NewCSRFError(s string) error {
-	return &CSRFError{s}
-}
+// func NewCSRFError(s string) error {
+// 	return &CSRFError{s}
+// }
 
 func CreateCSRFTokenCookie(c *gin.Context) (string, error) {
 	token, err := GenerateCSRFToken()
@@ -165,7 +165,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		csrfToken, err := GenerateCSRFToken()
 
 		if err != nil {
-			web.InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %w", err))
+			web.InternalErrorResp(c, fmt.Sprintf("error generating CSRF token: %v", err))
 			return "", err
 		}
 

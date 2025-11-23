@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"crypto/rsa"
-	"errors"
 
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
@@ -11,9 +10,9 @@ import (
 )
 
 var (
-	ErrInvalidAuth0Token    = errors.New("invalid auth0 token")
-	ErrInvalidClerkToken    = errors.New("invalid clerk token")
-	ErrInvalidSupabaseToken = errors.New("invalid supabase token")
+	ErrInvalidAuth0Token    = "invalid auth0 token"
+	ErrInvalidClerkToken    = "invalid clerk token"
+	ErrInvalidSupabaseToken = "invalid supabase token"
 )
 
 func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {

@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -46,19 +45,19 @@ const (
 )
 
 var (
-	ErrUserDoesNotExist            = errors.New("user does not exist")
-	ErrPasswordsDoNotMatch         = errors.New("passwords do not match")
-	ErrPasswordDoesNotMeetCriteria = errors.New("password does not meet criteria")
-	ErrCouldNotUpdatePassword      = errors.New("could not update password")
-	ErrUserIsNotAdmin              = errors.New("user is not an admin")
-	ErrUserIsNotSuper              = errors.New("user is not a super user")
-	ErrUserCannotLogin             = errors.New("user is not allowed to login")
-	ErrInvalidSession              = errors.New("invalid session")
-	ErrInvalidRoles                = errors.New("invalid roles")
-	ErrWrongTokenType              = errors.New("wrong token type")
-	ErrEmailNotVerified            = errors.New("email not verified")
-	ErrInvalidUsername             = errors.New("invalid username")
-	ErrCreatingSession             = errors.New("error creating session")
+	ErrUserDoesNotExist            = "user does not exist"
+	ErrPasswordsDoNotMatch         = "passwords do not match"
+	ErrPasswordDoesNotMeetCriteria = "password does not meet criteria"
+	ErrCouldNotUpdatePassword      = "could not update password"
+	ErrUserIsNotAdmin              = "user is not an admin"
+	ErrUserIsNotSuper              = "user is not a super user"
+	ErrUserCannotLogin             = "user is not allowed to login"
+	ErrInvalidSession              = "invalid session"
+	ErrInvalidRoles                = "invalid roles"
+	ErrWrongTokenType              = "wrong token type"
+	ErrEmailNotVerified            = "email not verified"
+	ErrInvalidUsername             = "invalid username"
+	ErrCreatingSession             = "error creating session"
 )
 
 // The admin view adds roles to each user as it is assumed this
@@ -109,7 +108,7 @@ func WrongTokenTypeReq(c *gin.Context) {
 }
 
 func TokenErrorResp(c *gin.Context) {
-	web.ForbiddenResp(c, fmt.Errorf("token not generated"))
+	web.ForbiddenResp(c, "token not generated")
 }
 
 // func NewAuthUser(

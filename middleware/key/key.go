@@ -13,57 +13,52 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type KeyMiddleware struct {
-	MaxClockSkew    time.Duration // MaxClockSkew is the maximum allowed difference between client and server time, e.g. 5 * time.Minute
-	VerifySignature gin.HandlerFunc
-}
-
-func VerifyEd25519Signature(maxSkew time.Duration) gin.HandlerFunc {
+func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		userID := c.GetHeader("X-User-Id")
 		if userID == "" {
-			web.UnauthorizedResp(c, fmt.Errorf("missing X-User-Id"))
+			web.UnauthorizedResp(c, "missing X-User-Id")
 			return
 		}
 
 		sigB64 := c.GetHeader("X-Signature")
 		if sigB64 == "" {
-			web.UnauthorizedResp(c, fmt.Errorf("missing X-Signature"))
+			web.UnauthorizedResp(c, "missing X-Signature")
 			return
 		}
 
 		ts := c.GetHeader("X-Timestamp")
 		if ts == "" {
-			web.UnauthorizedResp(c, fmt.Errorf("missing X-Timestamp"))
+			web.UnauthorizedResp(c, "missing X-Timestamp")
 			return
 		}
 
 		// Parse timestamp with RFC3339Nano format for high precision
 		timestamp, err := time.Parse(time.RFC3339Nano, ts)
 		if err != nil {
-			web.UnauthorizedResp(c, fmt.Errorf("invalid X-Timestamp"))
+			web.UnauthorizedResp(c, "invalid X-Timestamp")
 			return
 		}
 
 		err = checkTimestamp(timestamp, maxSkew)
 
 		if err != nil {
-			web.UnauthorizedResp(c, err)
+			web.UnauthorizedResp(c, err.Error())
 
 			return
 		}
 
 		sig, err := base64.StdEncoding.DecodeString(sigB64)
 		if err != nil {
-			web.UnauthorizedResp(c, fmt.Errorf("invalid signature encoding"))
+			web.UnauthorizedResp(c, "invalid signature encoding")
 			return
 		}
 
 		// Read body safely (re-buffer so next handler can still use it)
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			web.UnauthorizedResp(c, fmt.Errorf("cannot read body"))
+			web.UnauthorizedResp(c, "cannot read body")
 			return
 		}
 
@@ -76,7 +71,7 @@ func VerifyEd25519Signature(maxSkew time.Duration) gin.HandlerFunc {
 		// Get all valid keys for user
 		keys, ok := keystore.Get(userID)
 		if !ok {
-			web.UnauthorizedResp(c, fmt.Errorf("user not found"))
+			web.UnauthorizedResp(c, "user not found")
 			return
 		}
 
@@ -89,7 +84,7 @@ func VerifyEd25519Signature(maxSkew time.Duration) gin.HandlerFunc {
 		}
 
 		if !verified {
-			web.UnauthorizedResp(c, fmt.Errorf("invalid signature"))
+			web.UnauthorizedResp(c, "invalid signature")
 
 			return
 		}
