@@ -19,6 +19,8 @@ const (
 	HeaderSignature = "X-Signature"
 
 	MaxSkewDefault = 5 * time.Minute
+
+	MsgSep = "\n"
 )
 
 // VerifyEd25519SignatureMiddleware verifies requests signed with Ed25519 signatures.
@@ -36,9 +38,8 @@ const (
 // is allowed to proceed; otherwise, a 401 Unauthorized response is returned.
 // MaxSkew allows for clock differences between client and server and should be set
 // to a reasonable value (e.g., 5 minutes).
-func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
+func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		userID := c.GetHeader(HeaderUserID)
 		if userID == "" {
 			web.UnauthorizedResp(c, "missing X-User-Id")
@@ -51,24 +52,10 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 			return
 		}
 
-		ts := c.GetHeader(HeaderTimestamp)
-		if ts == "" {
-			web.UnauthorizedResp(c, "missing X-Timestamp")
-			return
-		}
-
-		// Parse timestamp with RFC3339Nano format for high precision
-		timestamp, err := time.Parse(time.RFC3339Nano, ts)
-		if err != nil {
-			web.UnauthorizedResp(c, "invalid X-Timestamp")
-			return
-		}
-
-		err = checkTimestamp(timestamp, maxSkew)
+		ts, err := checkTimestamp(c, maxSkew)
 
 		if err != nil {
 			web.UnauthorizedResp(c, err.Error())
-
 			return
 		}
 
@@ -78,22 +65,15 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 			return
 		}
 
-		// Read body safely (re-buffer so next handler can still use it)
-		bodyBytes, err := io.ReadAll(c.Request.Body)
+		// Message to verify:
+		msg, err := buildSignedMessage(c, ts)
 		if err != nil {
-			web.UnauthorizedResp(c, "cannot read body")
+			web.UnauthorizedResp(c, err.Error())
 			return
 		}
 
-		// Re-wrap the bytes so other handlers can read it
-		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
-		// Message to verify:
-		msg := buildSignedMessage(c.Request.Method, c.Request.URL.Path, ts, bodyBytes)
-
 		// Get all valid keys for user
 		keys, err := keystore.GetUserPublicKeysCached(userID)
-
 		if err != nil {
 			web.UnauthorizedResp(c, "user not found")
 			return
@@ -117,28 +97,53 @@ func VerifyEd25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	}
 }
 
-func checkTimestamp(ts time.Time, maxSkew time.Duration) error {
+func checkTimestamp(c *gin.Context, maxSkew time.Duration) (time.Time, error) {
 	now := time.Now().UTC() // Explicitly use UTC for consistent comparison
+
+	timestamp := c.GetHeader(HeaderTimestamp)
+
+	// Parse timestamp with RFC3339Nano format for high precision
+	ts, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid X-Timestamp")
+
+	}
 
 	// If client timestamp is too far in the future:
 	if ts.After(now.Add(maxSkew)) {
-		return fmt.Errorf("timestamp too far in the future")
+		return time.Time{}, fmt.Errorf("timestamp too far in the future")
 	}
 
 	// If client timestamp is too old, we use Add(-maxSkew) to return a time rather than using Sub
 	// which returns a Duration.
 	if ts.Before(now.Add(-maxSkew)) {
-		return fmt.Errorf("timestamp too far in the past")
+		return time.Time{}, fmt.Errorf("timestamp too far in the past")
 	}
 
-	return nil
+	return ts, nil
 }
 
-func buildSignedMessage(method, path, timestamp string, body []byte) []byte {
+func buildSignedMessage(c *gin.Context, timestamp time.Time) ([]byte, error) {
+
+	method := c.Request.Method
+	path := c.Request.URL.Path
+
+	// Read body safely (re-buffer so next handler can still use it)
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read body")
+
+	}
+
+	// Re-wrap the bytes so other handlers can read it
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
 	// Deterministic signing structure
-	// You can customize this
-	msg := method + "\n" + path + "\n" + timestamp + "\n"
-	return append([]byte(msg), body...)
+	msg := method + MsgSep + path + MsgSep + timestamp.Format(time.RFC3339Nano) + MsgSep
+
+	ret := append([]byte(msg), body...)
+
+	return ret, nil
 }
 
 // Example of how to sign requests in Python using PyNaCl
