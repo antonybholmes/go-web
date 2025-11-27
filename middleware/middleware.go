@@ -79,7 +79,6 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			case web.HTTPError:
 				//c.JSON(err.Code, gin.H{"error": err.Message})
 				c.JSON(err.Code, NewAPIError(err.Code, err.Message))
-
 			default:
 				// Set a custom status code based on the error
 				// If no custom status code is set, use the error's default status or fallback to 400

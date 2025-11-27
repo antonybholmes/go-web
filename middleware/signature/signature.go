@@ -42,40 +42,40 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetHeader(HeaderUserID)
 		if userID == "" {
-			web.UnauthorizedResp(c, "missing X-User-Id")
+			web.UnauthorizedResp(c, fmt.Errorf("missing X-User-Id"))
 			return
 		}
 
 		sigB64 := c.GetHeader(HeaderSignature)
 		if sigB64 == "" {
-			web.UnauthorizedResp(c, "missing X-Signature")
+			web.UnauthorizedResp(c, fmt.Errorf("missing X-Signature"))
 			return
 		}
 
 		ts, err := checkTimestamp(c, maxSkew)
 
 		if err != nil {
-			web.UnauthorizedResp(c, err.Error())
+			web.UnauthorizedResp(c, err)
 			return
 		}
 
 		sig, err := base64.StdEncoding.DecodeString(sigB64)
 		if err != nil {
-			web.UnauthorizedResp(c, "invalid signature encoding")
+			web.UnauthorizedResp(c, fmt.Errorf("invalid signature encoding"))
 			return
 		}
 
 		// Message to verify:
 		msg, err := buildSignedMessage(c, ts)
 		if err != nil {
-			web.UnauthorizedResp(c, err.Error())
+			web.UnauthorizedResp(c, err)
 			return
 		}
 
 		// Get all valid keys for user
 		keys, err := keystore.GetUserPublicKeysCached(userID)
 		if err != nil {
-			web.UnauthorizedResp(c, "user not found")
+			web.UnauthorizedResp(c, fmt.Errorf("user not found"))
 			return
 		}
 
@@ -88,7 +88,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		}
 
 		if !verified {
-			web.UnauthorizedResp(c, "invalid signature")
+			web.UnauthorizedResp(c, fmt.Errorf("invalid signature"))
 			return
 		}
 
@@ -132,7 +132,6 @@ func buildSignedMessage(c *gin.Context, timestamp time.Time) ([]byte, error) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read body")
-
 	}
 
 	// Re-wrap the bytes so other handlers can read it

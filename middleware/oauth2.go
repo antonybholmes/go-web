@@ -68,8 +68,6 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 
 		claims := auth.ClerkTokenClaims{}
 
-		log.Debug().Msgf("token %s", tokenString)
-
 		// Parse the JWT
 		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// 	// Return the secret key for verifying the token
