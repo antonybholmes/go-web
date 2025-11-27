@@ -22,7 +22,7 @@ import (
 
 const (
 	CsrfCookieName         string = "csrf-token"
-	DurationCsrfTokenValid        = auth.Ttl10Mins
+	CsrfTokenValidDuration        = auth.Ttl10Mins
 )
 
 var (
@@ -158,7 +158,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			timestamp, err := time.Parse(time.RFC3339, timestampStr)
 
 			if err == nil {
-				if time.Since(timestamp) < DurationCsrfTokenValid {
+				if time.Since(timestamp) < CsrfTokenValidDuration {
 					needNewToken = false
 				}
 			}
@@ -183,7 +183,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			// eventually expire.
 			Value:    fmt.Sprintf("%s|%s", csrfToken, now.Format(time.RFC3339)),
 			Path:     "/",
-			MaxAge:   int(DurationCsrfTokenValid.Seconds()),
+			MaxAge:   int(CsrfTokenValidDuration.Seconds()),
 			Secure:   true,
 			HttpOnly: false, // must be readable from JS!
 			SameSite: http.SameSiteNoneMode,
