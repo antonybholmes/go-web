@@ -21,13 +21,13 @@ import (
 // )
 
 const (
-	CsrfCookieName         string = "csrf-token"
-	CsrfTokenValidDuration        = auth.Ttl10Mins
+	CsrfCookieName         = "csrf-token"
+	CsrfTokenValidDuration = auth.Ttl10Mins
 )
 
 var (
-	ErrCSRFTokenMissing = "token missing"
-	ErrCSRFTokenInvalid = "token invalid"
+	ErrCSRFTokenMissing = fmt.Errorf("token missing")
+	ErrCSRFTokenInvalid = fmt.Errorf("token invalid")
 )
 
 // func (e *CSRFError) Error() string {
@@ -169,7 +169,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		csrfToken, err := GenerateCSRFToken()
 
 		if err != nil {
-			web.InternalErrorResp(c, fmt.Sprintf("error generating CSRF token: %v", err))
+			web.InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %v", err))
 			return "", err
 		}
 

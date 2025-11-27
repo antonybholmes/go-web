@@ -37,8 +37,8 @@ const (
 )
 
 var (
-	ErrInvalidEmail = "invalid email address"
-	ErrInvalidBody  = "invalid body"
+	ErrInvalidEmail = fmt.Errorf("invalid email address")
+	ErrInvalidBody  = fmt.Errorf("invalid body")
 )
 
 // type JwtInfo struct {
@@ -71,51 +71,51 @@ func InvalidEmailReq(c *gin.Context) {
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
-	ForbiddenResp(c, "email address not verified")
+	ForbiddenResp(c, fmt.Errorf("email address not verified"))
 }
 
 func UserDoesNotExistResp(c *gin.Context) {
-	UnauthorizedResp(c, "user does not exist")
+	UnauthorizedResp(c, fmt.Errorf("user does not exist"))
 }
 
 func UserNotAllowedToSignInErrorResp(c *gin.Context) {
-	ForbiddenResp(c, "user not allowed to sign in")
+	ForbiddenResp(c, fmt.Errorf("user not allowed to sign in"))
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	UnauthorizedResp(c, "invalid username")
+	UnauthorizedResp(c, fmt.Errorf("invalid username"))
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	UnauthorizedResp(c, "passwords do not match")
+	UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
 }
 
-func ForbiddenResp(c *gin.Context, err string) {
+func ForbiddenResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusForbidden, err)
 }
 
-func UnauthorizedResp(c *gin.Context, err string) {
+func UnauthorizedResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusUnauthorized, err)
 }
 
-func InternalErrorResp(c *gin.Context, err string) {
+func InternalErrorResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusInternalServerError, err)
 }
 
-func BadReqResp(c *gin.Context, err string) {
+func BadReqResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusBadRequest, err)
 }
 
-func TooManyRequestsResp(c *gin.Context, err string) {
+func TooManyRequestsResp(c *gin.Context, err error) {
 	ErrorResp(c, http.StatusTooManyRequests, err)
 }
 
-func ErrorResp(c *gin.Context, status int, err string) {
+func ErrorResp(c *gin.Context, status int, err error) {
 	//c.Error(err).SetMeta(status)
 
 	c.Error(HTTPError{
 		Code:    status,
-		Message: err,
+		Message: err.Error(),
 	})
 	c.Abort()
 }

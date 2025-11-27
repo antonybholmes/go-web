@@ -45,19 +45,19 @@ const (
 )
 
 var (
-	ErrUserDoesNotExist            = "user does not exist"
-	ErrPasswordsDoNotMatch         = "passwords do not match"
-	ErrPasswordDoesNotMeetCriteria = "password does not meet criteria"
-	ErrCouldNotUpdatePassword      = "could not update password"
-	ErrUserIsNotAdmin              = "user is not an admin"
-	ErrUserIsNotSuper              = "user is not a super user"
-	ErrUserCannotLogin             = "user is not allowed to login"
-	ErrInvalidSession              = "invalid session"
-	ErrInvalidRoles                = "invalid roles"
-	ErrWrongTokenType              = "wrong token type"
-	ErrEmailNotVerified            = "email not verified"
-	ErrInvalidUsername             = "invalid username"
-	ErrCreatingSession             = "error creating session"
+	ErrUserDoesNotExist            = fmt.Errorf("user does not exist")
+	ErrPasswordsDoNotMatch         = fmt.Errorf("passwords do not match")
+	ErrPasswordDoesNotMeetCriteria = fmt.Errorf("password does not meet criteria")
+	ErrCouldNotUpdatePassword      = fmt.Errorf("could not update password")
+	ErrUserIsNotAdmin              = fmt.Errorf("user is not an admin")
+	ErrUserIsNotSuper              = fmt.Errorf("user is not a super user")
+	ErrUserCannotLogin             = fmt.Errorf("user is not allowed to login")
+	ErrInvalidSession              = fmt.Errorf("invalid session")
+	ErrInvalidRoles                = fmt.Errorf("invalid roles")
+	ErrWrongTokenType              = fmt.Errorf("wrong token type")
+	ErrEmailNotVerified            = fmt.Errorf("email not verified")
+	ErrInvalidUsername             = fmt.Errorf("invalid username")
+	ErrCreatingSession             = fmt.Errorf("error creating session")
 )
 
 // The admin view adds roles to each user as it is assumed this
@@ -108,7 +108,7 @@ func WrongTokenTypeReq(c *gin.Context) {
 }
 
 func TokenErrorResp(c *gin.Context) {
-	web.ForbiddenResp(c, "token not generated")
+	web.ForbiddenResp(c, fmt.Errorf("token not generated"))
 }
 
 // func NewAuthUser(

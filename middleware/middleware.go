@@ -231,7 +231,7 @@ func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
 			if claims.Type != tokenType {
-				web.ForbiddenResp(c, fmt.Sprintf("wrong token type: %s, should be %s", claims.Type, tokenType))
+				web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
 
 				return
 			}
