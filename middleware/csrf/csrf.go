@@ -148,7 +148,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 
 	cookie, err := c.Cookie(CsrfCookieName)
 
-	log.Debug().Msgf("Existing CSRF cookie: %s, err: %v", cookie, err)
+	//log.Debug().Msgf("Existing CSRF cookie: %s, err: %v", cookie, err)
 
 	if err == nil {
 		parts := strings.Split(cookie, "|")
@@ -167,7 +167,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		}
 	}
 
-	log.Debug().Msgf("need CSRF cookie: %t, err: %v", needNewToken, err)
+	//log.Debug().Msgf("need CSRF cookie: %t, err: %v", needNewToken, err)
 
 	if needNewToken {
 		csrfToken, err = GenerateCSRFToken()
@@ -183,8 +183,8 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		http.SetCookie(c.Writer, &http.Cookie{
 			Name: CsrfCookieName,
 			// include timestamp in cookie so we can check age. Since cookie
-			// has expire time, even if user tries to modify timestamp, cookie will
-			// eventually expire.
+			// has expire time, even if user tries to modify timestamp part of the cookie,
+			// the cookie will eventually expire.
 			Value:    fmt.Sprintf("%s|%s", csrfToken, now.Format(time.RFC3339)),
 			Path:     "/",
 			MaxAge:   int(CsrfTokenValidDuration.Seconds()),
@@ -195,7 +195,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		})
 	}
 
-	log.Debug().Msgf("Returning CSRF token: %s", csrfToken)
+	//log.Debug().Msgf("Returning CSRF token: %s", csrfToken)
 
 	web.MakeDataResp(c, "", &CsrfTokenResp{
 		CsrfToken: csrfToken,
