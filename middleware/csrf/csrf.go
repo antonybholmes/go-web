@@ -148,6 +148,8 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 
 	cookie, err := c.Cookie(CsrfCookieName)
 
+	log.Debug().Msgf("Existing CSRF cookie: %s, err: %v", cookie, err)
+
 	if err == nil {
 		parts := strings.Split(cookie, "|")
 
@@ -165,8 +167,10 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 		}
 	}
 
+	log.Debug().Msgf("need CSRF cookie: %t, err: %v", needNewToken, err)
+
 	if needNewToken {
-		csrfToken, err := GenerateCSRFToken()
+		csrfToken, err = GenerateCSRFToken()
 
 		if err != nil {
 			web.InternalErrorResp(c, fmt.Errorf("error generating CSRF token: %v", err))
@@ -190,6 +194,8 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			//Expires:  now.Add(DurationCsrfTokenValid),
 		})
 	}
+
+	log.Debug().Msgf("Returning CSRF token: %s", csrfToken)
 
 	web.MakeDataResp(c, "", &CsrfTokenResp{
 		CsrfToken: csrfToken,
