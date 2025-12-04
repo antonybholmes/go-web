@@ -1,28 +1,29 @@
-package middleware
+package oauth2
 
 import (
 	"crypto/rsa"
-	"fmt"
+	"errors"
 
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	ErrInvalidAuth0Token    = fmt.Errorf("invalid auth0 token")
-	ErrInvalidClerkToken    = fmt.Errorf("invalid clerk token")
-	ErrInvalidSupabaseToken = fmt.Errorf("invalid supabase token")
+	ErrInvalidAuth0Token    = errors.New("invalid auth0 token")
+	ErrInvalidClerkToken    = errors.New("invalid clerk token")
+	ErrInvalidSupabaseToken = errors.New("invalid supabase token")
 )
 
 func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 
-	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
+	claimsParser := middleware.JwtClaimsRSAParser(rsaPublicKey)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := ParseToken(c)
+		tokenString, err := middleware.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
@@ -55,11 +56,11 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 }
 
 func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
-	claimsParser := JwtClaimsRSAParser(rsaPublicKey)
+	claimsParser := middleware.JwtClaimsRSAParser(rsaPublicKey)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := ParseToken(c)
+		tokenString, err := middleware.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidClerkToken)
@@ -93,11 +94,11 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 }
 
 func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
-	claimsParser := JwtClaimsHMACParser(secret)
+	claimsParser := middleware.JwtClaimsHMACParser(secret)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := ParseToken(c)
+		tokenString, err := middleware.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidSupabaseToken)

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -108,14 +109,14 @@ func ParseToken(c *gin.Context) (string, error) {
 	authHeader := c.GetHeader("Authorization")
 
 	if authHeader == "" {
-		return "", fmt.Errorf("authorization header missing")
+		return "", errors.New("authorization header missing")
 	}
 
 	// Split the token (format: "Bearer <token>")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 	if tokenString == authHeader {
-		return "", fmt.Errorf("malformed token")
+		return "", errors.New("malformed token")
 	}
 
 	return tokenString, nil
@@ -159,7 +160,6 @@ func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.AuthUs
 		tokenString, err := ParseToken(c)
 
 		if err != nil {
-
 			return nil, err
 		}
 
