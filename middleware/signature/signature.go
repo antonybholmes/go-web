@@ -25,6 +25,8 @@ const (
 )
 
 // VerifyEd25519SignatureMiddleware verifies requests signed with Ed25519 signatures.
+// This is used to authenticate API requests from clients that hold the corresponding private keys.
+//
 // It expects the following headers:
 // - X-User-Id: the user ID whose public key will be used to verify the signature
 // - X-Timestamp: the timestamp of the request in RFC3339Nano format

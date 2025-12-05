@@ -6,14 +6,13 @@ import (
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/oauth2"
-	"github.com/antonybholmes/go-web/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 // OpenID Connect JWT Middleware
 func JwtOIDCMiddleware(verifier *oauth2.OIDCVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString, err := middleware.ParseToken(c)
+		tokenString, err := auth.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, auth.NewTokenError(fmt.Sprintf("token is not valid: %s", err.Error())))

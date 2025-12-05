@@ -98,6 +98,24 @@ func (e *TokenError) Error() string {
 	return fmt.Sprintf("token error: %s", e.s)
 }
 
+func ParseToken(c *gin.Context) (string, error) {
+	// Get the token from the "Authorization" header
+	authHeader := c.GetHeader("Authorization")
+
+	if authHeader == "" {
+		return "", NewTokenError("authorization header missing")
+	}
+
+	// Split the token (format: "Bearer <token>")
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+	if tokenString == authHeader {
+		return "", NewTokenError("malformed token")
+	}
+
+	return tokenString, nil
+}
+
 //type RoleMap map[string][]string
 
 // type JwtResetPasswordClaims struct {

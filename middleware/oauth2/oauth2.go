@@ -22,7 +22,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
-		tokenString, err := middleware.ParseToken(c)
+		tokenString, err := auth.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
@@ -59,7 +59,7 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
-		tokenString, err := middleware.ParseToken(c)
+		tokenString, err := auth.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidClerkToken)
@@ -97,7 +97,7 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
-		tokenString, err := middleware.ParseToken(c)
+		tokenString, err := auth.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidSupabaseToken)

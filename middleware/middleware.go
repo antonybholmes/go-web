@@ -2,10 +2,8 @@ package middleware
 
 import (
 	"crypto/rsa"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
@@ -20,7 +18,7 @@ import (
 )
 
 type (
-	APIError struct {
+	HttpError struct {
 		Message string `json:"message"`
 		Code    int    `json:"code"`
 	}
@@ -28,16 +26,16 @@ type (
 	JWTClaimsFunc func(token string, claims jwt.Claims) error
 )
 
-func (e *APIError) Error() string {
-	return fmt.Sprintf("api error: (%d) %s", e.Code, e.Message)
-}
-
-// NewAPIError creates a new APIError with the given message and code
-func NewAPIError(code int, message string) error {
-	return &APIError{
+// NewHttpError creates a new HttpError with the given message and code
+func NewHttpError(code int, message string) error {
+	return &HttpError{
 		Code:    code,
 		Message: message,
 	}
+}
+
+func (e *HttpError) Error() string {
+	return fmt.Sprintf("http error: (%d) %s", e.Code, e.Message)
 }
 
 // func LoggingMiddleware(logger zerolog.Logger) gin.HandlerFunc {
@@ -62,8 +60,8 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		defer func() {
 			if err := recover(); err != nil {
 				// Handle panic errors with 500 status code
-				c.JSON(http.StatusInternalServerError, NewAPIError(http.StatusInternalServerError,
-					fmt.Sprintf("internal server error %v", err),
+				c.JSON(http.StatusInternalServerError, NewHttpError(http.StatusInternalServerError,
+					fmt.Sprintf("panic caused by %v", err),
 				))
 			}
 		}()
@@ -79,7 +77,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			switch err := lastErr.Err.(type) {
 			case web.HTTPError:
 				//c.JSON(err.Code, gin.H{"error": err.Message})
-				c.JSON(err.Code, NewAPIError(err.Code, err.Message))
+				c.JSON(err.Code, NewHttpError(err.Code, err.Message))
 			default:
 				// Set a custom status code based on the error
 				// If no custom status code is set, use the error's default status or fallback to 400
@@ -97,29 +95,11 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				}
 
 				// Send the error response with custom status code
-				c.JSON(status, NewAPIError(status, lastErr.Error()))
+				c.JSON(status, NewHttpError(status, lastErr.Error()))
 			}
 			c.Abort()
 		}
 	}
-}
-
-func ParseToken(c *gin.Context) (string, error) {
-	// Get the token from the "Authorization" header
-	authHeader := c.GetHeader("Authorization")
-
-	if authHeader == "" {
-		return "", errors.New("authorization header missing")
-	}
-
-	// Split the token (format: "Bearer <token>")
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	if tokenString == authHeader {
-		return "", errors.New("malformed token")
-	}
-
-	return tokenString, nil
 }
 
 func JwtClaimsRSAParser(rsaPublicKey *rsa.PublicKey) JWTClaimsFunc {
@@ -157,7 +137,7 @@ func JwtClaimsHMACParser(secret string) JWTClaimsFunc {
 func ParseUserJWT(claimsParser JWTClaimsFunc) func(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
 	return func(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
 
-		tokenString, err := ParseToken(c)
+		tokenString, err := auth.ParseToken(c)
 
 		if err != nil {
 			return nil, err
