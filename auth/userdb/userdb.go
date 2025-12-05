@@ -17,17 +17,13 @@ import (
 //const EMAIL_NOT_VERIFIED_TIME_S = 62167219200
 
 type (
-	UserNotFoundError struct {
-		s string
-	}
+	// UserNotFoundError struct {
+	// 	s string
+	// }
 
-	PasswordError struct {
-		s string
-	}
-
-	AccountError struct {
-		s string
-	}
+	// PasswordError struct {
+	// 	s string
+	// }
 
 	UserDB interface {
 		NumUsers() (int, error)
@@ -117,8 +113,8 @@ type (
 )
 
 const (
-	MinPasswordLength int = 8
-	MinNameLength     int = 3
+	MinPasswordLength = 8
+	MinNameLength     = 3
 
 	EpochDate = "1970-01-01"
 
@@ -143,11 +139,11 @@ func CheckPassword(password string) error {
 	}
 
 	if len(password) < MinPasswordLength {
-		return NewPasswordError(fmt.Sprintf("password must be at least %d characters", MinPasswordLength))
+		return auth.NewAccountError(fmt.Sprintf("password must be at least %d characters", MinPasswordLength))
 	}
 
 	if !PasswordRegex.MatchString(password) {
-		return NewPasswordError("invalid password")
+		return auth.NewAccountError("invalid password")
 	}
 
 	return nil
@@ -156,11 +152,11 @@ func CheckPassword(password string) error {
 // Make sure password meets requirements
 func CheckUsername(username string) error {
 	if len(username) < MinNameLength {
-		return NewAccountError(fmt.Sprintf("username must be at least %d characters", MinNameLength))
+		return auth.NewAccountError(fmt.Sprintf("username must be at least %d characters", MinNameLength))
 	}
 
 	if !UsernameRegex.MatchString(username) {
-		return NewAccountError("invalid username")
+		return auth.NewAccountError("invalid username")
 	}
 
 	return nil
@@ -172,36 +168,8 @@ func CheckName(name string) error {
 	//}
 
 	if !NameRegex.MatchString(name) {
-		return NewAccountError("invalid name")
+		return auth.NewAccountError("invalid name")
 	}
 
 	return nil
-}
-
-//
-// errors
-//
-
-func NewUserNotFoundError(s string) *UserNotFoundError {
-	return &UserNotFoundError{s}
-}
-
-func (e *UserNotFoundError) Error() string {
-	return fmt.Sprintf("user not found: %s", e.s)
-}
-
-func NewPasswordError(s string) *PasswordError {
-	return &PasswordError{s}
-}
-
-func (e *PasswordError) Error() string {
-	return fmt.Sprintf("password error: %s", e.s)
-}
-
-func NewAccountError(s string) *AccountError {
-	return &AccountError{s}
-}
-
-func (e *AccountError) Error() string {
-	return fmt.Sprintf("account error: %s", e.s)
 }

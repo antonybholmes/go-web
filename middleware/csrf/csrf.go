@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	ErrCSRFTokenMissing = fmt.Errorf("token missing")
-	ErrCSRFTokenInvalid = fmt.Errorf("token invalid")
+	ErrCSRFTokenMissing = auth.NewTokenError("token missing")
+	ErrCSRFTokenInvalid = auth.NewTokenError("token invalid")
 )
 
 // func (e *CSRFError) Error() string {

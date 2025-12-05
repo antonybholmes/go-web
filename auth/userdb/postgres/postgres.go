@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"net/mail"
 	"os"
@@ -24,7 +25,6 @@ type PostgresUserDB struct {
 }
 
 const (
-
 	// postgres version
 	SelectUsersSql = `SELECT 
 		id,
@@ -295,7 +295,7 @@ func (pgdb *PostgresUserDB) DeleteUser(id string) error {
 	// }
 
 	if auth.UserHasAdminRole(authUser) {
-		return fmt.Errorf("cannot delete admin account")
+		return auth.NewAccountError("cannot delete admin account")
 	}
 
 	_, err = pgdb.db.Exec(pgdb.ctx, DeleteUserSql, id)
@@ -358,7 +358,7 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 		&authUser.UpdatedAt)
 
 	if err != nil {
-		return nil, userdb.NewUserNotFoundError(id)
+		return nil, auth.NewUserNotFoundError(id)
 	}
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
@@ -382,7 +382,7 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error) {
 
 	if !sys.IsValidUUID(key) {
-		return nil, fmt.Errorf("api key is not in valid format")
+		return nil, auth.NewAccountError("api key is not in valid format")
 	}
 
 	var id int
@@ -450,7 +450,7 @@ func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
 	rows, err := pgdb.db.Query(pgdb.ctx, UserApiKeysSql, user.Id)
 
 	if err != nil {
-		return nil, fmt.Errorf("user roles not found")
+		return nil, errors.New("user roles not found")
 	}
 
 	defer rows.Close()
@@ -684,7 +684,7 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) 
 		&role.Description)
 
 	if err != nil {
-		return nil, userdb.NewAccountError(fmt.Sprintf("%s role not found", name))
+		return nil, auth.NewAccountError(fmt.Sprintf("%s role not found", name))
 	}
 
 	return &role, nil
@@ -702,7 +702,7 @@ func (pgdb *PostgresUserDB) FindGroup(id string) (*auth.RBACGroup, error) {
 	//log.Debug().Msgf("find group %v err %v", group, err)
 
 	if err != nil {
-		return nil, userdb.NewAccountError(fmt.Sprintf("%s group not found: %v", id, err))
+		return nil, auth.NewAccountError(fmt.Sprintf("%s group not found: %v", id, err))
 	}
 
 	return &group, nil
@@ -740,7 +740,7 @@ func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailVerifiedSql, userId)
 
 	if err != nil {
-		return userdb.NewAccountError("could not verify email address")
+		return auth.NewAccountError("could not verify email address")
 	}
 
 	// _, err = pgdb.setOtpStmt.Exec(pgdb.ctx,"", userId)
@@ -754,7 +754,7 @@ func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 
 func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) error {
 	if user.IsLocked {
-		return userdb.NewPasswordError("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	var err error
@@ -770,7 +770,7 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) er
 	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, hash, user.Id)
 
 	if err != nil {
-		return userdb.NewPasswordError("could not update password")
+		return auth.NewAccountError("could not update password")
 	}
 
 	return err
@@ -839,7 +839,7 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 
 	if !adminMode {
 		if user.IsLocked {
-			return userdb.NewAccountError("account is locked and cannot be edited")
+			return auth.NewAccountError("account is locked and cannot be edited")
 		}
 
 		err := userdb.CheckUsername(username)
@@ -858,7 +858,7 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 	_, err := pgdb.db.Exec(pgdb.ctx, SetInfoSql, username, firstName, lastName, user.Id)
 
 	if err != nil {
-		return userdb.NewAccountError("could not update user info")
+		return auth.NewAccountError("could not update user info")
 	}
 
 	return nil
@@ -877,13 +877,13 @@ func (pgdb *PostgresUserDB) SetUserInfo(user *auth.AuthUser,
 func (pgdb *PostgresUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error {
 
 	if !adminMode && user.IsLocked {
-		return userdb.NewAccountError("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailSql, address.Address, user.Id)
 
 	if err != nil {
-		return userdb.NewAccountError("could not update email address")
+		return auth.NewAccountError("could not update email address")
 	}
 
 	return nil
@@ -891,7 +891,7 @@ func (pgdb *PostgresUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.A
 
 func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
-		return userdb.NewAccountError("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	// remove existing roles,
@@ -911,7 +911,7 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 		err = pgdb.AddUserToGroup(user, g, adminMode)
 
 		if err != nil {
-			return userdb.NewAccountError(fmt.Sprintf("could not add user to group %s: %v", group, err))
+			return auth.NewAccountError(fmt.Sprintf("could not add user to group %s: %v", group, err))
 		}
 	}
 
@@ -920,13 +920,13 @@ func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, 
 
 func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group *auth.RBACGroup, adminMode bool) error {
 	if !adminMode && user.IsLocked {
-		return userdb.NewAccountError("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	_, err := pgdb.db.Exec(pgdb.ctx, InsertUserGroupSql, user.Id, group.Id)
 
 	if err != nil {
-		return userdb.NewAccountError(fmt.Sprintf("could not add user to group: %v", err))
+		return auth.NewAccountError(fmt.Sprintf("could not add user to group: %v", err))
 	}
 
 	return nil
@@ -934,7 +934,7 @@ func (pgdb *PostgresUserDB) AddUserToGroup(user *auth.AuthUser, group *auth.RBAC
 
 func (pgdb *PostgresUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode bool) error {
 	if !adminMode && user.IsLocked {
-		return fmt.Errorf("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	uuid, err := sys.Uuidv7()
@@ -1026,7 +1026,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		// user already exists so check if verified
 
 		if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
-			return nil, userdb.NewAccountError("user already registered: please sign up with a different email address")
+			return nil, auth.NewAccountError("user already registered: please sign up with a different email address")
 		}
 
 		// if user is not verified, update the password since we assume
@@ -1037,7 +1037,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		err := pgdb.SetPassword(authUser, password)
 
 		if err != nil {
-			return nil, userdb.NewAccountError("user already registered: please sign up with another email address")
+			return nil, auth.NewAccountError("user already registered: please sign up with another email address")
 		}
 
 		// ensure user is the updated version
@@ -1050,7 +1050,7 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	//publicId, err := sys.Uuidv7() // sys.NanoId()
 
 	//if err != nil {
-	//	return nil, userdb.NewAccountError("could not create uuid for user")
+	//	return nil, auth.NewAccountError("could not create uuid for user")
 	//}
 
 	hash := ""

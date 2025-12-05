@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,6 +15,10 @@ import (
 )
 
 type (
+	AccountError struct {
+		s string
+	}
+
 	UrlReq struct {
 		Url string `json:"url"`
 	}
@@ -45,19 +50,19 @@ const (
 )
 
 var (
-	ErrUserDoesNotExist            = fmt.Errorf("user does not exist")
-	ErrPasswordsDoNotMatch         = fmt.Errorf("passwords do not match")
-	ErrPasswordDoesNotMeetCriteria = fmt.Errorf("password does not meet criteria")
-	ErrCouldNotUpdatePassword      = fmt.Errorf("could not update password")
-	ErrUserIsNotAdmin              = fmt.Errorf("user is not an admin")
-	ErrUserIsNotSuper              = fmt.Errorf("user is not a super user")
-	ErrUserCannotLogin             = fmt.Errorf("user is not allowed to login")
-	ErrInvalidSession              = fmt.Errorf("invalid session")
-	ErrInvalidRoles                = fmt.Errorf("invalid roles")
-	ErrWrongTokenType              = fmt.Errorf("wrong token type")
-	ErrEmailNotVerified            = fmt.Errorf("email not verified")
-	ErrInvalidUsername             = fmt.Errorf("invalid username")
-	ErrCreatingSession             = fmt.Errorf("error creating session")
+	ErrUserDoesNotExist            = NewAccountError("user does not exist")
+	ErrPasswordsDoNotMatch         = NewAccountError("passwords do not match")
+	ErrPasswordDoesNotMeetCriteria = NewAccountError("password does not meet criteria")
+	ErrCouldNotUpdatePassword      = NewAccountError("could not update password")
+	ErrUserIsNotAdmin              = NewAccountError("user is not an admin")
+	ErrUserIsNotSuper              = NewAccountError("user is not a super user")
+	ErrUserCannotLogin             = NewAccountError("user is not allowed to login")
+	ErrInvalidSession              = NewAccountError("invalid session")
+	ErrInvalidRoles                = NewAccountError("invalid roles")
+	ErrWrongTokenType              = NewAccountError("wrong token type")
+	ErrEmailNotVerified            = NewAccountError("email not verified")
+	ErrInvalidUsername             = NewAccountError("invalid username")
+	ErrCreatingSession             = NewAccountError("error creating session")
 )
 
 // The admin view adds roles to each user as it is assumed this
@@ -77,6 +82,22 @@ var (
 
 func init() {
 	randomstring.Seed()
+}
+
+//
+// errors
+//
+
+func NewAccountError(s string) *AccountError {
+	return &AccountError{s}
+}
+
+func (e *AccountError) Error() string {
+	return fmt.Sprintf("account error: %s", e.s)
+}
+
+func NewUserNotFoundError(s string) *AccountError {
+	return NewAccountError(fmt.Sprintf("%s not found", s))
 }
 
 func EmailNotVerifiedReq(c *gin.Context) {
@@ -108,7 +129,7 @@ func WrongTokenTypeReq(c *gin.Context) {
 }
 
 func TokenErrorResp(c *gin.Context) {
-	web.ForbiddenResp(c, fmt.Errorf("token not generated"))
+	web.ForbiddenResp(c, errors.New("token not generated"))
 }
 
 // func NewAuthUser(
@@ -149,7 +170,7 @@ func CheckOTPValid(user *AuthUser, otp string) error {
 	err := CheckPasswordsMatch(otp, strconv.FormatInt(user.UpdatedAt.Nanoseconds(), 10))
 
 	if err != nil {
-		return fmt.Errorf("one time code has expired")
+		return errors.New("one time code has expired")
 	}
 
 	return nil

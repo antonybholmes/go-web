@@ -48,16 +48,16 @@ const (
 // initialize once. Ideally would be a constant but Go doesn't
 // support non primitive constants
 var (
-	Otp6MaxNum *big.Int = big.NewInt(1000000)
-	Otp8MaxNum *big.Int = big.NewInt(100000000)
+	Otp6MaxNum = big.NewInt(1000000)
+	Otp8MaxNum = big.NewInt(100000000)
 )
-
-func (e *RateLimitError) Error() string {
-	return fmt.Sprintf("rate limit error: %s", e.Message)
-}
 
 func NewRateLimitError(message string) *RateLimitError {
 	return &RateLimitError{Message: message}
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("rate limit error: %s", e.Message)
 }
 
 func IsRateLimitError(err error) bool {

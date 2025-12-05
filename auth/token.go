@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/rsa"
-	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
@@ -64,6 +63,10 @@ type (
 		otpTokenTTL    time.Duration
 		shortTTL       time.Duration
 	}
+
+	TokenError struct {
+		s string
+	}
 )
 
 const (
@@ -84,8 +87,16 @@ const (
 )
 
 var (
-	ErrInvalidTokenType = errors.New("invalid token type")
+	ErrInvalidTokenType = NewTokenError("invalid token type")
 )
+
+func NewTokenError(s string) *TokenError {
+	return &TokenError{s}
+}
+
+func (e *TokenError) Error() string {
+	return fmt.Sprintf("token error: %s", e.s)
+}
 
 //type RoleMap map[string][]string
 

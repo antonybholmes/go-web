@@ -3,6 +3,7 @@ package mysql
 import (
 	"crypto/ed25519"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/mail"
 	"os"
@@ -712,7 +713,7 @@ func (mydb *MySQLUserDB) SetIsVerified(userId string) error {
 
 func (mydb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error {
 	if user.IsLocked {
-		return userdb.NewAccountError("account is locked and cannot be edited")
+		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	err := userdb.CheckPassword(password)
@@ -726,7 +727,7 @@ func (mydb *MySQLUserDB) SetPassword(user *auth.AuthUser, password string) error
 	_, err = mydb.db.Exec(SetPasswordSql, hash, user.Id)
 
 	if err != nil {
-		return userdb.NewAccountError("could not update password")
+		return auth.NewAccountError("could not update password")
 	}
 
 	return nil
@@ -795,7 +796,7 @@ func (mydb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 
 	if !adminMode {
 		if user.IsLocked {
-			return userdb.NewAccountError("account is locked and cannot be edited")
+			return auth.NewAccountError("account is locked and cannot be edited")
 		}
 
 		err := userdb.CheckUsername(username)
@@ -814,7 +815,7 @@ func (mydb *MySQLUserDB) SetUserInfo(user *auth.AuthUser,
 	_, err := mydb.db.Exec(SetInfoSql, username, firstName, lastName, user.Id)
 
 	if err != nil {
-		return userdb.NewAccountError("could not update user info")
+		return auth.NewAccountError("could not update user info")
 	}
 
 	return nil
@@ -982,7 +983,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 		// user already exists so check if verified
 
 		if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
-			return nil, fmt.Errorf("user already registered: please sign up with a different email address")
+			return nil, errors.New("user already registered: please sign up with a different email address")
 		}
 
 		// if user is not verified, update the password since we assume
@@ -993,7 +994,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 		err := mydb.SetPassword(authUser, password)
 
 		if err != nil {
-			return nil, fmt.Errorf("user already registered: please sign up with another email address")
+			return nil, errors.New("user already registered: please sign up with another email address")
 		}
 
 		// ensure user is the updated version
@@ -1006,7 +1007,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	publicId, err := sys.Uuidv7() // sys.NanoId()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not create uuid for user")
+		return nil, errors.New("could not create uuid for user")
 	}
 
 	hash := ""

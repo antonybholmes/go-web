@@ -10,10 +10,9 @@ import (
 // }
 
 type SignupReq struct {
+	RedirectUrlReq
 	User
 	Password string `json:"password"`
-
-	RedirectUrlReq
 }
 
 func (user *SignupReq) String() string {

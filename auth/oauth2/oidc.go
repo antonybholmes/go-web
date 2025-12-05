@@ -3,7 +3,6 @@ package oauth2
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"net/http"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/antonybholmes/go-sys/log"
+	"github.com/antonybholmes/go-web/auth"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -49,13 +49,13 @@ func NewOIDCVerifier(ctx context.Context, issuer string, audience string) (*OIDC
 	cfg, err := fetchOIDCConfig(ctx, oidcConfigURL)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch OIDC config: %w", err)
+		return nil, auth.NewTokenError(fmt.Sprintf("failed to fetch OIDC config: %v", err))
 	}
 
 	// Create Keyfunc with background refresh
 	kf, err := keyfunc.NewDefaultCtx(ctx, []string{cfg.JWKSURI})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create JWKS keyfunc: %w", err)
+		return nil, auth.NewTokenError(fmt.Sprintf("failed to create JWKS keyfunc: %v", err))
 	}
 
 	return &OIDCVerifier{
@@ -73,32 +73,32 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("signature/parse error: %w", err)
+		return nil, auth.NewTokenError(fmt.Sprintf("signature/parse error: %v", err))
 	}
 
 	if !token.Valid {
-		return nil, errors.New("invalid token")
+		return nil, auth.NewTokenError("invalid token")
 	}
 
 	claims := token.Claims.(*OIDCClaims)
 
 	// issuer match
 	if claims.Issuer != v.Issuer {
-		return nil, errors.New("invalid issuer")
+		return nil, auth.NewTokenError("invalid issuer")
 	}
 
 	// audience match
 	if v.Audience != "" && !slices.Contains(claims.Audience, v.Audience) {
-		return nil, errors.New("invalid audience")
+		return nil, auth.NewTokenError("invalid audience")
 	}
 
 	// expiry match
 	if claims.ExpiresAt == nil {
-		return nil, errors.New("missing exp claim")
+		return nil, auth.NewTokenError("missing exp claim")
 	}
 
 	if time.Now().UTC().After(claims.ExpiresAt.Time) {
-		return nil, errors.New("token expired")
+		return nil, auth.NewTokenError("token expired")
 	}
 
 	return claims, nil
@@ -133,7 +133,7 @@ func fetchOIDCConfig(ctx context.Context, url string) (*OIDCConfig, error) {
 
 	// Make sure the JWKS URI exists
 	if cfg.JWKSURI == "" {
-		return nil, errors.New("jwks_uri not found in OIDC configuration")
+		return nil, auth.NewTokenError("jwks_uri not found in OIDC configuration")
 	}
 
 	//log.Debug().Msgf("Fetched JWKS URI: %s", cfg.JWKSURI)
