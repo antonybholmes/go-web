@@ -71,6 +71,7 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 		&OIDCClaims{},
 		v.JWKS.Keyfunc,
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("signature/parse error: %w", err)
 	}
@@ -109,19 +110,23 @@ func fetchOIDCConfig(ctx context.Context, url string) (*OIDCConfig, error) {
 
 	// Create an HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+
 	if err != nil {
 		return nil, err
 	}
 
 	// Execute the request
 	resp, err := http.DefaultClient.Do(req)
+
 	if err != nil {
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 
 	// Decode the JSON response
 	var cfg OIDCConfig
+
 	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
 		return nil, err
 	}
@@ -131,7 +136,7 @@ func fetchOIDCConfig(ctx context.Context, url string) (*OIDCConfig, error) {
 		return nil, errors.New("jwks_uri not found in OIDC configuration")
 	}
 
-	log.Debug().Msgf("Fetched JWKS URI: %s", cfg.JWKSURI)
+	//log.Debug().Msgf("Fetched JWKS URI: %s", cfg.JWKSURI)
 
 	// Return the JWKS URI
 	return &cfg, nil
