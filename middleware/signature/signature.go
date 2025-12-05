@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"io"
 	"time"
 
 	"github.com/antonybholmes/go-web"
+	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/keystore"
 	"github.com/gin-gonic/gin"
 )
@@ -42,13 +43,13 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetHeader(HeaderUserID)
 		if userID == "" {
-			web.UnauthorizedResp(c, fmt.Errorf("missing X-User-Id"))
+			web.UnauthorizedResp(c, errors.New("missing X-User-Id"))
 			return
 		}
 
 		sigB64 := c.GetHeader(HeaderSignature)
 		if sigB64 == "" {
-			web.UnauthorizedResp(c, fmt.Errorf("missing X-Signature"))
+			web.UnauthorizedResp(c, errors.New("missing X-Signature"))
 			return
 		}
 
@@ -61,7 +62,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 
 		sig, err := base64.StdEncoding.DecodeString(sigB64)
 		if err != nil {
-			web.UnauthorizedResp(c, fmt.Errorf("invalid signature encoding"))
+			web.UnauthorizedResp(c, errors.New("invalid signature encoding"))
 			return
 		}
 
@@ -75,7 +76,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		// Get all valid keys for user
 		keys, err := keystore.GetUserPublicKeysCached(userID)
 		if err != nil {
-			web.UnauthorizedResp(c, fmt.Errorf("user not found"))
+			web.UnauthorizedResp(c, auth.NewAccountError("user not found"))
 			return
 		}
 
@@ -88,7 +89,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		}
 
 		if !verified {
-			web.UnauthorizedResp(c, fmt.Errorf("invalid signature"))
+			web.UnauthorizedResp(c, errors.New("invalid signature"))
 			return
 		}
 
@@ -105,19 +106,19 @@ func checkTimestamp(c *gin.Context, maxSkew time.Duration) (time.Time, error) {
 	// Parse timestamp with RFC3339Nano format for high precision
 	ts, err := time.Parse(time.RFC3339Nano, timestamp)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid X-Timestamp")
+		return time.Time{}, errors.New("invalid X-Timestamp")
 
 	}
 
 	// If client timestamp is too far in the future:
 	if ts.After(now.Add(maxSkew)) {
-		return time.Time{}, fmt.Errorf("timestamp too far in the future")
+		return time.Time{}, errors.New("timestamp too far in the future")
 	}
 
 	// If client timestamp is too old, we use Add(-maxSkew) to return a time rather than using Sub
 	// which returns a Duration.
 	if ts.Before(now.Add(-maxSkew)) {
-		return time.Time{}, fmt.Errorf("timestamp too far in the past")
+		return time.Time{}, errors.New("timestamp too far in the past")
 	}
 
 	return ts, nil
@@ -131,7 +132,7 @@ func buildSignedMessage(c *gin.Context, timestamp time.Time) ([]byte, error) {
 	// Read body safely (re-buffer so next handler can still use it)
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read body")
+		return nil, errors.New("cannot read body")
 	}
 
 	// Re-wrap the bytes so other handlers can read it

@@ -54,6 +54,7 @@ func NewOIDCVerifier(ctx context.Context, issuer string, audience string) (*OIDC
 
 	// Create Keyfunc with background refresh
 	kf, err := keyfunc.NewDefaultCtx(ctx, []string{cfg.JWKSURI})
+
 	if err != nil {
 		return nil, auth.NewTokenError(fmt.Sprintf("failed to create JWKS keyfunc: %v", err))
 	}

@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/antonybholmes/go-web"
@@ -47,7 +47,7 @@ func ReadSessionInfo(c *gin.Context, session sessions.Session) (*SessionInfo, er
 	userData := session.Get(web.SessionUser)
 
 	if userData == nil {
-		return nil, fmt.Errorf("session user data is nil")
+		return nil, errors.New("session user data is nil")
 	}
 
 	var user auth.AuthUser
