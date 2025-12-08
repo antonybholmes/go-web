@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -20,15 +20,17 @@ type (
 		// You can add more standard claims if needed
 		jwt.RegisteredClaims
 
-		Sub   string `json:"sub"`
+		//Sub   string `json:"sub"`
 		Email string `json:"email,omitempty"`
 		Name  string `json:"name,omitempty"`
 	}
 
 	OIDCVerifier struct {
-		Issuer   string
-		Audience string
-		JWKS     keyfunc.Keyfunc
+		Issuer     string
+		Audience   string
+		JWKS       keyfunc.Keyfunc
+		EmailClaim string
+		NameClaim  string
 	}
 
 	// Define a simple struct to hold only the JWKS URI
@@ -37,10 +39,27 @@ type (
 	}
 )
 
+func NewStandardOIDCVerifier(ctx context.Context,
+	issuer string,
+	audience string) (*OIDCVerifier, error) {
+	return NewOIDCVerifier(ctx, issuer, audience, "email", "name")
+}
+
+// NewOIDCVerifier creates a new OIDCVerifier
 // issuer: the expected issuer URL
 // audience: the expected audience (client ID)
-func NewOIDCVerifier(ctx context.Context, issuer string, audience string) (*OIDCVerifier, error) {
+// emailClaim: the claim name for the user's email, useful for Auth0 custom claims which are namespaced
+// nameClaim: the claim name for the user's name, useful for Auth0 custom claims which are namespaced
+func NewOIDCVerifier(ctx context.Context,
+	issuer string,
+	audience string,
+	emailClaim string,
+	nameClaim string) (*OIDCVerifier, error) {
 	//jwksURL := issuer + "/.well-known/jwks.json"
+
+	// strip trailing slash for comparison
+	issuer = strings.TrimRight(issuer, "/")
+	audience = strings.TrimRight(audience, "/")
 
 	oidcConfigURL := issuer + "/.well-known/openid-configuration"
 
@@ -60,49 +79,130 @@ func NewOIDCVerifier(ctx context.Context, issuer string, audience string) (*OIDC
 	}
 
 	return &OIDCVerifier{
-		Issuer:   issuer,
-		Audience: audience,
-		JWKS:     kf,
+		Issuer:     issuer,
+		Audience:   audience,
+		JWKS:       kf,
+		EmailClaim: emailClaim,
+		NameClaim:  nameClaim,
 	}, nil
 }
 
 func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
+	claims := jwt.MapClaims{}
+
 	token, err := jwt.ParseWithClaims(
 		tokenString,
-		&OIDCClaims{},
+		&claims,
 		v.JWKS.Keyfunc,
 	)
-
-	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("signature/parse error: %v", err))
-	}
 
 	if !token.Valid {
 		return nil, auth.NewTokenError("invalid token")
 	}
 
-	claims := token.Claims.(*OIDCClaims)
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("signature/parse error: %v", err))
+	}
+
+	issuer, err := claims.GetIssuer()
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid issuer claim: %v", err))
+	}
+	issuer = strings.TrimRight(issuer, "/")
+
+	audience, err := claims.GetAudience()
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid audience claim: %v", err))
+	}
+
+	expiresAt, err := claims.GetExpirationTime()
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid exp claim: %v", err))
+	}
+
+	issuedAt, err := claims.GetIssuedAt()
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid iat claim: %v", err))
+	}
+
+	notBefore, err := claims.GetNotBefore()
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid nbf claim: %v", err))
+	}
+
+	email, err := getStringClaim(claims, v.EmailClaim)
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid email claim: %v", err))
+	}
+
+	name, err := getStringClaim(claims, v.NameClaim)
+	if err != nil {
+		return nil, auth.NewTokenError(fmt.Sprintf("invalid name claim: %v", err))
+	}
+
+	oidcClaims := &OIDCClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    issuer,
+			Audience:  audience,
+			ExpiresAt: expiresAt,
+			IssuedAt:  issuedAt,
+			NotBefore: notBefore,
+		},
+		Email: email,
+		Name:  name,
+	}
+
+	return v.verifyClaims(oidcClaims)
+}
+
+// once claims are created, verify them
+func (v *OIDCVerifier) verifyClaims(oidcClaims *OIDCClaims) (*OIDCClaims, error) {
 
 	// issuer match
-	if claims.Issuer != v.Issuer {
+	log.Debug().Msgf("Verifying token issuer: expected=%s, got=%s", v.Issuer, oidcClaims.Issuer)
+
+	if oidcClaims.Issuer != v.Issuer {
 		return nil, auth.NewTokenError("invalid issuer")
 	}
 
-	// audience match
-	if v.Audience != "" && !slices.Contains(claims.Audience, v.Audience) {
-		return nil, auth.NewTokenError("invalid audience")
+	// audience match also including stripping trailing slashes
+	// since Auth0 uses them but Cognito does not
+
+	if v.Audience != "" {
+		found := false
+
+		for _, aud := range oidcClaims.Audience {
+			aud = strings.TrimRight(aud, "/")
+
+			if aud == v.Audience {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, auth.NewTokenError("invalid audience")
+		}
+	}
+
+	if oidcClaims.Email == "" {
+		return nil, auth.NewTokenError("missing email claim")
+	}
+
+	if oidcClaims.Name == "" {
+		return nil, auth.NewTokenError("missing name claim")
 	}
 
 	// expiry match
-	if claims.ExpiresAt == nil {
+	if oidcClaims.ExpiresAt == nil {
 		return nil, auth.NewTokenError("missing exp claim")
 	}
 
-	if time.Now().UTC().After(claims.ExpiresAt.Time) {
+	if time.Now().UTC().After(oidcClaims.ExpiresAt.Time) {
 		return nil, auth.NewTokenError("token expired")
 	}
 
-	return claims, nil
+	return oidcClaims, nil
 }
 
 // Fetches the OIDC configuration from the given URL and extracts the JWKS URI.
@@ -141,4 +241,16 @@ func fetchOIDCConfig(ctx context.Context, url string) (*OIDCConfig, error) {
 
 	// Return the JWKS URI
 	return &cfg, nil
+}
+
+func getStringClaim(claims jwt.MapClaims, key string) (string, error) {
+	val, ok := claims[key]
+	if !ok {
+		return "", fmt.Errorf("missing claim: %s", key)
+	}
+	s, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("claim %s is not a string", key)
+	}
+	return s, nil
 }
