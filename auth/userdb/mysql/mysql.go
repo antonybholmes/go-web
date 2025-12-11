@@ -28,8 +28,7 @@ const (
 	SelectUsersSql = `SELECT
 		id,
 		public_id,
-		first_name,
-		last_name,
+		name,
 		username,
 		email,
 		is_locked,
@@ -40,7 +39,7 @@ const (
 		FROM users
 	`
 
-	UsersSql = SelectUsersSql + ` ORDER BY first_name, last_name, email LIMIT ? OFFSET ?`
+	UsersSql = SelectUsersSql + ` ORDER BY name, email LIMIT ? OFFSET ?`
 
 	FindUserByIdSql = SelectUsersSql + ` WHERE users.id = ?`
 
@@ -101,8 +100,8 @@ const (
 		ORDER BY r.name, p.name`
 
 	InsertUserSql = `INSERT IGNORE INTO users 
-		(public_id, username, email, password, first_name, last_name, email_verified_at) 
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+		(public_id, username, email, password, name, email_verified_at) 
+		VALUES (?, ?, ?, ?, ?, ?)`
 
 	DeleteRolesSql    = "DELETE FROM users_roles WHERE user_id = ?"
 	InsertUserRoleSql = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES(?, ?)"
@@ -114,7 +113,7 @@ const (
 	SetUsernameSql      = `UPDATE users SET username = ? WHERE users.public_id = ?`
 
 	//   SET_NAME_SQL = `UPDATE users SET first_name = 1, last_name = 1 WHERE users.public_id = 1`
-	SetInfoSql  = `UPDATE users SET username = ?, first_name = ?, last_name = ? WHERE users.public_id = ?`
+	SetInfoSql  = `UPDATE users SET username = ?, name = ? WHERE users.public_id = ?`
 	SetEmailSql = `UPDATE users SET email = ? WHERE users.public_id = ?`
 
 	DeleteUserSql = `DELETE FROM users WHERE public_id = ?`
@@ -130,15 +129,20 @@ const (
 
 	GroupsSql = `SELECT 
 		groups.id, 
-		groups.public_id, 
 		groups.name,
 		groups.description 
 		FROM groups
 		ORDER BY groups.name`
 
-	GroupSql = `SELECT
+	FindGroupByIdSql = `SELECT
 		groups.id,
-		groups.public_id,
+		groups.name,
+		groups.description
+		FROM groups
+		WHERE groups.id = ?`
+
+	FindGroupByNameSql = `SELECT
+		groups.id,
 		groups.name,
 		groups.description
 		FROM groups
@@ -247,8 +251,7 @@ func (mydb *MySQLUserDB) Users(records int, offset int) ([]*auth.AuthUser, error
 		}
 
 		err := rows.Scan(&authUser.Id,
-			&authUser.FirstName,
-			&authUser.LastName,
+			&authUser.Name,
 			&authUser.Username,
 			&authUser.Email,
 			&authUser.IsLocked,
@@ -339,8 +342,7 @@ func (mydb *MySQLUserDB) findUser(row *sql.Row) (*auth.AuthUser, error) {
 	//var updatedAt int64
 
 	err := row.Scan(&authUser.Id,
-		&authUser.FirstName,
-		&authUser.LastName,
+		&authUser.Name,
 		&authUser.Username,
 		&authUser.Email,
 		&authUser.IsLocked,
@@ -638,11 +640,25 @@ func (mydb *MySQLUserDB) Roles() ([]*auth.RBACRole, error) {
 	return roles, nil
 }
 
-func (mydb *MySQLUserDB) FindGroup(name string) (*auth.RBACGroup, error) {
+func (mydb *MySQLUserDB) FindGroupById(id string) (*auth.RBACGroup, error) {
 
 	var group auth.RBACGroup
 
-	err := mydb.db.QueryRow(GroupSql, name).Scan(&group.Id,
+	err := mydb.db.QueryRow(FindGroupByIdSql, id).Scan(&group.Id,
+		&group.Name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, err
+}
+
+func (mydb *MySQLUserDB) FindGroupByName(name string) (*auth.RBACGroup, error) {
+
+	var group auth.RBACGroup
+
+	err := mydb.db.QueryRow(FindGroupByNameSql, name).Scan(&group.Id,
 		&group.Name)
 
 	if err != nil {
@@ -859,7 +875,7 @@ func (mydb *MySQLUserDB) SetUserRoles(user *auth.AuthUser, groups []string, admi
 	}
 
 	for _, group := range groups {
-		g, err := mydb.FindGroup(group)
+		g, err := mydb.FindGroupByName(group)
 
 		if err != nil {
 			return err
@@ -932,7 +948,7 @@ func (mydb *MySQLUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.Aut
 	}
 
 	// assume email is not verified
-	return mydb.CreateUser(userName, email, user.Password, user.FirstName, user.LastName, false)
+	return mydb.CreateUser(userName, email, user.Password, user.Name, false)
 }
 
 // Gets the user info from the database and auto creates user if
@@ -944,29 +960,15 @@ func (mydb *MySQLUserDB) CreateUserFromOAuth2(name string, email *mail.Address) 
 		return authUser, nil
 	}
 
-	firstName := ""
-	lastName := ""
-
-	if !strings.Contains(name, "@") {
-		tokens := strings.SplitN(name, " ", 2)
-
-		firstName = tokens[0]
-
-		if len(tokens) > 1 {
-			lastName = tokens[1]
-		}
-	}
-
 	// user does not exist so create
-	return mydb.CreateUser(email.Address, email, "", firstName, lastName, true)
+	return mydb.CreateUser(email.Address, email, "", name, true)
 
 }
 
 func (mydb *MySQLUserDB) CreateUser(userName string,
 	email *mail.Address,
 	password string,
-	firstName string,
-	lastName string,
+	name string,
 	emailIsVerified bool) (*auth.AuthUser, error) {
 	err := userdb.CheckPassword(password)
 
@@ -1033,8 +1035,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 		userName,
 		email.Address,
 		hash,
-		firstName,
-		lastName,
+		name,
 		emailVerifiedAt,
 	)
 
@@ -1057,7 +1058,7 @@ func (mydb *MySQLUserDB) CreateUser(userName string,
 	// 	return nil, err
 	// }
 
-	group, err := mydb.FindGroup(auth.GroupLogin)
+	group, err := mydb.FindGroupByName(auth.GroupLogin)
 
 	if err != nil {
 		return nil, err

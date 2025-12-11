@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
-	"github.com/antonybholmes/go-sys/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -48,10 +47,8 @@ type (
 	}
 
 	AuthUser struct {
-		Id string `json:"id"`
-		//PublicId        string        `json:"publicId"`
-		FirstName       string        `json:"firstName"`
-		LastName        string        `json:"lastName"`
+		Id              string        `json:"id"`
+		Name            string        `json:"name"`
 		Username        string        `json:"username"`
 		Email           string        `json:"email"`
 		HashedPassword  string        `json:"-"`
@@ -98,25 +95,6 @@ const (
 func (user *AuthUser) CheckPasswordsMatch(plainPwd string) error {
 	return CheckPasswordsMatch(user.HashedPassword, plainPwd)
 }
-
-// func (user *AuthUser) IsSuper() bool {
-// 	return IsSuper(user.Roles)
-// }
-
-// func (user *AuthUser) IsAdmin() bool {
-// 	return IsAdmin(user.Roles)
-// }
-
-// // Returns true if user is an admin or super, or is a member of
-// // the login group
-// func (user *AuthUser) CanLogin() bool {
-// 	return CanLogin(user.Roles)
-// }
-
-// // Generate a one time code
-// func RandCode() string {
-// 	return randomstring.CookieFriendlyString(32)
-// }
 
 func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 
@@ -179,14 +157,7 @@ func UserHasAdminRole(user *AuthUser) bool {
 }
 
 func UserHasWebLoginInRole(user *AuthUser) bool {
-	log.Debug().Msgf("user sss %v %v", user, user.Groups)
-
-	for _, g := range user.Groups {
-		log.Debug().Msgf("group %v", g)
-	}
-
 	return userHasRole(user.Groups, func(roles *sys.StringSet) bool {
-		log.Debug().Msgf("roles %v", roles.Keys())
 		return roles.Has(RoleWebLogin)
 	})
 }

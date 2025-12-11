@@ -1,5 +1,7 @@
 package auth
 
+import "fmt"
+
 // type PasswordlessLogin struct {
 // 	Username string `json:"username" `
 // 	UrlCallbackReq
@@ -56,12 +58,17 @@ type (
 		Password        string   `json:"password"`
 		NewPassword     string   `json:"newPassword"`
 		OTP             string   `json:"otp"`
-		FirstName       string   `json:"firstName"`
-		LastName        string   `json:"lastName"`
+		Name            string   `json:"name"`
 		ApiKey          string   `json:"apiKey"`
 		Groups          []string `json:"groups"` // groups to which user belongs
 		EmailIsVerified bool     `json:"emailIsVerified"`
 		StaySignedIn    bool     `json:"staySignedIn"`
+	}
+
+	SignupReq struct {
+		RedirectUrlReq
+		User
+		Password string `json:"password"`
 	}
 
 // type LoginUser struct {
@@ -77,3 +84,7 @@ type (
 //		return NewLoginUser(req.Email, req.Password)
 //	}
 )
+
+func (user *SignupReq) String() string {
+	return fmt.Sprintf("%s:%s:%s", user.FirstName, user.Email, user.Password)
+}

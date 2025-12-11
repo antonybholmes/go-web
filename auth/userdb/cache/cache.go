@@ -166,8 +166,8 @@ func SetPassword(user *auth.AuthUser, password string) error {
 // 	return instance.SetName(publicId, firstName, lastName)
 // }
 
-func SetUserInfo(user *auth.AuthUser, username string, firstName string, lastName string, adminMode bool) error {
-	return instance.SetUserInfo(user, username, firstName, lastName, adminMode)
+func SetUserInfo(user *auth.AuthUser, username string, name string, adminMode bool) error {
+	return instance.SetUserInfo(user, username, name, adminMode)
 }
 
 // func SetEmail(publicId string, email string) error {

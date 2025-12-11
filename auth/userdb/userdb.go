@@ -65,7 +65,8 @@ type (
 		Groups() ([]*auth.RBACGroup, error)
 
 		FindRoleByName(name string) (*auth.RBACRole, error)
-		FindGroup(name string) (*auth.RBACGroup, error)
+		FindGroupById(id string) (*auth.RBACGroup, error)
+		FindGroupByName(name string) (*auth.RBACGroup, error)
 
 		// Get a list of permissions for a user
 		//Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
@@ -79,8 +80,7 @@ type (
 		// update user info
 		SetUserInfo(user *auth.AuthUser,
 			username string,
-			firstName string,
-			lastName string,
+			name string,
 			adminMode bool) error
 
 		// change a user's email address
@@ -106,8 +106,7 @@ type (
 		CreateUser(userName string,
 			email *mail.Address,
 			password string,
-			firstName string,
-			lastName string,
+			name string,
 			emailIsVerified bool) (*auth.AuthUser, error)
 	}
 )

@@ -53,6 +53,7 @@ type (
 
 	SupabaseUserMetadata struct {
 		DisplayName string `json:"display_name"`
+		FullName    string `json:"full_name"`
 	}
 
 	SupabaseTokenClaims struct {
@@ -266,7 +267,7 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 
 	claims := AuthUserJwtClaims{
 		UserId:           authUser.Id,
-		Data:             authUser.FirstName,
+		Data:             authUser.Name,
 		Type:             TokenTypeVerifyEmail,
 		RedirectUrl:      visitUrl,
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
@@ -279,7 +280,7 @@ func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (
 	claims := AuthUserJwtClaims{
 		UserId: user.Id,
 		// include first name to personalize reset
-		Data:             user.FirstName,
+		Data:             user.Name,
 		Type:             TokenTypeResetPassword,
 		OneTimePasscode:  CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(tc.otpTokenTTL)}
