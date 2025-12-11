@@ -122,7 +122,7 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		log.Debug().Msgf("%v %s", claims, claims.Email)
+		log.Debug().Msgf("%v %s %s", claims, claims.Email, claims.UserMetadata.DisplayName)
 
 		// use pointer to token
 		c.Set("user", &claims)

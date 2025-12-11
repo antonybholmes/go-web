@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -64,11 +65,14 @@ type (
 )
 
 const (
+	RolePermissionSep = "::"
+	ResourceActionSep = ":"
+
 	RoleSuper = "root::*:*"
 	RoleAdmin = "admin::*:*"
 	//RoleUser  = "user:*"
-	RoleWebLogin = "web:login"
-	RoleRdfRead  = "rdf:read:*"
+	RoleWebLogin = "login::web:login"
+	//RoleRdfRead  = "rdf:read:*"
 
 	GroupUser  = "users"
 	GroupAdmin = "admins"
@@ -135,16 +139,31 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 	return nil
 }
 
+// func userHasRole(groups []*RBACGroup, f func(roles *sys.StringSet) bool) bool {
+// 	roles := sys.NewStringSet()
+
+// 	for _, g := range groups {
+// 		for _, r := range g.Roles {
+// 			roles.Add(r.Name)
+// 		}
+// 	}
+
+// 	return f(roles)
+// }
+
 func userHasRole(groups []*RBACGroup, f func(roles *sys.StringSet) bool) bool {
-	roles := sys.NewStringSet()
+	permissions := sys.NewStringSet()
 
 	for _, g := range groups {
 		for _, r := range g.Roles {
-			roles.Add(r.Name)
+			for _, p := range r.Permissions {
+				// of the form role::resource:action
+				permissions.Add(r.Name + RolePermissionSep + p.Resource + ResourceActionSep + p.Action)
+			}
 		}
 	}
 
-	return f(roles)
+	return f(permissions)
 }
 
 func UserHasSuperRole(user *AuthUser) bool {
@@ -160,7 +179,14 @@ func UserHasAdminRole(user *AuthUser) bool {
 }
 
 func UserHasWebLoginInRole(user *AuthUser) bool {
+	log.Debug().Msgf("user sss %v %v", user, user.Groups)
+
+	for _, g := range user.Groups {
+		log.Debug().Msgf("group %v", g)
+	}
+
 	return userHasRole(user.Groups, func(roles *sys.StringSet) bool {
+		log.Debug().Msgf("roles %v", roles.Keys())
 		return roles.Has(RoleWebLogin)
 	})
 }

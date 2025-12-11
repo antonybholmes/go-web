@@ -51,10 +51,15 @@ type (
 		Email string `json:"email"`
 	}
 
+	SupabaseUserMetadata struct {
+		DisplayName string `json:"display_name"`
+	}
+
 	SupabaseTokenClaims struct {
 		jwt.RegisteredClaims
 		//Name  string `json:"name"`
-		Email string `json:"email"`
+		Email        string               `json:"email"`
+		UserMetadata SupabaseUserMetadata `json:"user_metadata"`
 	}
 
 	TokenCreator struct {

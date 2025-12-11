@@ -363,6 +363,8 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
+	log.Debug().Msgf("blah %v %v", authUser.Id, authUser.Email)
+
 	err = pgdb.addGroupsToUser(&authUser)
 
 	if err != nil {
@@ -578,6 +580,8 @@ func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, 
 			Resource: resource,
 			Action:   action,
 		}
+
+		log.Debug().Msgf("current permission: %v %v", currentRole, currentPermission)
 
 		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
 
