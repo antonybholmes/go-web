@@ -90,11 +90,15 @@ func NewOIDCVerifier(ctx context.Context,
 func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 	claims := jwt.MapClaims{}
 
+	log.Debug().Msgf("Verifying token: %s", tokenString)
+
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&claims,
 		v.JWKS.Keyfunc,
 	)
+
+	log.Debug().Msgf("Parsed token: %v %v", token, err)
 
 	if !token.Valid {
 		return nil, auth.NewTokenError("invalid token")
