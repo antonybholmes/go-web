@@ -3,6 +3,7 @@ package cache
 import (
 	"crypto/ed25519"
 	"net/mail"
+	"time"
 
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/userdb"
@@ -44,8 +45,8 @@ func CreateUserFromSignup(user *auth.UserBodyReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
-func CreateUserFromOAuth2(name string, email *mail.Address) (*auth.AuthUser, error) {
-	return instance.CreateUserFromOAuth2(name, email)
+func CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
+	return instance.CreateUserFromOAuth2(email, name, authProvider)
 }
 
 func FindUserById(id string) (*auth.AuthUser, error) {
@@ -150,11 +151,11 @@ func UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
 
 // }
 
-func SetIsVerified(user string) error {
-	return instance.SetIsVerified(user)
+func SetEmailIsVerified(user *auth.AuthUser) (time.Time, error) {
+	return instance.SetEmailIsVerified(user)
 }
 
-func SetPassword(user *auth.AuthUser, password string) error {
+func SetPassword(user *auth.AuthUser, password string) (string, error) {
 	return instance.SetPassword(user, password)
 }
 

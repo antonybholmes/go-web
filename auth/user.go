@@ -47,17 +47,28 @@ type (
 	}
 
 	AuthUser struct {
-		Id              string        `json:"id"`
-		Name            string        `json:"name"`
-		Username        string        `json:"username"`
-		Email           string        `json:"email"`
-		HashedPassword  string        `json:"-"`
-		Groups          []*RBACGroup  `json:"groups"`
-		ApiKeys         []string      `json:"apiKeys"`
-		CreatedAt       time.Duration `json:"-"`
-		UpdatedAt       time.Duration `json:"-"`
-		EmailVerifiedAt time.Duration `json:"-"`
-		IsLocked        bool          `json:"isLocked"`
+		Id              string       `json:"id"`
+		Name            string       `json:"name"`
+		Username        string       `json:"username"`
+		Email           string       `json:"email"`
+		HashedPassword  string       `json:"-"`
+		Groups          []*RBACGroup `json:"groups"`
+		ApiKeys         []string     `json:"apiKeys"`
+		CreatedAt       time.Time    `json:"-"`
+		UpdatedAt       time.Time    `json:"-"`
+		EmailVerifiedAt time.Time    `json:"-"`
+		IsLocked        bool         `json:"isLocked"`
+	}
+
+	AuthProvider struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	}
+
+	UserAuthProvider struct {
+		Id           string        `json:"id"`
+		UserId       *AuthUser     `json:"user"`
+		AuthProvider *AuthProvider `json:"authProvider"`
 	}
 )
 

@@ -162,12 +162,12 @@ func HashPassword(password string) string {
 
 // Only to be used for database update events.
 func CreateOTP(user *AuthUser) string {
-	return HashPassword(strconv.FormatInt(user.UpdatedAt.Nanoseconds(), 10))
+	return HashPassword(strconv.FormatInt(user.UpdatedAt.UnixNano(), 10))
 
 }
 
 func CheckOTPValid(user *AuthUser, otp string) error {
-	err := CheckPasswordsMatch(otp, strconv.FormatInt(user.UpdatedAt.Nanoseconds(), 10))
+	err := CheckPasswordsMatch(otp, strconv.FormatInt(user.UpdatedAt.UnixNano(), 10))
 
 	if err != nil {
 		return errors.New("one time code has expired")

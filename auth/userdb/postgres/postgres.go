@@ -154,7 +154,7 @@ const (
 
 	InsertApiKeySql = "INSERT INTO api_keys (user_id, api_key) VALUES(@user_id, @api_key) ON CONFLICT DO NOTHING"
 
-	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = now() WHERE users.id = @id::uuid`
+	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = @time WHERE users.id = @id::uuid`
 	SetPasswordSql      = `UPDATE users SET password = @password WHERE users.id = @id::uuid`
 	//SetUsernameSql      = `UPDATE users SET username = @username WHERE users.id = @id::uuid`
 
@@ -191,6 +191,11 @@ const (
 		groups.description 
 		FROM groups
 		WHERE groups.name = @name`
+
+	InsertAuthProviderSql     = "INSERT INTO auth_providers (name) VALUES(@name) ON CONFLICT DO NOTHING"
+	FindAuthProviderByNameSql = "SELECT id, name FROM auth_providers WHERE name = @name"
+
+	InsertUserAuthProviderSql = "INSERT INTO user_auth_providers (user_id, auth_provider_id) VALUES(@user_id, @auth_provider_id) ON CONFLICT DO NOTHING"
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -759,12 +764,15 @@ func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.RBACGroup, error
 // 	return permissions, nil
 // }
 
-func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
+func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, error) {
 
-	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailVerifiedSql, pgx.NamedArgs{"id": userId})
+	// use in utc
+	now := time.Now().UTC()
+
+	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailVerifiedSql, pgx.NamedArgs{"id": user.Id, "time": now})
 
 	if err != nil {
-		return auth.NewAccountError("could not verify email address")
+		return time.Time{}, auth.NewAccountError("could not verify email address")
 	}
 
 	// _, err = pgdb.setOtpStmt.Exec(pgdb.ctx,"", userId)
@@ -773,12 +781,12 @@ func (pgdb *PostgresUserDB) SetIsVerified(userId string) error {
 	// 	return false
 	// }
 
-	return nil
+	return now, nil
 }
 
-func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) error {
+func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) (string, error) {
 	if user.IsLocked {
-		return auth.NewAccountError("account is locked and cannot be edited")
+		return "", auth.NewAccountError("account is locked and cannot be edited")
 	}
 
 	var err error
@@ -786,7 +794,7 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) er
 	err = userdb.CheckPassword(password)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	hash := auth.HashPassword(password)
@@ -794,10 +802,10 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) er
 	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, pgx.NamedArgs{"password": hash, "id": user.Id})
 
 	if err != nil {
-		return auth.NewAccountError("could not update password")
+		return "", auth.NewAccountError("could not update password")
 	}
 
-	return err
+	return hash, err
 }
 
 // func (pgdb *pgdb) SetUsername(publicId string, username string) error {
@@ -996,12 +1004,12 @@ func (pgdb *PostgresUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.
 	}
 
 	// assume email is not verified
-	return pgdb.CreateUser(userName, email, user.Password, user.Name, false)
+	return pgdb.CreateUser(email, userName, user.Password, user.Name, false, "edb")
 }
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
-func (pgdb *PostgresUserDB) CreateUserFromOAuth2(name string, email *mail.Address) (*auth.AuthUser, error) {
+func (pgdb *PostgresUserDB) CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
 	authUser, err := pgdb.FindUserByEmail(email)
 
 	if err == nil {
@@ -1009,15 +1017,43 @@ func (pgdb *PostgresUserDB) CreateUserFromOAuth2(name string, email *mail.Addres
 	}
 
 	// user does not exist so create
-	return pgdb.CreateUser(email.Address, email, "", name, true)
+	return pgdb.CreateUser(email, email.Address, "", name, true, authProvider)
 
 }
 
-func (pgdb *PostgresUserDB) CreateUser(userName string,
-	email *mail.Address,
+func (pgdb *PostgresUserDB) FindAuthProviderByName(name string) (*auth.AuthProvider, error) {
+	// run insert every time with on conflict
+	_, err := pgdb.db.Exec(pgdb.ctx, InsertAuthProviderSql, pgx.NamedArgs{"name": name})
+
+	if err != nil {
+		return nil, err
+	}
+
+	row := pgdb.db.QueryRow(pgdb.ctx, FindAuthProviderByNameSql, pgx.NamedArgs{"name": name})
+
+	var authProvider auth.AuthProvider
+
+	err = row.Scan(&authProvider.Id, &authProvider.Name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &authProvider, nil
+}
+
+func (pgdb *PostgresUserDB) AddUserAuthProvider(user *auth.AuthUser, authProvider *auth.AuthProvider) error {
+	_, err := pgdb.db.Exec(pgdb.ctx, InsertUserAuthProviderSql, pgx.NamedArgs{"user_id": user.Id, "auth_provider_id": authProvider.Id})
+
+	return err
+}
+
+func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
+	userName string,
 	password string,
 	name string,
-	emailIsVerified bool) (*auth.AuthUser, error) {
+	emailIsVerified bool,
+	authProvider string) (*auth.AuthUser, error) {
 	err := userdb.CheckPassword(password)
 
 	if err != nil {
@@ -1034,8 +1070,17 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 	if authUser != nil {
 		// user already exists so check if verified
 
-		if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
-			return nil, auth.NewAccountError("user already registered: please sign up with a different email address")
+		//if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
+		//	return nil, auth.NewAccountError("user already registered: please sign up with a different email address")
+		//}
+
+		if emailIsVerified {
+			now, err := pgdb.SetEmailIsVerified(authUser)
+			if err != nil {
+				return nil, err
+			}
+
+			authUser.EmailVerifiedAt = now
 		}
 
 		// if user is not verified, update the password since we assume
@@ -1043,14 +1088,28 @@ func (pgdb *PostgresUserDB) CreateUser(userName string,
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		err := pgdb.SetPassword(authUser, password)
+		hash, err := pgdb.SetPassword(authUser, password)
+
+		authUser.HashedPassword = hash
 
 		if err != nil {
-			return nil, auth.NewAccountError("user already registered: please sign up with another email address")
+			return nil, auth.NewAccountError("unable to set password")
+		}
+
+		// add info about signin
+		ap, err := pgdb.FindAuthProviderByName(authProvider)
+		if err != nil {
+			return nil, err
+		}
+
+		err = pgdb.AddUserAuthProvider(authUser, ap)
+
+		if err != nil {
+			return nil, err
 		}
 
 		// ensure user is the updated version
-		return pgdb.FindUserById(authUser.Id)
+		return authUser, nil //pgdb.FindUserById(authUser.Id)
 	}
 
 	// try to create user if user does not exist
