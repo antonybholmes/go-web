@@ -764,6 +764,8 @@ func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.RBACGroup, error
 // 	return permissions, nil
 // }
 
+// set that the email is verified by updating the verification timestamp
+// to something other than epoch date
 func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, error) {
 
 	// use in utc
@@ -774,6 +776,8 @@ func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, 
 	if err != nil {
 		return time.Time{}, auth.NewAccountError("could not verify email address")
 	}
+
+	user.EmailVerifiedAt = now
 
 	// _, err = pgdb.setOtpStmt.Exec(pgdb.ctx,"", userId)
 
@@ -804,6 +808,8 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) (s
 	if err != nil {
 		return "", auth.NewAccountError("could not update password")
 	}
+
+	user.HashedPassword = hash
 
 	return hash, err
 }
@@ -1075,12 +1081,12 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 		//}
 
 		if emailIsVerified {
-			now, err := pgdb.SetEmailIsVerified(authUser)
+			_, err := pgdb.SetEmailIsVerified(authUser)
+
 			if err != nil {
 				return nil, err
 			}
 
-			authUser.EmailVerifiedAt = now
 		}
 
 		// if user is not verified, update the password since we assume
@@ -1088,9 +1094,7 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 		// this is to stop people blocking creation of accounts by just
 		// signing up with email addresses they have no intention of
 		// verifying
-		hash, err := pgdb.SetPassword(authUser, password)
-
-		authUser.HashedPassword = hash
+		_, err := pgdb.SetPassword(authUser, password)
 
 		if err != nil {
 			return nil, auth.NewAccountError("unable to set password")
@@ -1130,10 +1134,10 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 
 	// default to unverified i.e. if time is epoch (1970) assume
 	// unverified
-	emailVerifiedAt := userdb.EpochDate
+	emailVerifiedAt := userdb.EmailNotVerifiedDate
 
 	if emailIsVerified {
-		emailVerifiedAt = time.Now().Format(time.RFC3339)
+		emailVerifiedAt = time.Now().UTC()
 	}
 
 	log.Debug().Msgf("%s %s", email.Address, emailVerifiedAt)
