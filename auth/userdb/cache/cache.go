@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"crypto/ed25519"
 	"net/mail"
 	"time"
 
@@ -49,6 +48,15 @@ func CreateUserFromOAuth2(email *mail.Address, name string, authProvider string)
 	return instance.CreateUserFromOAuth2(email, name, authProvider)
 }
 
+func CreateUser(email *mail.Address,
+	userName string,
+	password string,
+	name string,
+	emailIsVerified bool,
+	authProvider string) (*auth.AuthUser, error) {
+	return instance.CreateUser(email, userName, password, name, emailIsVerified, authProvider)
+}
+
 func FindUserById(id string) (*auth.AuthUser, error) {
 	return instance.FindUserById(id)
 }
@@ -69,13 +77,13 @@ func FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	return instance.FindUserByEmail(email)
 }
 
-func UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
-	return instance.UserGroups(user)
-}
+// func UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
+// 	return instance.UserGroups(user)
+// }
 
-func UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
-	return instance.UserPublicKeys(user)
-}
+// func UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
+// 	return instance.UserPublicKeys(user)
+// }
 
 // // returns a string list of a user's roles
 // func UserGroupList(user *auth.AuthUser) ([]string, error) {
@@ -151,12 +159,16 @@ func UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
 
 // }
 
-func SetEmailIsVerified(user *auth.AuthUser) (time.Time, error) {
+func SetEmailIsVerified(user *auth.AuthUser) (*time.Time, error) {
 	return instance.SetEmailIsVerified(user)
 }
 
-func SetPassword(user *auth.AuthUser, password string) (string, error) {
-	return instance.SetPassword(user, password)
+func SetUsername(user *auth.AuthUser, username string, adminMode bool) (string, error) {
+	return instance.SetUsername(user, username, adminMode)
+}
+
+func SetPassword(user *auth.AuthUser, password string, adminMode bool) (string, error) {
+	return instance.SetPassword(user, password, adminMode)
 }
 
 // func SetUsername(publicId string, username string) error {

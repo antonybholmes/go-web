@@ -1,7 +1,6 @@
 package userdb
 
 import (
-	"crypto/ed25519"
 	"fmt"
 	"net/mail"
 	"regexp"
@@ -52,12 +51,12 @@ type (
 
 		//AddPublicKeysToUser(authUser *auth.AuthUser, keys []ed25519.PublicKey) error
 
-		UserApiKeys(user *auth.AuthUser) ([]string, error)
+		//userApiKeys(user *auth.AuthUser) ([]string, error)
 
 		// get the public keys for a user
-		UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error)
+		//UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error)
 
-		UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
+		//UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
 
 		//PermissionList(user *auth.AuthUser) ([]string, error)
 
@@ -72,10 +71,12 @@ type (
 		//Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
 
 		// Mark a user's email as verified
-		SetEmailIsVerified(user *auth.AuthUser) (time.Time, error)
+		SetEmailIsVerified(user *auth.AuthUser) (*time.Time, error)
+
+		SetUsername(user *auth.AuthUser, username string, adminMode bool) (string, error)
 
 		// change a user's password
-		SetPassword(user *auth.AuthUser, password string) (string, error)
+		SetPassword(user *auth.AuthUser, password string, adminMode bool) (string, error)
 
 		// update user info
 		SetUserInfo(user *auth.AuthUser,
@@ -103,6 +104,13 @@ type (
 
 		// create a complete new user, this is more for
 		// traditional logins, generally CreateUserFromOAuth2 is preferred
+		CreateOrUpdateUser(email *mail.Address,
+			userName string,
+			password string,
+			name string,
+			emailIsVerified bool,
+			authProvider string) (*auth.AuthUser, error)
+
 		CreateUser(email *mail.Address,
 			userName string,
 			password string,
@@ -130,7 +138,7 @@ var (
 	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
 	NameRegex = regexp.MustCompile(`^[\w\-\_ ]*$`)
 
-	EmailNotVerifiedDate time.Time = time.Unix(0, 0).UTC() // 1970-01-01 00:00:00
+	//EmailNotVerifiedDate time.Time = time.Unix(0, 0).UTC() // 1970-01-01 00:00:00
 )
 
 // Make sure password meets requirements

@@ -46,29 +46,38 @@ type (
 		Roles []*RBACRole `json:"roles"`
 	}
 
-	AuthUser struct {
-		Id              string       `json:"id"`
-		Name            string       `json:"name"`
-		Username        string       `json:"username"`
-		Email           string       `json:"email"`
-		HashedPassword  string       `json:"-"`
-		Groups          []*RBACGroup `json:"groups"`
-		ApiKeys         []string     `json:"apiKeys"`
-		CreatedAt       time.Time    `json:"-"`
-		UpdatedAt       time.Time    `json:"-"`
-		EmailVerifiedAt time.Time    `json:"-"`
-		IsLocked        bool         `json:"isLocked"`
-	}
-
 	AuthProvider struct {
-		Id   string `json:"id"`
-		Name string `json:"name"`
+		Id        string     `json:"id"`
+		Name      string     `json:"name"`
+		UpdatedAt *time.Time `json:"updatedAt"`
 	}
 
 	UserAuthProvider struct {
 		Id           string        `json:"id"`
 		UserId       *AuthUser     `json:"user"`
 		AuthProvider *AuthProvider `json:"authProvider"`
+	}
+
+	PublicKey struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+		Key  string `json:"key"`
+	}
+
+	AuthUser struct {
+		Id              string          `json:"id"`
+		Name            string          `json:"name"`
+		Username        string          `json:"username"`
+		Email           string          `json:"email"`
+		HashedPassword  string          `json:"-"`
+		Groups          []*RBACGroup    `json:"groups"`
+		AuthProviders   []*AuthProvider `json:"authProviders"`
+		ApiKeys         []string        `json:"apiKeys"`
+		PublicKeys      []*PublicKey    `json:"publicKeys"`
+		CreatedAt       *time.Time      `json:"createdAt"`
+		UpdatedAt       *time.Time      `json:"updatedAt"`
+		EmailVerifiedAt *time.Time      `json:"-"`
+		IsLocked        bool            `json:"isLocked"`
 	}
 )
 

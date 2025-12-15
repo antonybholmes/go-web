@@ -76,7 +76,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		}
 
 		// Get all valid keys for user
-		keys, err := keystore.GetUserPublicKeysCached(userID)
+		keys, err := keystore.GetUserPublicKeysCached(userID, false)
 		if err != nil {
 			web.UnauthorizedResp(c, auth.NewAccountError("user not found"))
 			return

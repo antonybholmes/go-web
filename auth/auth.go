@@ -156,7 +156,14 @@ func TokenErrorResp(c *gin.Context) {
 // 		UpdatedAt: updated}
 // }
 
+// Returns the hash of a password. Empty passwords are not
+// hashed and return the empty string. Empty passwords are considered
+// a special case for passwordless logins.
 func HashPassword(password string) string {
+	if password == "" {
+		return ""
+	}
+
 	return string(sys.Must(bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)))
 }
 

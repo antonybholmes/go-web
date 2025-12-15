@@ -948,24 +948,24 @@ func (mydb *MySQLUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.Aut
 	}
 
 	// assume email is not verified
-	return mydb.CreateUser(email, userName, user.Password, user.Name, false, "edb")
+	return mydb.CreateOrUpdateUser(email, userName, user.Password, user.Name, false, "edb")
 }
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
 func (mydb *MySQLUserDB) CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
-	authUser, err := mydb.FindUserByEmail(email)
+	//authUser, err := mydb.FindUserByEmail(email)
 
-	if err == nil {
-		return authUser, nil
-	}
+	//if err == nil {
+	//	return authUser, nil
+	//}
 
 	// user does not exist so create
-	return mydb.CreateUser(email, email.Address, "", name, true, authProvider)
+	return mydb.CreateOrUpdateUser(email, email.Address, "", name, true, authProvider)
 
 }
 
-func (mydb *MySQLUserDB) CreateUser(email *mail.Address, userName string,
+func (mydb *MySQLUserDB) CreateOrUpdateUser(email *mail.Address, userName string,
 	password string,
 	name string,
 	emailIsVerified bool,
@@ -984,7 +984,7 @@ func (mydb *MySQLUserDB) CreateUser(email *mail.Address, userName string,
 	if authUser != nil {
 		// user already exists so check if verified
 
-		if authUser.EmailVerifiedAt.After(userdb.EmailNotVerifiedDate) {
+		if authUser.EmailVerifiedAt != nil {
 			return nil, errors.New("user already registered: please sign up with a different email address")
 		}
 

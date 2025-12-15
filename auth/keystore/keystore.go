@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/antonybholmes/go-sys"
 	userdb "github.com/antonybholmes/go-web/auth/userdb/cache"
 )
 
@@ -48,9 +49,11 @@ func (c *PublicKeyCache) GetUserKeys(userID string) ([]ed25519.PublicKey, bool) 
 	return item.Keys, true
 }
 
-func (c *PublicKeyCache) GetUserPublicKeysCached(userID string) ([]ed25519.PublicKey, error) {
-	if keys, ok := c.GetUserKeys(userID); ok {
-		return keys, nil
+func (c *PublicKeyCache) GetUserPublicKeysCached(userID string, forceReload bool) ([]ed25519.PublicKey, error) {
+	if !forceReload {
+		if keys, ok := c.GetUserKeys(userID); ok {
+			return keys, nil
+		}
 	}
 
 	// fallback to DB
@@ -60,10 +63,16 @@ func (c *PublicKeyCache) GetUserPublicKeysCached(userID string) ([]ed25519.Publi
 		return nil, err
 	}
 
-	keys, err := userdb.UserPublicKeys(user)
+	keys := make([]ed25519.PublicKey, 0, len(user.PublicKeys))
 
-	if err != nil {
-		return nil, err
+	for _, pk := range user.PublicKeys {
+		key, err := sys.MakeEd25519Key(pk.Key)
+
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, key)
 	}
 
 	c.SetUserKeys(userID, keys)
@@ -129,8 +138,8 @@ func SetCacheTTL(d time.Duration) {
 	instance.SetTTL(d)
 }
 
-func GetUserPublicKeysCached(userID string) ([]ed25519.PublicKey, error) {
-	return instance.GetUserPublicKeysCached(userID)
+func GetUserPublicKeysCached(userID string, forceReload bool) ([]ed25519.PublicKey, error) {
+	return instance.GetUserPublicKeysCached(userID, forceReload)
 }
 
 // func GetUserKeys(userID string) ([]ed25519.PublicKey, bool) {

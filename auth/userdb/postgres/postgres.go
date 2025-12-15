@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -33,9 +32,9 @@ const (
 		email, 
 		is_locked, 
 		password, 
-		FLOOR(EXTRACT(EPOCH FROM email_verified_at)) as email_verified_at, 
-		FLOOR(EXTRACT(EPOCH FROM created_at)) as created_at, 
-		FLOOR(EXTRACT(EPOCH FROM updated_at)) as updated_at
+		email_verified_at, 
+		created_at, 
+		updated_at
 		FROM users
 		`
 
@@ -59,10 +58,10 @@ const (
 		ORDER BY api_key`
 
 	UserPublicKeysSql = `SELECT 
-		id, public_key
+		id, name, key
 		FROM public_keys 
 		WHERE user_id = @id::uuid
-		ORDER BY public_key`
+		ORDER BY name, key`
 
 	RolesSql = `SELECT 
 		id, 
@@ -156,7 +155,7 @@ const (
 
 	SetEmailVerifiedSql = `UPDATE users SET email_verified_at = @time WHERE users.id = @id::uuid`
 	SetPasswordSql      = `UPDATE users SET password = @password WHERE users.id = @id::uuid`
-	//SetUsernameSql      = `UPDATE users SET username = @username WHERE users.id = @id::uuid`
+	SetUsernameSql      = `UPDATE users SET username = @username WHERE users.id = @id::uuid`
 
 	SetInfoSql  = `UPDATE users SET username = @username, name = @name WHERE users.id = @id::uuid`
 	SetEmailSql = `UPDATE users SET email = @email WHERE users.id = @id::uuid`
@@ -196,6 +195,16 @@ const (
 	FindAuthProviderByNameSql = "SELECT id, name FROM auth_providers WHERE name = @name"
 
 	InsertUserAuthProviderSql = "INSERT INTO user_auth_providers (user_id, auth_provider_id) VALUES(@user_id, @auth_provider_id) ON CONFLICT DO NOTHING"
+	UpdateUserAuthProviderSql = "UPDATE user_auth_providers SET updated_at = @time WHERE user_id = @user_id AND auth_provider_id = @auth_provider_id"
+
+	UserAuthProvidersSql = `SELECT
+		ap.id as id,
+		ap.name as name,
+		uap.updated_at as updated_at
+		FROM user_auth_providers uap
+		JOIN auth_providers ap ON uap.auth_provider_id = ap.id
+		WHERE uap.user_id = @id::uuid
+		`
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
@@ -234,10 +243,19 @@ func (pgdb *PostgresUserDB) NumUsers() (int, error) {
 func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, error) {
 	log.Debug().Msgf("users %d %d %s", records, offset, UsersSql)
 
-	rows, err := pgdb.db.Query(pgdb.ctx, UsersSql, pgx.NamedArgs{"limit": records, "offset": offset})
+	tx, err := pgdb.db.BeginTx(pgdb.ctx, pgx.TxOptions{
+		AccessMode: pgx.ReadOnly,
+	})
 
 	if err != nil {
-		log.Debug().Msgf("users2 %d %d %s", records, offset, UsersSql)
+		return nil, err
+	}
+
+	defer tx.Rollback(pgdb.ctx)
+
+	rows, err := tx.Query(pgdb.ctx, UsersSql, pgx.NamedArgs{"limit": records, "offset": offset})
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -276,7 +294,13 @@ func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, er
 
 		//log.Debug().Msgf("this user %v", authUser)
 
-		err = pgdb.addGroupsToUser(&authUser)
+		err = pgdb.addGroupsToUser(tx, &authUser)
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = pgdb.addAuthProvidersToUser(tx, &authUser)
 
 		if err != nil {
 			return nil, err
@@ -317,7 +341,7 @@ func (pgdb *PostgresUserDB) DeleteUser(id string) error {
 
 func (pgdb *PostgresUserDB) FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
 	log.Debug().Msgf("find email user %s %v", FindUserByEmailSql, email.Address)
-	return pgdb.findUser(email.Address, pgdb.db.QueryRow(pgdb.ctx, FindUserByEmailSql, pgx.NamedArgs{"email": email.Address}))
+	return pgdb.findUser(email.Address, FindUserByEmailSql, pgx.NamedArgs{"email": email.Address})
 }
 
 func (pgdb *PostgresUserDB) FindUserByUsername(username string) (*auth.AuthUser, error) {
@@ -338,11 +362,14 @@ func (pgdb *PostgresUserDB) FindUserByUsername(username string) (*auth.AuthUser,
 		return nil, err
 	}
 
-	return pgdb.findUser(username, pgdb.db.QueryRow(pgdb.ctx, FindUserByUsernameSql, pgx.NamedArgs{"username": username}))
+	return pgdb.findUser(username,
+		FindUserByUsernameSql,
+		pgx.NamedArgs{"username": username})
 }
 
 func (pgdb *PostgresUserDB) FindUserById(id string) (*auth.AuthUser, error) {
-	return pgdb.findUser(id, pgdb.db.QueryRow(pgdb.ctx, FindUserByIdSql, pgx.NamedArgs{"id": id}))
+
+	return pgdb.findUser(id, FindUserByIdSql, pgx.NamedArgs{"id": id})
 }
 
 // func (pgdb *PostgresUserDB) FindUserByPublicId(publicId string) (*auth.AuthUser, error) {
@@ -350,12 +377,27 @@ func (pgdb *PostgresUserDB) FindUserById(id string) (*auth.AuthUser, error) {
 // }
 
 // Helper function used by various FindUser methods. Converts a db row to an AuthUser
-func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, error) {
+func (pgdb *PostgresUserDB) findUser(id string,
+	sql string,
+	sqlParams pgx.NamedArgs) (*auth.AuthUser, error) {
+
+	tx, err := pgdb.db.BeginTx(pgdb.ctx,
+		pgx.TxOptions{
+			AccessMode: pgx.ReadOnly,
+		})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin read-only transaction: %v", err)
+	}
+
+	defer tx.Rollback(pgdb.ctx)
+
+	row := tx.QueryRow(pgdb.ctx, sql, sqlParams)
 
 	var authUser auth.AuthUser
 	//var updatedAt int64
 
-	err := row.Scan(&authUser.Id,
+	err = row.Scan(&authUser.Id,
 		&authUser.Name,
 		&authUser.Username,
 		&authUser.Email,
@@ -371,16 +413,26 @@ func (pgdb *PostgresUserDB) findUser(id string, row pgx.Row) (*auth.AuthUser, er
 
 	//authUser.UpdatedAt = time.Duration(updatedAt)
 
-	log.Debug().Msgf("blah %v %v", authUser.Id, authUser.Email)
-
-	err = pgdb.addGroupsToUser(&authUser)
+	err = pgdb.addGroupsToUser(tx, &authUser)
 
 	if err != nil {
 		log.Error().Msgf("error adding roles to user %s %v", authUser.Id, err)
 		return nil, err
 	}
 
-	err = pgdb.AddApiKeysToUser(&authUser)
+	err = pgdb.addAuthProvidersToUser(tx, &authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = pgdb.addApiKeysToUser(tx, &authUser)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = pgdb.addPublicKeysToUser(tx, &authUser)
 
 	if err != nil {
 		return nil, err
@@ -409,9 +461,9 @@ func (pgdb *PostgresUserDB) FindUserByApiKey(key string) (*auth.AuthUser, error)
 	return pgdb.FindUserById(userId)
 }
 
-func (pgdb *PostgresUserDB) addGroupsToUser(authUser *auth.AuthUser) error {
+func (pgdb *PostgresUserDB) addGroupsToUser(tx pgx.Tx, authUser *auth.AuthUser) error {
 
-	groups, err := pgdb.UserGroups(authUser)
+	groups, err := pgdb.userGroups(tx, authUser)
 
 	//log.Debug().Msgf("add groups to user %s: %v", authUser.Username, groups)
 
@@ -420,6 +472,37 @@ func (pgdb *PostgresUserDB) addGroupsToUser(authUser *auth.AuthUser) error {
 	}
 
 	authUser.Groups = append(authUser.Groups, groups...)
+
+	return nil
+}
+
+func (pgdb *PostgresUserDB) addAuthProvidersToUser(tx pgx.Tx, user *auth.AuthUser) error {
+
+	rows, err := tx.Query(pgdb.ctx, UserAuthProvidersSql, pgx.NamedArgs{"id": user.Id})
+
+	if err != nil {
+		return auth.NewAccountError("user auth providers not found: " + err.Error())
+	}
+
+	defer rows.Close()
+
+	user.AuthProviders = make([]*auth.AuthProvider, 0, 10)
+
+	for rows.Next() {
+		var provider auth.AuthProvider
+
+		err := rows.Scan(
+			&provider.Id,
+			&provider.Name,
+			&provider.UpdatedAt)
+
+		if err != nil {
+			log.Error().Msgf("error scanning user groups %v", err)
+			return fmt.Errorf("user roles not found: %v", err)
+		}
+
+		user.AuthProviders = append(user.AuthProviders, &provider)
+	}
 
 	return nil
 }
@@ -442,79 +525,65 @@ func (pgdb *PostgresUserDB) addGroupsToUser(authUser *auth.AuthUser) error {
 
 // }
 
-func (pgdb *PostgresUserDB) AddApiKeysToUser(authUser *auth.AuthUser) error {
+func (pgdb *PostgresUserDB) addApiKeysToUser(tx pgx.Tx, user *auth.AuthUser) error {
 
-	keys, err := pgdb.UserApiKeys(authUser)
+	rows, err := tx.Query(pgdb.ctx, UserApiKeysSql, pgx.NamedArgs{"id": user.Id})
 
 	if err != nil {
-		return err //fmt.Errorf("there was an error with the database query")
+		return errors.New("user roles not found")
 	}
 
-	authUser.ApiKeys = keys
+	defer rows.Close()
+
+	user.ApiKeys = make([]string, 0, 10)
+
+	var id string
+	var key string
+
+	for rows.Next() {
+
+		err := rows.Scan(&id, &key)
+
+		if err != nil {
+			return err
+		}
+		user.ApiKeys = append(user.ApiKeys, key)
+	}
 
 	return nil
 }
 
-func (pgdb *PostgresUserDB) UserApiKeys(user *auth.AuthUser) ([]string, error) {
+func (pgdb *PostgresUserDB) addPublicKeysToUser(tx pgx.Tx, user *auth.AuthUser) error {
 
-	rows, err := pgdb.db.Query(pgdb.ctx, UserApiKeysSql, pgx.NamedArgs{"id": user.Id})
+	rows, err := tx.Query(pgdb.ctx, UserPublicKeysSql, pgx.NamedArgs{"id": user.Id})
 
 	if err != nil {
-		return nil, errors.New("user roles not found")
+		return fmt.Errorf("user public keys not found")
 	}
 
 	defer rows.Close()
 
-	keys := make([]string, 0, 10)
-
-	var id string
-	var key string
+	user.PublicKeys = make([]*auth.PublicKey, 0, 10)
 
 	for rows.Next() {
-
-		err := rows.Scan(&id, &key)
-
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
-	}
-
-	return keys, nil
-}
-
-func (pgdb *PostgresUserDB) UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error) {
-	rows, err := pgdb.db.Query(pgdb.ctx, UserApiKeysSql, pgx.NamedArgs{"id": user.Id})
-
-	if err != nil {
-		return nil, fmt.Errorf("user public keys not found")
-	}
-
-	defer rows.Close()
-
-	keys := make([]ed25519.PublicKey, 0, 10)
-
-	var id string
-	var key string
-
-	for rows.Next() {
-		err := rows.Scan(&id, &key)
+		var key auth.PublicKey
+		err := rows.Scan(&key.Id, &key.Name, &key.Key)
 
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		keys = append(keys, ed25519.PublicKey(key))
+		user.PublicKeys = append(user.PublicKeys, &key)
 	}
-	return keys, nil
+
+	return nil
 }
 
-func (pgdb *PostgresUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error) {
+func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.RBACGroup, error) {
 
 	log.Debug().Msgf("getting user groups for %s", user.Id)
 
-	rows, err := pgdb.db.Query(pgdb.ctx, UserGroupsSql, pgx.NamedArgs{"id": user.Id})
-
+	rows, err := tx.Query(pgdb.ctx, UserGroupsSql, pgx.NamedArgs{"id": user.Id})
 	if err != nil {
 		return nil, fmt.Errorf("user roles not found")
 	}
@@ -766,7 +835,7 @@ func (pgdb *PostgresUserDB) FindGroupByName(name string) (*auth.RBACGroup, error
 
 // set that the email is verified by updating the verification timestamp
 // to something other than epoch date
-func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, error) {
+func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (*time.Time, error) {
 
 	// use in utc
 	now := time.Now().UTC()
@@ -774,10 +843,10 @@ func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, 
 	_, err := pgdb.db.Exec(pgdb.ctx, SetEmailVerifiedSql, pgx.NamedArgs{"id": user.Id, "time": now})
 
 	if err != nil {
-		return time.Time{}, auth.NewAccountError("could not verify email address")
+		return nil, auth.NewAccountError("could not verify email address")
 	}
 
-	user.EmailVerifiedAt = now
+	user.EmailVerifiedAt = &now
 
 	// _, err = pgdb.setOtpStmt.Exec(pgdb.ctx,"", userId)
 
@@ -785,11 +854,27 @@ func (pgdb *PostgresUserDB) SetEmailIsVerified(user *auth.AuthUser) (time.Time, 
 	// 	return false
 	// }
 
-	return now, nil
+	return &now, nil
 }
 
-func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) (string, error) {
-	if user.IsLocked {
+func (pgdb *PostgresUserDB) SetUsername(user *auth.AuthUser, username string, adminMode bool) (string, error) {
+	if !adminMode && user.IsLocked {
+		return "", auth.NewAccountError("account is locked and cannot be edited")
+	}
+
+	_, err := pgdb.db.Exec(pgdb.ctx, SetUsernameSql, pgx.NamedArgs{"username": username, "id": user.Id})
+
+	if err != nil {
+		return "", auth.NewAccountError("could not update username")
+	}
+
+	user.Username = username
+
+	return username, err
+}
+
+func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string, adminMode bool) (string, error) {
+	if !adminMode && user.IsLocked {
 		return "", auth.NewAccountError("account is locked and cannot be edited")
 	}
 
@@ -801,7 +886,11 @@ func (pgdb *PostgresUserDB) SetPassword(user *auth.AuthUser, password string) (s
 		return "", err
 	}
 
-	hash := auth.HashPassword(password)
+	hash := ""
+
+	if password != "" {
+		hash = auth.HashPassword(password)
+	}
 
 	_, err = pgdb.db.Exec(pgdb.ctx, SetPasswordSql, pgx.NamedArgs{"password": hash, "id": user.Id})
 
@@ -1010,20 +1099,22 @@ func (pgdb *PostgresUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.
 	}
 
 	// assume email is not verified
-	return pgdb.CreateUser(email, userName, user.Password, user.Name, false, "edb")
+	return pgdb.CreateOrUpdateUser(email, userName, user.Password, user.Name, false, "edb")
 }
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
-func (pgdb *PostgresUserDB) CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
-	authUser, err := pgdb.FindUserByEmail(email)
+func (pgdb *PostgresUserDB) CreateUserFromOAuth2(email *mail.Address,
+	name string,
+	authProvider string) (*auth.AuthUser, error) {
+	//authUser, err := pgdb.FindUserByEmail(email)
 
-	if err == nil {
-		return authUser, nil
-	}
+	//if err == nil {
+	//	return authUser, nil
+	//}
 
 	// user does not exist so create
-	return pgdb.CreateUser(email, email.Address, "", name, true, authProvider)
+	return pgdb.CreateOrUpdateUser(email, email.Address, "", name, true, authProvider)
 
 }
 
@@ -1049,12 +1140,22 @@ func (pgdb *PostgresUserDB) FindAuthProviderByName(name string) (*auth.AuthProvi
 }
 
 func (pgdb *PostgresUserDB) AddUserAuthProvider(user *auth.AuthUser, authProvider *auth.AuthProvider) error {
+	now := time.Now().UTC()
+
 	_, err := pgdb.db.Exec(pgdb.ctx, InsertUserAuthProviderSql, pgx.NamedArgs{"user_id": user.Id, "auth_provider_id": authProvider.Id})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = pgdb.db.Exec(pgdb.ctx, UpdateUserAuthProviderSql, pgx.NamedArgs{"user_id": user.Id, "auth_provider_id": authProvider.Id, "time": now})
 
 	return err
 }
 
-func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
+// Will create a user if they don't exist or otherwise update the
+// existing user with
+func (pgdb *PostgresUserDB) CreateOrUpdateUser(email *mail.Address,
 	userName string,
 	password string,
 	name string,
@@ -1074,70 +1175,44 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	log.Debug().Msgf("create user found %v %s", authUser, email)
 
 	if authUser != nil {
-		// user already exists so check if verified
-
-		//if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
-		//	return nil, auth.NewAccountError("user already registered: please sign up with a different email address")
-		//}
-
-		if emailIsVerified {
-			_, err := pgdb.SetEmailIsVerified(authUser)
-
-			if err != nil {
-				return nil, err
-			}
-
-		}
-
-		// if user is not verified, update the password since we assume
-		// rightful owner of email address will keep trying until verified
-		// this is to stop people blocking creation of accounts by just
-		// signing up with email addresses they have no intention of
-		// verifying
-		_, err := pgdb.SetPassword(authUser, password)
-
-		if err != nil {
-			return nil, auth.NewAccountError("unable to set password")
-		}
-
-		// add info about signin
-		ap, err := pgdb.FindAuthProviderByName(authProvider)
-		if err != nil {
-			return nil, err
-		}
-
-		err = pgdb.AddUserAuthProvider(authUser, ap)
-
-		if err != nil {
-			return nil, err
-		}
-
-		// ensure user is the updated version
-		return authUser, nil //pgdb.FindUserById(authUser.Id)
+		return pgdb.updateUser(authUser,
+			email,
+			userName,
+			password,
+			name,
+			emailIsVerified,
+			authProvider)
 	}
 
-	// try to create user if user does not exist
+	return pgdb.CreateUser(email,
+		userName,
+		password,
+		name,
+		emailIsVerified,
+		authProvider)
+}
 
-	// Create a publicId for the user id
-	//publicId, err := sys.Uuidv7() // sys.NanoId()
+func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
+	userName string,
+	password string,
+	name string,
+	emailIsVerified bool,
+	authProvider string) (*auth.AuthUser, error) {
+	err := userdb.CheckPassword(password)
 
-	//if err != nil {
-	//	return nil, auth.NewAccountError("could not create uuid for user")
-	//}
-
-	hash := ""
-
-	// empty passwords indicate passwordless
-	if password != "" {
-		hash = auth.HashPassword(password)
+	if err != nil {
+		return nil, err
 	}
+
+	hash := auth.HashPassword(password)
 
 	// default to unverified i.e. if time is epoch (1970) assume
 	// unverified
-	emailVerifiedAt := userdb.EmailNotVerifiedDate
+	var emailVerifiedAt *time.Time = nil //userdb.EmailNotVerifiedDate
 
 	if emailIsVerified {
-		emailVerifiedAt = time.Now().UTC()
+		now := time.Now().UTC()
+		emailVerifiedAt = &now
 	}
 
 	log.Debug().Msgf("%s %s", email.Address, emailVerifiedAt)
@@ -1159,7 +1234,7 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	}
 
 	// Call function again to get the user details
-	authUser, err = pgdb.FindUserByEmail(email)
+	authUser, err := pgdb.FindUserByEmail(email)
 
 	if err != nil {
 		log.Debug().Msgf("find by error user %v", err)
@@ -1196,4 +1271,74 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 
 	// return the updated version
 	return pgdb.FindUserById(authUser.Id)
+}
+
+func (pgdb *PostgresUserDB) updateUser(authUser *auth.AuthUser,
+	email *mail.Address,
+	username string,
+	password string,
+	name string,
+	emailIsVerified bool,
+	authProvider string) (*auth.AuthUser, error) {
+	err := userdb.CheckPassword(password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug().Msgf("create user found %v %s", authUser, email)
+
+	// user already exists so check if verified
+
+	//if authUser.EmailVerifiedAt > userdb.EmailNotVerifiedDate {
+	//	return nil, auth.NewAccountError("user already registered: please sign up with a different email address")
+	//}
+
+	if emailIsVerified {
+		_, err := pgdb.SetEmailIsVerified(authUser)
+
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	// if user is not verified, update the password since we assume
+	// rightful owner of email address will keep trying until verified
+	// this is to stop people blocking creation of accounts by just
+	// signing up with email addresses they have no intention of
+	// verifying. Since createUser is called by oauth2 signins and
+	// may be updating an existing account, we do not update password
+	// if user account is locked.
+	if !authUser.IsLocked {
+		//_, err := pgdb.SetUsername(authUser, username, false)
+
+		err := pgdb.SetUserInfo(authUser, username, name, false)
+
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = pgdb.SetPassword(authUser, password, false)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// add info about signin
+	ap, err := pgdb.FindAuthProviderByName(authProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	err = pgdb.AddUserAuthProvider(authUser, ap)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// ensure user is the updated version
+	return authUser, nil //pgdb.FindUserById(authUser.Id)
+
 }
