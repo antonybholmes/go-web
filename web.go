@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,6 +41,18 @@ var (
 	ErrInvalidEmail = fmt.Errorf("invalid email address")
 	ErrInvalidBody  = fmt.Errorf("invalid body")
 )
+
+// BindQueryAndJSON binds both query parameters and JSON body to the given object.
+func BindQueryAndJSON(c *gin.Context, obj any) error {
+	if err := c.ShouldBindQuery(obj); err != nil {
+		return err
+	}
+
+	if err := c.ShouldBindJSON(obj); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
+}
 
 // type JwtInfo struct {
 // 	Uuid string `json:"uuid"`

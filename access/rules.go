@@ -89,7 +89,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 	data := sys.Must(os.ReadFile(filename))
 
 	var rules JsonRules
-	sys.BaseMust(json.Unmarshal(data, &rules))
+	sys.VoidMust(json.Unmarshal(data, &rules))
 	var isExact bool
 
 	for _, r := range rules.Rules {
