@@ -1154,7 +1154,7 @@ func (pgdb *PostgresUserDB) AddUserAuthProvider(user *auth.AuthUser, authProvide
 }
 
 // Will create a user if they don't exist or otherwise update the
-// existing user with
+// existing user with info provided
 func (pgdb *PostgresUserDB) CreateOrUpdateUser(email *mail.Address,
 	userName string,
 	password string,
@@ -1198,6 +1198,8 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	name string,
 	emailIsVerified bool,
 	authProvider string) (*auth.AuthUser, error) {
+	log.Debug().Msgf("create user start %s %s", email.Address, userName)
+
 	err := userdb.CheckPassword(password)
 
 	if err != nil {
@@ -1268,6 +1270,8 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debug().Msgf("created user end %v", authUser)
 
 	// return the updated version
 	return pgdb.FindUserById(authUser.Id)

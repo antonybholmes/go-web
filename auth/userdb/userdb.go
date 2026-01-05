@@ -136,7 +136,7 @@ var (
 	EmailRegex    = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
 	UsernameRegex = regexp.MustCompile(`^[\w\-\.@]+$`)
 	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
-	NameRegex = regexp.MustCompile(`^[\w\-\_ ]*$`)
+	NameRegex = regexp.MustCompile(`^[A-Za-z]+(?:[\s'-][A-Za-z]+)*$`) //^[\w\- ]*$`)
 
 	//EmailNotVerifiedDate time.Time = time.Unix(0, 0).UTC() // 1970-01-01 00:00:00
 )
@@ -174,11 +174,16 @@ func CheckUsername(username string) error {
 }
 
 func CheckName(name string) error {
+	if len(name) == 0 {
+		return nil
+	}
+
 	//if len(name) < MIN_NAME_LENGTH {
 	//	return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
 	//}
 
-	if !NameRegex.MatchString(name) {
+	// Names must either look like a personal name or an email address
+	if !NameRegex.MatchString(name) && !EmailRegex.MatchString(name) {
 		return auth.NewAccountError("invalid name")
 	}
 
