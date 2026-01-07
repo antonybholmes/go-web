@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/mail"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/antonybholmes/go-web/auth"
 )
@@ -122,9 +124,13 @@ type (
 
 const (
 	MinPasswordLength = 8
+	MaxPasswordLength = 256
 	MinNameLength     = 3
 
 	EpochDate = "1970-01-01"
+
+	// allowed special characters in passwords
+	allowedSpecial = "@$!%*#&.^~-"
 
 	// 1970-01-01 mysql
 	//EmailNotVerifiedDate time.Duration = 62167219200 //31556995200
@@ -132,13 +138,17 @@ const (
 )
 
 var (
-	PasswordRegex = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
-	EmailRegex    = regexp.MustCompile(`^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
-	UsernameRegex = regexp.MustCompile(`^[\w\-\.@]+$`)
+	//PasswordRegex = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
+	EmailRegex    = regexp.MustCompile(`/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/`) //^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
+	UsernameRegex = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
 	NameRegex = regexp.MustCompile(`^[A-Za-z]+(?:[\s'-][A-Za-z]+)*$`) //^[\w\- ]*$`)
 
 	//EmailNotVerifiedDate time.Time = time.Unix(0, 0).UTC() // 1970-01-01 00:00:00
+
+	// allowedSpecial = map[rune]struct{}{
+	// 	'@': {}, '$': {}, '!': {}, '%': {}, '*': {}, '#': {}, '&': {}, '.': {}, '^': {}, '~': {}, '-': {},
+	// }
 )
 
 // Make sure password meets requirements
@@ -153,8 +163,49 @@ func CheckPassword(password string) error {
 		return auth.NewAccountError(fmt.Sprintf("password must be at least %d characters", MinPasswordLength))
 	}
 
-	if !PasswordRegex.MatchString(password) {
-		return auth.NewAccountError("invalid password")
+	// do not allow overly long passwords, but 256 should be plenty and
+	// this is mainly to prevent abuse and is software imposed so can
+	// be raised if needed since the database doen't limit it
+	if len(password) > MaxPasswordLength {
+		return auth.NewAccountError(fmt.Sprintf("password must be at most %d characters", MaxPasswordLength))
+	}
+
+	// if !PasswordRegex.MatchString(password) {
+	// 	return auth.NewAccountError("invalid password")
+	// }
+
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+
+	for _, ch := range password {
+		switch {
+		case unicode.IsUpper(ch):
+			hasUpper = true
+		case unicode.IsLower(ch):
+			hasLower = true
+		case unicode.IsDigit(ch):
+			hasDigit = true
+		case strings.ContainsRune(allowedSpecial, ch):
+			hasSpecial = true
+		default:
+			// Invalid character not allowed
+			return auth.NewAccountError("invalid chars in password")
+		}
+	}
+
+	if !hasUpper {
+		return auth.NewAccountError("password must contain at least one uppercase letter")
+	}
+
+	if !hasLower {
+		return auth.NewAccountError("password must contain at least one lowercase letter")
+	}
+
+	if !hasDigit {
+		return auth.NewAccountError("password must contain at least one digit")
+	}
+
+	if !hasSpecial {
+		return auth.NewAccountError("password must contain at least one special character from " + allowedSpecial)
 	}
 
 	return nil
@@ -163,29 +214,37 @@ func CheckPassword(password string) error {
 // Make sure password meets requirements
 func CheckUsername(username string) error {
 	if len(username) < MinNameLength {
-		return auth.NewAccountError(fmt.Sprintf("username must be at least %d characters", MinNameLength))
+		return auth.NewAccountError(fmt.Sprintf("username %s must be at least %d characters", username, MinNameLength))
 	}
 
-	if !UsernameRegex.MatchString(username) {
-		return auth.NewAccountError("invalid username")
+	// if either a valid username or email, it's ok
+	if UsernameRegex.MatchString(username) || EmailRegex.MatchString(username) {
+		return nil
 	}
 
-	return nil
+	return auth.NewAccountError(username + " is an invalid username")
 }
 
+// Make sure name meets requirements which is either a personal name or email address
+// There is no requirement for a name to be provided and no minimum length
+// but if one is provided it must be well formed. A name containing @ will be
+// treated as an email address so it must match an email format otherwise. Personal
+// names are looser, but must only contain letters, spaces, dashes or apostrophes
 func CheckName(name string) error {
 	if len(name) == 0 {
 		return nil
 	}
 
-	//if len(name) < MIN_NAME_LENGTH {
-	//	return fmt.Errorf("%s must be at least %d characters", name, MIN_NAME_LENGTH)
-	//}
-
-	// Names must either look like a personal name or an email address
-	if !NameRegex.MatchString(name) && !EmailRegex.MatchString(name) {
-		return auth.NewAccountError("invalid name")
+	// if either a valid name or email, it's ok
+	if NameRegex.MatchString(name) || EmailRegex.MatchString(name) {
+		return nil
 	}
 
-	return nil
+	// if not valid email address throw error
+	// if !isEmail {
+	// 	return auth.NewAccountError(fmt.Sprintf("name %s is not a valid email address", name))
+	// }
+
+	// asssume it's meant to be a personal name
+	return auth.NewAccountError(name + " is not a valid name")
 }
