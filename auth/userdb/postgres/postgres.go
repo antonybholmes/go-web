@@ -340,7 +340,7 @@ func (pgdb *PostgresUserDB) DeleteUser(id string) error {
 }
 
 func (pgdb *PostgresUserDB) FindUserByEmail(email *mail.Address) (*auth.AuthUser, error) {
-	log.Debug().Msgf("find email user %s %v", FindUserByEmailSql, email.Address)
+	//log.Debug().Msgf("find email user %s %v", FindUserByEmailSql, email.Address)
 	return pgdb.findUser(email.Address, FindUserByEmailSql, pgx.NamedArgs{"email": email.Address})
 }
 
@@ -1172,7 +1172,7 @@ func (pgdb *PostgresUserDB) CreateOrUpdateUser(email *mail.Address,
 	// doesn't exist so we can continue and make the user
 	authUser, _ := pgdb.FindUserByEmail(email)
 
-	log.Debug().Msgf("create user found %v %s", authUser, email)
+	//log.Debug().Msgf("create user found %v %s", authUser, email)
 
 	if authUser != nil {
 		return pgdb.updateUser(authUser,
@@ -1198,7 +1198,7 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	name string,
 	emailIsVerified bool,
 	authProvider string) (*auth.AuthUser, error) {
-	log.Debug().Msgf("create user start %s %s", email.Address, userName)
+	//log.Debug().Msgf("create user start %s %s", email.Address, userName)
 
 	err := userdb.CheckPassword(password)
 

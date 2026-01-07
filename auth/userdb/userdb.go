@@ -2,12 +2,14 @@ package userdb
 
 import (
 	"fmt"
+
 	"net/mail"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web/auth"
 )
 
@@ -15,17 +17,7 @@ import (
 
 // partially based on https://betterprogramming.pub/hands-on-with-jwt-in-golang-8c986d1bb4c0
 
-//const EMAIL_NOT_VERIFIED_TIME_S = 62167219200
-
 type (
-	// UserNotFoundError struct {
-	// 	s string
-	// }
-
-	// PasswordError struct {
-	// 	s string
-	// }
-
 	UserDB interface {
 		NumUsers() (int, error)
 
@@ -75,6 +67,8 @@ type (
 		// Mark a user's email as verified
 		SetEmailIsVerified(user *auth.AuthUser) (*time.Time, error)
 
+		// change a user's username. AdminMode allows changing other users' usernames
+		// and bypasses certain checks and is for use by administrators only.
 		SetUsername(user *auth.AuthUser, username string, adminMode bool) (string, error)
 
 		// change a user's password
@@ -139,7 +133,7 @@ const (
 
 var (
 	//PasswordRegex = regexp.MustCompile(`^[A-Za-z\d@\$!%\*#\$&\.\~\^\-]*$`)
-	EmailRegex    = regexp.MustCompile(`/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/`) //^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
+	EmailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`) //^\w+([\.\_\-]\w+)*@\w+([\.\_\-]\w+)*\.[a-zA-Z]{2,}$`)
 	UsernameRegex = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 	// name can be empty or contain letters, numbers, spaces, dashes, and underscores
 	NameRegex = regexp.MustCompile(`^[A-Za-z]+(?:[\s'-][A-Za-z]+)*$`) //^[\w\- ]*$`)
@@ -160,14 +154,14 @@ func CheckPassword(password string) error {
 	}
 
 	if len(password) < MinPasswordLength {
-		return auth.NewAccountError(fmt.Sprintf("password must be at least %d characters", MinPasswordLength))
+		return auth.NewAccountError(fmt.Sprintf("min password length is %d", MinPasswordLength))
 	}
 
 	// do not allow overly long passwords, but 256 should be plenty and
 	// this is mainly to prevent abuse and is software imposed so can
 	// be raised if needed since the database doen't limit it
 	if len(password) > MaxPasswordLength {
-		return auth.NewAccountError(fmt.Sprintf("password must be at most %d characters", MaxPasswordLength))
+		return auth.NewAccountError(fmt.Sprintf("max password length is %d", MaxPasswordLength))
 	}
 
 	// if !PasswordRegex.MatchString(password) {
@@ -216,6 +210,8 @@ func CheckUsername(username string) error {
 	if len(username) < MinNameLength {
 		return auth.NewAccountError(fmt.Sprintf("username %s must be at least %d characters", username, MinNameLength))
 	}
+
+	log.Debug().Msgf("checking username: %s %v", username, EmailRegex.MatchString(username))
 
 	// if either a valid username or email, it's ok
 	if UsernameRegex.MatchString(username) || EmailRegex.MatchString(username) {
