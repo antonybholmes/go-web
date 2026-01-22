@@ -59,6 +59,7 @@ var (
 	ErrUserCannotLogin             = NewAccountError("user is not allowed to login")
 	ErrInvalidSession              = NewAccountError("invalid session")
 	ErrInvalidRoles                = NewAccountError("invalid roles")
+	ErrInvalidPermissions          = NewAccountError("invalid permissions")
 	ErrWrongTokenType              = NewAccountError("wrong token type")
 	ErrEmailNotVerified            = NewAccountError("email not verified")
 	ErrInvalidUsername             = NewAccountError("invalid username")

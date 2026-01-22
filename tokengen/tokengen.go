@@ -28,6 +28,10 @@ func AccessToken(c *gin.Context, publicId string, roles []*auth.Role) (string, e
 	return tc.AccessToken(c, publicId, roles)
 }
 
+func AccessTokenUsingPermissions(c *gin.Context, publicId string, permissions []string) (string, error) {
+	return tc.AccessTokenUsingPermissions(c, publicId, permissions)
+}
+
 func UpdateToken(c *gin.Context, publicId string, roles []*auth.Role) (string, error) {
 	return tc.UpdateToken(c, publicId, roles)
 }

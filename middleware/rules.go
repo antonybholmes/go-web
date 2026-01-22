@@ -26,7 +26,7 @@ func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) 
 
 		//log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
-		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
+		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), userToken.Type, userToken.Permissions)
 
 		if err != nil {
 			log.Debug().Msgf("access denied: %v", err)

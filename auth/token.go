@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net/mail"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,9 +35,11 @@ type (
 		OneTimePasscode string   `json:"otp,omitempty"`
 		Scope           []string `json:"scope,omitempty"`
 		//Roles           []string    `json:"roles,omitempty"`
-		Roles       []*Role   `json:"roles,omitempty"`
-		RedirectUrl string    `json:"redirectUrl,omitempty"`
-		Type        TokenType `json:"type"`
+		//Roles       []*Role   `json:"roles,omitempty"`
+		Permissions        []string  `json:"p,omitempty"`
+		PermissionsVersion int       `json:"pv,omitempty"`
+		RedirectUrl        string    `json:"redirectUrl,omitempty"`
+		Type               TokenType `json:"type"`
 	}
 
 	Auth0TokenClaims struct {
@@ -90,6 +93,8 @@ const (
 
 	JwtClaimSep = " "
 	EmailClaim  = "https://edb.rdf-lab.org/email"
+
+	PermissionsVersion = 1
 )
 
 var (
@@ -177,6 +182,23 @@ func FlattenRoles(roles []*Role) []string {
 	return ret
 }
 
+func FormatPermission(permission *Permission) string {
+	return fmt.Sprintf("%s:%s", permission.Resource, permission.Action)
+}
+
+// Get a sorted list of unique permissions from a list of roles
+func RolesToPermissions(roles []*Role) []string {
+	permissionSet := sys.NewStringSet()
+
+	for _, rp := range roles {
+		for _, p := range rp.Permissions {
+			permissionSet.Add(FormatPermission(p))
+		}
+	}
+
+	return permissionSet.SortedKeys()
+}
+
 func hasRole(roles []*Role, f func(roles *sys.StringSet) bool) bool {
 	roleSet := sys.NewStringSet()
 
@@ -204,6 +226,14 @@ func HasWebLoginInRole(roles []*Role) bool {
 	return hasRole(roles, func(roles *sys.StringSet) bool {
 		return roles.Has(RoleWebLogin)
 	})
+}
+
+func HasAdminPermission(permissions []string) bool {
+	return slices.Contains(permissions, AdminPermission)
+}
+
+func HasWebLoginPermission(permissions []string) bool {
+	return slices.Contains(permissions, WebLoginPermission)
 }
 
 // Claims are space separated strings to match
@@ -236,14 +266,38 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, er
 		TtlHour)
 }
 
+// func addPermissionsToClaims(token *AuthUserJwtClaims, roles []*Role) {
+// 	token.Permissions = RolesToPermissions(roles)
+// 	token.PermissionsVersion = PermissionsVersion
+// }
+
 func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*Role) (string, error) {
+
+	// claims := AuthUserJwtClaims{
+	// 	UserId: userId,
+	// 	//IpAddr:           ipAddr,
+	// 	Type: TokenTypeAccess,
+	// 	//Roles:            roles,
+	// 	RegisteredClaims: makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
+
+	// addPermissionsToClaims(&claims, roles)
+
+	// return tc.BaseToken(claims)
+
+	return tc.AccessTokenUsingPermissions(c, userId, RolesToPermissions(roles))
+}
+
+// If we are creating a new access token using the permissions of the current
+// token
+func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId string, permissions []string) (string, error) {
 
 	claims := AuthUserJwtClaims{
 		UserId: userId,
 		//IpAddr:           ipAddr,
-		Type:             TokenTypeAccess,
-		Roles:            roles,
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
+		Type:               TokenTypeAccess,
+		Permissions:        permissions,
+		PermissionsVersion: PermissionsVersion,
+		RegisteredClaims:   makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
 
 	return tc.BaseToken(claims)
 }
@@ -253,9 +307,10 @@ func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []*Ro
 	claims := AuthUserJwtClaims{
 		UserId: publicId,
 		//IpAddr:           ipAddr,
-		Type:             TokenTypeUpdate,
-		Roles:            roles,
-		RegisteredClaims: makeDefaultClaimsWithTTL(Ttl1Min)}
+		Type:               TokenTypeUpdate,
+		Permissions:        RolesToPermissions(roles),
+		PermissionsVersion: PermissionsVersion,
+		RegisteredClaims:   makeDefaultClaimsWithTTL(Ttl1Min)}
 
 	return tc.BaseToken(claims)
 }

@@ -91,6 +91,9 @@ const (
 	RoleWebLogin = "login::web:login"
 	//RoleRdfRead  = "rdf:read:*"
 
+	AdminPermission    = "*:*"
+	WebLoginPermission = "web:login"
+
 	GroupUser  = "users"
 	GroupAdmin = "admins"
 	GroupSuper = "superusers"

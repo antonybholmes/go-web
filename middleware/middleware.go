@@ -4,9 +4,9 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
-	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-contrib/sessions"
@@ -241,7 +241,13 @@ func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasAdminRole(claims.Roles) {
+			// if !auth.HasAdminRole(claims.Roles) {
+			// 	web.ForbiddenResp(c, auth.ErrUserIsNotAdmin)
+
+			// 	return
+			// }
+
+			if !auth.HasAdminPermission(claims.Permissions) {
 				web.ForbiddenResp(c, auth.ErrUserIsNotAdmin)
 
 				return
@@ -256,7 +262,12 @@ func JwtCanSigninMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
 
-			if !auth.HasWebLoginInRole(claims.Roles) {
+			// if !auth.HasWebLoginInRole(claims.Roles) {
+			// 	web.ForbiddenResp(c, auth.ErrUserCannotLogin)
+			// 	return
+			// }
+
+			if !auth.HasWebLoginPermission(claims.Permissions) {
 				web.ForbiddenResp(c, auth.ErrUserCannotLogin)
 				return
 			}
@@ -346,7 +357,32 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 // }
 
 // Create a permissions middleware to verify jwt roles on a token
-func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
+// func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
+
+// 	//roleSet := sys.NewStringSet().UpdateFromList(roles)
+
+// 	return func(c *gin.Context) {
+// 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *auth.AuthUserJwtClaims) {
+
+// 			//log.Debug().Msgf("claims %v", claims)
+
+// 			// if we are not an admin, lets see what roles
+// 			// we have and if they match the valid list
+// 			if !auth.HasAdminRole(claims.Roles) {
+// 				userRoles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))
+
+// 				if !userRoles.ListContains(roles) {
+// 					web.ForbiddenResp(c, auth.ErrInvalidRoles)
+// 					return
+// 				}
+// 			}
+
+// 			c.Next()
+// 		})
+// 	}
+// }
+
+func JwtHasPermissionsMiddleware(permissions ...string) gin.HandlerFunc {
 
 	//roleSet := sys.NewStringSet().UpdateFromList(roles)
 
@@ -357,11 +393,20 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 
 			// if we are not an admin, lets see what roles
 			// we have and if they match the valid list
-			if !auth.HasAdminRole(claims.Roles) {
-				userRoles := sys.NewStringSet().ListUpdate(auth.FlattenRoles(claims.Roles))
+			if !auth.HasAdminPermission(claims.Permissions) {
 
-				if !userRoles.ListContains(roles) {
-					web.ForbiddenResp(c, auth.ErrInvalidRoles)
+				found := false
+
+				for _, p := range permissions {
+					if slices.Contains(claims.Permissions, p) {
+						found = true
+
+						break
+					}
+				}
+
+				if !found {
+					web.ForbiddenResp(c, auth.ErrInvalidPermissions)
 					return
 				}
 			}
@@ -371,6 +416,10 @@ func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
 	}
 }
 
-func JwtHasRDFRoleMiddleware() gin.HandlerFunc {
-	return JwtHasRoleMiddleware("RDF")
+// func JwtHasRDFRoleMiddleware() gin.HandlerFunc {
+// 	return JwtHasRoleMiddleware("RDF")
+// }
+
+func JwtHasRDFPermMiddleware() gin.HandlerFunc {
+	return JwtHasPermissionsMiddleware("rdf:view")
 }
