@@ -259,7 +259,7 @@ func (validator *Validator) LoadAuthUserFromToken() *Validator {
 		return validator
 	}
 
-	authUser, err := userdbcache.FindUserById(validator.Claims.UserId)
+	authUser, err := userdbcache.FindUserById(validator.Claims.Subject)
 
 	if err != nil {
 		validator.Err = auth.ErrUserDoesNotExist

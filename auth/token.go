@@ -30,7 +30,7 @@ type (
 
 	AuthUserJwtClaims struct {
 		jwt.RegisteredClaims
-		UserId          string   `json:"userId"` // the publicId of the user
+		//UserId          string   `json:"id"` // the publicId of the user
 		Data            string   `json:"data,omitempty"`
 		OneTimePasscode string   `json:"otp,omitempty"`
 		Scope           []string `json:"scope,omitempty"`
@@ -39,7 +39,7 @@ type (
 		Permissions        []string  `json:"p,omitempty"`
 		PermissionsVersion int       `json:"pv,omitempty"`
 		RedirectUrl        string    `json:"redirectUrl,omitempty"`
-		Type               TokenType `json:"type"`
+		Type               TokenType `json:"t"`
 	}
 
 	Auth0TokenClaims struct {
@@ -292,25 +292,25 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*Role
 func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId string, permissions []string) (string, error) {
 
 	claims := AuthUserJwtClaims{
-		UserId: userId,
+
 		//IpAddr:           ipAddr,
 		Type:               TokenTypeAccess,
 		Permissions:        permissions,
 		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(tc.accessTokenTTL)}
+		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, tc.accessTokenTTL)}
 
 	return tc.BaseToken(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, publicId string, roles []*Role) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, roles []*Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
-		UserId: publicId,
+
 		//IpAddr:           ipAddr,
 		Type:               TokenTypeUpdate,
 		Permissions:        RolesToPermissions(roles),
 		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(Ttl1Min)}
+		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, Ttl1Min)}
 
 	return tc.BaseToken(claims)
 }
@@ -321,11 +321,10 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 	// 	VERIFY_EMAIL_TOKEN)
 
 	claims := AuthUserJwtClaims{
-		UserId:           authUser.Id,
 		Data:             authUser.Name,
 		Type:             TokenTypeVerifyEmail,
 		RedirectUrl:      visitUrl,
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(authUser.Id, tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -333,12 +332,11 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 
 func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
 	claims := AuthUserJwtClaims{
-		UserId: user.Id,
 		// include first name to personalize reset
 		Data:             user.Name,
 		Type:             TokenTypeResetPassword,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
 }
@@ -346,11 +344,10 @@ func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (
 func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
 
 	claims := AuthUserJwtClaims{
-		UserId:           user.Id,
 		Data:             email.Address,
 		Type:             TokenTypeChangeEmail,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
 
 	return tc.BaseToken(claims)
 
@@ -362,8 +359,7 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 	// 	PASSWORDLESS_TOKEN)
 
 	claims := AuthUserJwtClaims{
-		UserId: userId,
-		Type:   TokenTypePasswordless,
+		Type: TokenTypePasswordless,
 		// This is so the frontend can redirect itself to another page to make
 		// the workflow smoother. For example, if on mutations page and it
 		// requires sign in, we can pass the page url to the server as the visit
@@ -373,7 +369,7 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 		// account page because then they have to click on the page they want again
 		// which is annoying UI.
 		RedirectUrl:      redirectUrl,
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(userId, tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -381,10 +377,9 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 
 func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
 	claims := AuthUserJwtClaims{
-		UserId:           user.Id,
 		Type:             tokenType,
 		OneTimePasscode:  CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.shortTTL),
 	}
 
 	return tc.BaseToken(claims)
@@ -398,13 +393,12 @@ func (tc *TokenCreator) ShortTimeToken(c *gin.Context,
 }
 
 func (tc *TokenCreator) BasicToken(c *gin.Context,
-	publicId string,
+	userId string,
 	tokenType TokenType,
 	ttl time.Duration) (string, error) {
 	claims := AuthUserJwtClaims{
-		UserId:           publicId,
 		Type:             tokenType,
-		RegisteredClaims: makeDefaultClaimsWithTTL(ttl),
+		RegisteredClaims: makeDefaultClaimsWithTTL(userId, ttl),
 	}
 
 	return tc.BaseToken(claims)
@@ -426,6 +420,6 @@ func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
 	return t, nil
 }
 
-func makeDefaultClaimsWithTTL(ttl time.Duration) jwt.RegisteredClaims {
-	return jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
+func makeDefaultClaimsWithTTL(sub string, ttl time.Duration) jwt.RegisteredClaims {
+	return jwt.RegisteredClaims{Subject: sub, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
 }
