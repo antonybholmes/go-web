@@ -22,7 +22,7 @@ func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) 
 		}
 
 		// use pointer to token
-		c.Set("user", &userToken)
+		c.Set("user", userToken)
 
 		//log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
