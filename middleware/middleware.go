@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -190,17 +191,14 @@ func UserJWTMiddleware(claimsParser JWTClaimsFunc) gin.HandlerFunc {
 func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims *auth.AuthUserJwtClaims)) {
 
 	// user is a jwt
-	user, ok := c.Get("user")
+	user, err := GetJwtUser(c)
 
-	if !ok {
+	if err != nil {
 		web.UserDoesNotExistResp(c)
-
 		return
 	}
 
-	claims := user.(*auth.AuthUserJwtClaims)
-
-	f(c, claims)
+	f(c, user)
 }
 
 func JWTIsSpecificTypeMiddleware(tokenType auth.TokenType) gin.HandlerFunc {
@@ -422,4 +420,32 @@ func JwtHasPermissionsMiddleware(permissions ...string) gin.HandlerFunc {
 
 func JwtHasRDFPermMiddleware() gin.HandlerFunc {
 	return JwtHasPermissionsMiddleware("rdf:view")
+}
+
+// Gets the JWT user from the context. Microservices
+// should expect to find the JWT claims in the user slot.
+func GetJwtUser(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
+
+	v, exists := c.Get("user")
+
+	if !exists {
+		return nil, errors.New("no user in context")
+	}
+
+	user := v.(*auth.AuthUserJwtClaims)
+
+	return user, nil
+}
+
+func GetUser(c *gin.Context) (*auth.AuthUser, error) {
+
+	v, exists := c.Get("user")
+
+	if !exists {
+		return nil, errors.New("no user in context")
+	}
+
+	user := v.(*auth.AuthUser)
+
+	return user, nil
 }
