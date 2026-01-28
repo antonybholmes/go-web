@@ -438,7 +438,7 @@ func GetJwtUser(c *gin.Context) (*auth.AuthUserJwtClaims, error) {
 }
 
 // Get the JWT user and call the supplied route function with it jwt is valid
-func JwtUserRoute(c *gin.Context, r func(c *gin.Context, user *auth.AuthUserJwtClaims)) {
+func JwtUserRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims)) {
 	user, err := GetJwtUser(c)
 
 	if err != nil {
@@ -446,7 +446,7 @@ func JwtUserRoute(c *gin.Context, r func(c *gin.Context, user *auth.AuthUserJwtC
 		return
 	}
 
-	r(c, user)
+	r(c, auth.HasAdminPermission(user.Permissions), user)
 }
 
 func GetUser(c *gin.Context) (*auth.AuthUser, error) {
