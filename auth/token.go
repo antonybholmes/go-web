@@ -18,14 +18,14 @@ import (
 type (
 	TokenType = string
 
-	Permission struct {
-		Resource string `json:"resource"`
-		Action   string `json:"action"`
-	}
+	// Permission struct {
+	// 	Resource string `json:"resource"`
+	// 	Action   string `json:"action"`
+	// }
 
 	Role struct {
-		Name        string        `json:"name"`
-		Permissions []*Permission `json:"permissions"`
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
 	}
 
 	AuthUserJwtClaims struct {
@@ -156,15 +156,15 @@ func ParseToken(c *gin.Context) (string, error) {
 // 	}
 // }
 
-func FormatRole(roleName, resource, action string) string {
-	return fmt.Sprintf("%s::%s:%s", roleName, resource, action)
+func FormatRole(roleName, permission string) string {
+	return fmt.Sprintf("%s::%s", roleName, permission)
 }
 
 func FlattenRole(role *Role) []string {
 	ret := make([]string, 0, len(role.Permissions))
 
 	for _, p := range role.Permissions {
-		ret = append(ret, FormatRole(role.Name, p.Resource, p.Action))
+		ret = append(ret, FormatRole(role.Name, p))
 	}
 
 	return ret
@@ -182,9 +182,9 @@ func FlattenRoles(roles []*Role) []string {
 	return ret
 }
 
-func FormatPermission(permission *Permission) string {
-	return fmt.Sprintf("%s:%s", permission.Resource, permission.Action)
-}
+// func FormatPermission(permission string) string {
+// 	return fmt.Sprintf("%s:%s", permission.Resource, permission.Action)
+// }
 
 // Get a sorted list of unique permissions from a list of roles
 func RolesToPermissions(roles []*Role) []string {
@@ -192,7 +192,7 @@ func RolesToPermissions(roles []*Role) []string {
 
 	for _, rp := range roles {
 		for _, p := range rp.Permissions {
-			permissionSet.Add(FormatPermission(p))
+			permissionSet.Add(p)
 		}
 	}
 

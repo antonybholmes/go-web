@@ -100,17 +100,38 @@ const (
 	// 	WHERE u.id = $1
 	// 	ORDER BY r.name, p.name`
 
+	// @id is postgres syntax for named parameters
+
+	// UserGroupsSql = `SELECT DISTINCT
+	// 	g.id as group_id,
+	// 	g.name as group,
+	// 	r.id as role_id,
+	// 	r.name as role,
+	// 	p.id as permission_id,
+	// 	p.name as permission,
+	// 	res.id as resource_id,
+	// 	res.name as resource,
+	// 	a.id as action_id,
+	// 	a.name as action
+	// 	FROM users u
+	// 	JOIN user_groups ug ON u.id = ug.user_id
+	// 	JOIN group_roles gr ON ug.group_id = gr.group_id
+	// 	JOIN role_permissions rp ON gr.role_id = rp.role_id
+	// 	JOIN groups g ON gr.group_id = g.id
+	// 	JOIN roles r ON rp.role_id = r.id
+	// 	JOIN permissions p ON rp.permission_id = p.id
+	// 	JOIN resources res ON p.resource_id = res.id
+	// 	JOIN actions a ON p.action_id = a.id
+	// 	WHERE u.id = @id::uuid
+	// 	ORDER BY g.name, r.name, res.name, a.name`
+
 	UserGroupsSql = `SELECT DISTINCT
 		g.id as group_id,
 		g.name as group,
 		r.id as role_id,
 		r.name as role,
 		p.id as permission_id,
-		p.name as permission,
-		res.id as resource_id,
-		res.name as resource,
-		a.id as action_id,
-		a.name as action
+		p.name as permission
 		FROM users u
 		JOIN user_groups ug ON u.id = ug.user_id
 		JOIN group_roles gr ON ug.group_id = gr.group_id
@@ -118,10 +139,8 @@ const (
 		JOIN groups g ON gr.group_id = g.id
 		JOIN roles r ON rp.role_id = r.id
 		JOIN permissions p ON rp.permission_id = p.id
-		JOIN resources res ON p.resource_id = res.id
-		JOIN actions a ON p.action_id = a.id
 		WHERE u.id = @id::uuid
-		ORDER BY g.name, r.name, res.name, a.name`
+		ORDER BY g.name, r.name, p.name`
 
 	// UserRolesSql = `SELECT DISTINCT
 	// 	r.id as role_id,
@@ -594,7 +613,7 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 
 	var currentGroup *auth.RBACGroup = nil
 	var currentRole *auth.RBACRole = nil
-	var currentPermission *auth.RBACPermission = nil
+	var currentPermission *auth.RBACEntity = nil
 
 	var groupId string
 	var group string
@@ -602,10 +621,10 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 	var role string
 	var permissionId string
 	var permission string
-	var resourceId string
-	var resource string
-	var actionId string
-	var action string
+	// var resourceId string
+	// var resource string
+	// var actionId string
+	// var action string
 
 	for rows.Next() {
 
@@ -615,11 +634,7 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 			&roleId,
 			&role,
 			&permissionId,
-			&permission,
-			&resourceId,
-			&resource,
-			&actionId,
-			&action)
+			&permission)
 
 		if err != nil {
 			log.Error().Msgf("error scanning user groups %v", err)
@@ -642,21 +657,18 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 					Id:   roleId,
 					Name: role,
 				},
-				Permissions: make([]*auth.RBACPermission, 0, 10),
+				Permissions: make([]*auth.RBACEntity, 0, 10),
 			}
 
 			currentGroup.Roles = append(currentGroup.Roles, currentRole)
 		}
 
-		currentPermission = &auth.RBACPermission{
-
-			RBACEntity: auth.RBACEntity{
-				Id:   permissionId,
-				Name: permission,
-			},
-			Resource: resource,
-			Action:   action,
+		currentPermission = &auth.RBACEntity{
+			Id:   permissionId,
+			Name: permission,
 		}
+		//Resource: resource,
+		//Action:   action,
 
 		log.Debug().Msgf("current permission: %v %v", currentRole, currentPermission)
 

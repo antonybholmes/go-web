@@ -30,15 +30,15 @@ type (
 		Description string `json:"description,omitempty"`
 	}
 
-	RBACPermission struct {
-		RBACEntity
-		Resource string `json:"resource"`
-		Action   string `json:"action"`
-	}
+	// RBACPermission struct {
+	// 	RBACEntity
+	// 	//Resource string `json:"resource"`
+	// 	//Action   string `json:"action"`
+	// }
 
 	RBACRole struct {
 		RBACEntity
-		Permissions []*RBACPermission `json:"permissions"`
+		Permissions []*RBACEntity `json:"permissions"`
 	}
 
 	RBACGroup struct {
@@ -159,7 +159,7 @@ func userHasRole(groups []*RBACGroup, f func(roles *sys.StringSet) bool) bool {
 		for _, r := range g.Roles {
 			for _, p := range r.Permissions {
 				// of the form role::resource:action
-				permissions.Add(r.Name + RolePermissionSep + p.Resource + ResourceActionSep + p.Action)
+				permissions.Add(r.Name + RolePermissionSep + p.Name)
 			}
 		}
 	}
@@ -238,14 +238,11 @@ func GetRolesFromUser(user *AuthUser) []*Role {
 
 			rp := &Role{
 				Name:        r.Name,
-				Permissions: make([]*Permission, 0, len(r.Permissions)),
+				Permissions: make([]string, 0, len(r.Permissions)),
 			}
 
 			for _, p := range r.Permissions {
-				rp.Permissions = append(rp.Permissions, &Permission{
-					Resource: p.Resource,
-					Action:   p.Action,
-				})
+				rp.Permissions = append(rp.Permissions, p.Name)
 			}
 
 			ret = append(ret, rp)

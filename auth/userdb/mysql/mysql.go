@@ -482,7 +482,7 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 
 	var currentGroup *auth.RBACGroup = nil
 	var currentRole *auth.RBACRole = nil
-	var currentPermission *auth.RBACPermission = nil
+	var currentPermission *auth.RBACEntity = nil
 
 	var groupId string
 	var group string
@@ -528,20 +528,15 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 					Name: role,
 					Id:   roleId,
 				},
-				Permissions: make([]*auth.RBACPermission, 0, 10),
+				Permissions: make([]*auth.RBACEntity, 0, 10),
 			}
 
 			currentGroup.Roles = append(currentGroup.Roles, currentRole)
 		}
 
-		currentPermission = &auth.RBACPermission{
-
-			RBACEntity: auth.RBACEntity{
-				Name: permission,
-				Id:   permissionId,
-			},
-			Resource: resource,
-			Action:   action,
+		currentPermission = &auth.RBACEntity{
+			Name: permission,
+			Id:   permissionId,
 		}
 
 		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
