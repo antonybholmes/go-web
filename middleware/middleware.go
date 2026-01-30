@@ -449,6 +449,23 @@ func JwtUserRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *aut
 	r(c, auth.HasAdminPermission(user.Permissions), user)
 }
 
+// Enforces that there is a JWT user with permissions and calls the supplied route function with it
+func JwtUserWithPermissionsRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *auth.AuthUserJwtClaims)) {
+	user, err := GetJwtUser(c)
+
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	if len(user.Permissions) == 0 {
+		web.ForbiddenResp(c, auth.ErrInvalidPermissions)
+		return
+	}
+
+	r(c, auth.HasAdminPermission(user.Permissions), user)
+}
+
 func GetUser(c *gin.Context) (*auth.AuthUser, error) {
 
 	v, exists := c.Get("user")
