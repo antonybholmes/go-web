@@ -24,7 +24,7 @@ func MakePermissionsInClause(permissions []string, isAdmin bool, namedArgs *[]an
 
 // Replaces <<PERMISSIONS>> in query with the appropriate IN clause
 // and appends named args for use in sql query so it can be done in a safe way
-func MakePermissionsSql(query string, permissions []string, isAdmin bool, namedArgs *[]any) string {
+func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedArgs *[]any) string {
 	//inClause := MakePermissionsInClause(permissions, isAdmin, namedArgs)
 
 	// (:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
