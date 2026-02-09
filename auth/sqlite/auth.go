@@ -46,7 +46,7 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 		*namedArgs = append(*namedArgs, sql.Named(ph, perm))
 	}
 
-	clause := "p.name IN (" + strings.Join(inPlaceholders, ",") + ")"
+	clause := "p.name IN (" + strings.Join(inPlaceholders, ", ") + ")"
 
 	return strings.Replace(query, "<<PERMISSIONS>>", clause, 1)
 
