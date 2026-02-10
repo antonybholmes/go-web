@@ -308,24 +308,28 @@ func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, er
 			return nil, err
 		}
 
+		authUsers = append(authUsers, &authUser)
+	}
+
+	for _, authUser := range authUsers {
+
 		//authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
 		//authUser.UpdatedAt = time.Duration(updatedAt)
 
 		//log.Debug().Msgf("this user %v", authUser)
 
-		err = pgdb.addGroupsToUser(tx, &authUser)
+		err = pgdb.addGroupsToUser(tx, authUser)
 
 		if err != nil {
 			return nil, err
 		}
 
-		err = pgdb.addAuthProvidersToUser(tx, &authUser)
+		err = pgdb.addAuthProvidersToUser(tx, authUser)
 
 		if err != nil {
 			return nil, err
 		}
 
-		authUsers = append(authUsers, &authUser)
 	}
 
 	return authUsers, nil
@@ -604,6 +608,7 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 
 	rows, err := tx.Query(pgdb.ctx, UserGroupsSql, pgx.NamedArgs{"id": user.Id})
 	if err != nil {
+		log.Debug().Msgf("user err %v", err)
 		return nil, fmt.Errorf("user roles not found")
 	}
 
