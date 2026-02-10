@@ -259,3 +259,9 @@ func MakeOkResp(c *gin.Context, message string) {
 func MakeSuccessResp(c *gin.Context, message string, success bool) {
 	MakeDataResp(c, message, &SuccessResp{Success: success})
 }
+
+// Assembly names are normalized to lowercase and trimmed of whitespace to ensure consistency.
+// e.g. "GRCh38" and "grch38" will both be treated as "grch38", and " grch38 " will also be treated as "grch38".
+func FormatParam(param string) string {
+	return strings.ToLower(strings.TrimSpace(param))
+}

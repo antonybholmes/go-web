@@ -311,6 +311,9 @@ func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, er
 		authUsers = append(authUsers, &authUser)
 	}
 
+	// Move this to separate loop because tx doesn't like multiple
+	// nested queries, so we complete the rows query above, then
+	// run separate ones to add groups etc.
 	for _, authUser := range authUsers {
 
 		//authUser.EmailVerifiedAt = time.Duration(emailVerifiedAt)
