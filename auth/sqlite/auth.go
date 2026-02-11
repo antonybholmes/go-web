@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/antonybholmes/go-web"
 )
 
 // Creates the IN clause for permissions and appends named args
@@ -43,10 +45,10 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 	for i, perm := range permissions {
 		ph := fmt.Sprintf("perm%d", i+1)
 		inPlaceholders[i] = ":" + ph
-		*namedArgs = append(*namedArgs, sql.Named(ph, perm))
+		*namedArgs = append(*namedArgs, sql.Named(ph, web.FormatParam(perm)))
 	}
 
-	clause := "p.name IN (" + strings.Join(inPlaceholders, ", ") + ")"
+	clause := "LOWER(p.name) IN (" + strings.Join(inPlaceholders, ", ") + ")"
 
 	return strings.Replace(query, "<<PERMISSIONS>>", clause, 1)
 
