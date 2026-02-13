@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/antonybholmes/go-sys/collections"
 	"github.com/antonybholmes/go-web"
 )
 
@@ -36,7 +37,7 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 	// (:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
 
 	// limit permissions to MAX_PERMISSIONS
-	permissions = permissions[:MaxPermissions]
+	permissions = collections.TruncateSlice(permissions, MaxPermissions)
 
 	// add is_admin named to shortcircuit permissions check
 	if isAdmin {
