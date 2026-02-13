@@ -8,6 +8,10 @@ import (
 	"github.com/antonybholmes/go-web"
 )
 
+const (
+	MaxPermissions = 10
+)
+
 // Creates the IN clause for permissions and appends named args
 // for use in sql query so it can be done in a safe way
 func MakePermissionsInClause(permissions []string, isAdmin bool, namedArgs *[]any) string {
@@ -31,6 +35,9 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 
 	// (:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
 
+	// limit permissions to MAX_PERMISSIONS
+	permissions = permissions[:MaxPermissions]
+
 	// add is_admin named to shortcircuit permissions check
 	if isAdmin {
 		*namedArgs = append(*namedArgs, sql.Named("is_admin", isAdmin))
@@ -48,7 +55,8 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 		*namedArgs = append(*namedArgs, sql.Named(ph, web.FormatParam(perm)))
 	}
 
-	clause := "LOWER(p.name) IN (" + strings.Join(inPlaceholders, ", ") + ")"
+	// case sensitive match as permissions are precise
+	clause := "p.name IN (" + strings.Join(inPlaceholders, ", ") + ")"
 
 	return strings.Replace(query, "<<PERMISSIONS>>", clause, 1)
 
