@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/antonybholmes/go-web"
@@ -151,7 +150,7 @@ func UserJWTMiddleware(claimsParser *UserJWTParser) gin.HandlerFunc {
 }
 
 // checks that user exists in context and calls f with the claims
-// if it does.
+// if it does which can be used to further validate it
 func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims *token.AuthUserJwtClaims)) {
 
 	// user is a jwt
@@ -344,47 +343,47 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 // 	}
 // }
 
-func JwtHasPermissionsMiddleware(permissions ...string) gin.HandlerFunc {
+// func JwtHasPermissionsMiddleware(permissions ...string) gin.HandlerFunc {
 
-	//roleSet := sys.NewStringSet().UpdateFromList(roles)
+// 	//roleSet := sys.NewStringSet().UpdateFromList(roles)
 
-	return func(c *gin.Context) {
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *token.AuthUserJwtClaims) {
+// 	return func(c *gin.Context) {
+// 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *token.AuthUserJwtClaims) {
 
-			//log.Debug().Msgf("claims %v", claims)
+// 			//log.Debug().Msgf("claims %v", claims)
 
-			// if we are not an admin, lets see what roles
-			// we have and if they match the valid list
-			if !auth.HasAdminPermission(claims.Permissions) {
+// 			// if we are not an admin, lets see what roles
+// 			// we have and if they match the valid list
+// 			if !auth.HasAdminPermission(claims.Permissions) {
 
-				found := false
+// 				found := false
 
-				for _, p := range permissions {
-					if slices.Contains(claims.Permissions, p) {
-						found = true
+// 				for _, p := range permissions {
+// 					if slices.Contains(claims.Permissions, p) {
+// 						found = true
 
-						break
-					}
-				}
+// 						break
+// 					}
+// 				}
 
-				if !found {
-					web.ForbiddenResp(c, auth.ErrInvalidPermissions)
-					return
-				}
-			}
+// 				if !found {
+// 					web.ForbiddenResp(c, auth.ErrInvalidPermissions)
+// 					return
+// 				}
+// 			}
 
-			c.Next()
-		})
-	}
-}
+// 			c.Next()
+// 		})
+// 	}
+// }
 
 // func JwtHasRDFRoleMiddleware() gin.HandlerFunc {
 // 	return JwtHasRoleMiddleware("RDF")
 // }
 
-func JwtHasRDFPermMiddleware() gin.HandlerFunc {
-	return JwtHasPermissionsMiddleware("rdf:view")
-}
+// func JwtHasRDFPermMiddleware() gin.HandlerFunc {
+// 	return JwtHasPermissionsMiddleware("rdf:view")
+// }
 
 // Gets the JWT user claims from the context. Microservices
 // should expect to find the JWT claims in the user slot.
@@ -402,16 +401,16 @@ func GetJwtUser(c *gin.Context) (*token.AuthUserJwtClaims, error) {
 }
 
 // Get the JWT user and call the supplied route function with it jwt is valid
-func JwtUserRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims)) {
-	user, err := GetJwtUser(c)
+// func JwtUserRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims)) {
+// 	user, err := GetJwtUser(c)
 
-	if err != nil {
-		c.Error(err)
-		return
-	}
+// 	if err != nil {
+// 		c.Error(err)
+// 		return
+// 	}
 
-	r(c, auth.HasAdminPermission(user.Permissions), user)
-}
+// 	r(c, auth.HasAdminPermission(user.Permissions), user)
+// }
 
 // Enforces that there is a JWT user with permissions and calls the supplied route function with it
 func JwtUserWithPermissionsRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims)) {
