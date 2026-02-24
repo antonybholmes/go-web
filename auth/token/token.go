@@ -1,32 +1,26 @@
-package auth
+package token
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"fmt"
 	"net/mail"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-sys/env"
-
+	"github.com/antonybholmes/go-web/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type (
-	TokenType = string
+	//TokenType = string
 
 	// Permission struct {
 	// 	Resource string `json:"resource"`
 	// 	Action   string `json:"action"`
 	// }
-
-	Role struct {
-		Name        string   `json:"name"`
-		Permissions []string `json:"permissions"`
-	}
 
 	AuthUserJwtClaims struct {
 		jwt.RegisteredClaims
@@ -36,10 +30,10 @@ type (
 		Scope           []string `json:"scope,omitempty"`
 		//Roles           []string    `json:"roles,omitempty"`
 		//Roles       []*Role   `json:"roles,omitempty"`
-		Permissions        []string  `json:"p,omitempty"`
-		PermissionsVersion int       `json:"pv,omitempty"`
-		RedirectUrl        string    `json:"redirectUrl,omitempty"`
-		Type               TokenType `json:"t"`
+		Permissions        []string `json:"p,omitempty"`
+		PermissionsVersion int      `json:"pv,omitempty"`
+		RedirectUrl        string   `json:"redirectUrl,omitempty"`
+		Type               string   `json:"t"`
 	}
 
 	Auth0TokenClaims struct {
@@ -66,30 +60,42 @@ type (
 		UserMetadata SupabaseUserMetadata `json:"user_metadata"`
 	}
 
+	TokenError struct {
+		s string
+	}
+
+	TokenSigner interface {
+		Sign(claims jwt.Claims) (string, error)
+	}
+
 	TokenCreator struct {
-		secret         *rsa.PrivateKey
+		tokenSigner    TokenSigner
 		accessTokenTTL time.Duration
 		otpTokenTTL    time.Duration
 		shortTTL       time.Duration
 	}
 
-	TokenError struct {
-		s string
+	RSATokenSigner struct {
+		secret *rsa.PrivateKey
+	}
+
+	ES256TokenSigner struct {
+		secret *ecdsa.PrivateKey
 	}
 )
 
 const (
-	TokenTypeVerifyEmail   TokenType = "verify_email"
-	TokenTypePasswordless  TokenType = "passwordless"
-	TokenTypeResetPassword TokenType = "reset_password"
-	TokenTypeChangeEmail   TokenType = "change_email"
-	TokenTypeRefresh       TokenType = "refresh"
-	TokenTypeAccess        TokenType = "access"
-	TokenTypeUpdate        TokenType = "update"
-	TokenTypeOTP           TokenType = "otp"
+	TokenTypeVerifyEmail   = "verify_email"
+	TokenTypePasswordless  = "passwordless"
+	TokenTypeResetPassword = "reset_password"
+	TokenTypeChangeEmail   = "change_email"
+	TokenTypeRefresh       = "refresh"
+	TokenTypeAccess        = "access"
+	TokenTypeUpdate        = "update"
+	TokenTypeOTP           = "otp"
 	// returns session info such as user and is not used for
 	// any type of auth
-	TokenTypeSession TokenType = "session"
+	TokenTypeSession = "session"
 
 	JwtClaimSep = " "
 	EmailClaim  = "https://edb.rdf-lab.org/email"
@@ -156,97 +162,21 @@ func ParseToken(c *gin.Context) (string, error) {
 // 	}
 // }
 
-func FormatRole(roleName, permission string) string {
-	return fmt.Sprintf("%s::%s", roleName, permission)
-}
-
-func FlattenRole(role *Role) []string {
-	ret := make([]string, 0, len(role.Permissions))
-
-	for _, p := range role.Permissions {
-		ret = append(ret, FormatRole(role.Name, p))
-	}
-
-	return ret
-}
-
-// FlattenRoles converts a slice of RolePermissions to a flat slice of strings
-// in the format "role:permission"
-func FlattenRoles(roles []*Role) []string {
-	ret := make([]string, 0, len(roles)*2)
-
-	for _, rp := range roles {
-		ret = append(ret, FlattenRole(rp)...)
-	}
-
-	return ret
-}
-
-// func FormatPermission(permission string) string {
-// 	return fmt.Sprintf("%s:%s", permission.Resource, permission.Action)
-// }
-
-// Get a sorted list of unique permissions from a list of roles
-func RolesToPermissions(roles []*Role) []string {
-	permissionSet := sys.NewStringSet()
-
-	for _, rp := range roles {
-		for _, p := range rp.Permissions {
-			permissionSet.Add(p)
-		}
-	}
-
-	return permissionSet.SortedKeys()
-}
-
-func hasRole(roles []*Role, f func(roles *sys.StringSet) bool) bool {
-	roleSet := sys.NewStringSet()
-
-	for _, rp := range roles {
-		roleSet.ListUpdate(FlattenRole(rp))
-
-	}
-
-	return f(roleSet)
-}
-
-func HasSuperRole(roles []*Role) bool {
-	return hasRole(roles, func(roles *sys.StringSet) bool {
-		return roles.Has(RoleSuper)
-	})
-}
-
-func HasAdminRole(roles []*Role) bool {
-	return hasRole(roles, func(roles *sys.StringSet) bool {
-		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
-	})
-}
-
-func HasWebLoginInRole(roles []*Role) bool {
-	return hasRole(roles, func(roles *sys.StringSet) bool {
-		return roles.Has(RoleWebLogin)
-	})
-}
-
-func HasAdminPermission(permissions []string) bool {
-	return slices.Contains(permissions, AdminPermission)
-}
-
-func HasWebLoginPermission(permissions []string) bool {
-	return slices.Contains(permissions, WebLoginPermission)
-}
-
 // Claims are space separated strings to match
 // the scope spec and reduce jwt complexity
 func MakeClaim(claims []string) string {
 	return strings.Join(claims, JwtClaimSep)
 }
 
-func NewTokenCreator(secret *rsa.PrivateKey) *TokenCreator {
-	return &TokenCreator{secret: secret,
-		accessTokenTTL: env.GetMin("ACCESS_TOKEN_TTL_MINS", Ttl15Mins),
-		otpTokenTTL:    env.GetMin("OTP_TOKEN_TTL_MINS", Ttl20Mins),
-		shortTTL:       env.GetMin("SHORT_TTL_MINS", Ttl10Mins)}
+func makeDefaultClaimsWithTTL(sub string, ttl time.Duration) jwt.RegisteredClaims {
+	return jwt.RegisteredClaims{Subject: sub, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
+}
+
+func NewTokenCreator(tokenSigner TokenSigner) *TokenCreator {
+	return &TokenCreator{tokenSigner: tokenSigner,
+		accessTokenTTL: env.GetMin("ACCESS_TOKEN_TTL_MINS", auth.Ttl15Mins),
+		otpTokenTTL:    env.GetMin("OTP_TOKEN_TTL_MINS", auth.Ttl20Mins),
+		shortTTL:       env.GetMin("SHORT_TTL_MINS", auth.Ttl10Mins)}
 }
 
 func (tc *TokenCreator) SetAccessTokenTTL(ttl time.Duration) *TokenCreator {
@@ -259,11 +189,11 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 	return tc
 }
 
-func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) RefreshToken(c *gin.Context, user *auth.AuthUser) (string, error) {
 	return tc.BasicToken(c,
 		user.Id,
 		TokenTypeRefresh,
-		TtlHour)
+		auth.TtlHour)
 }
 
 // func addPermissionsToClaims(token *AuthUserJwtClaims, roles []*Role) {
@@ -271,7 +201,7 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *AuthUser) (string, er
 // 	token.PermissionsVersion = PermissionsVersion
 // }
 
-func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*Role) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*auth.Role) (string, error) {
 
 	// claims := AuthUserJwtClaims{
 	// 	UserId: userId,
@@ -284,7 +214,7 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*Role
 
 	// return tc.BaseToken(claims)
 
-	return tc.AccessTokenUsingPermissions(c, userId, RolesToPermissions(roles))
+	return tc.AccessTokenUsingPermissions(c, userId, auth.RolesToPermissions(roles))
 }
 
 // If we are creating a new access token using the permissions of the current
@@ -299,23 +229,23 @@ func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId strin
 		PermissionsVersion: PermissionsVersion,
 		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, tc.accessTokenTTL)}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, roles []*Role) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, roles []*auth.Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
 
 		//IpAddr:           ipAddr,
 		Type:               TokenTypeUpdate,
-		Permissions:        RolesToPermissions(roles),
+		Permissions:        auth.RolesToPermissions(roles),
 		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, Ttl1Min)}
+		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, auth.Ttl1Min)}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser, visitUrl string) (string, error) {
+func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
@@ -327,29 +257,29 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *AuthUser,
 		RegisteredClaims: makeDefaultClaimsWithTTL(authUser.Id, tc.shortTTL),
 	}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *AuthUser) (string, error) {
+func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *auth.AuthUser) (string, error) {
 	claims := AuthUserJwtClaims{
 		// include first name to personalize reset
 		Data:             user.Name,
 		Type:             TokenTypeResetPassword,
-		OneTimePasscode:  CreateOTP(user),
+		OneTimePasscode:  auth.CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *AuthUser, email *mail.Address) (string, error) {
+func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
 
 	claims := AuthUserJwtClaims{
 		Data:             email.Address,
 		Type:             TokenTypeChangeEmail,
-		OneTimePasscode:  CreateOTP(user),
+		OneTimePasscode:  auth.CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 
 }
 
@@ -372,43 +302,48 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 		RegisteredClaims: makeDefaultClaimsWithTTL(userId, tc.shortTTL),
 	}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) OTPToken(c *gin.Context, user *AuthUser, tokenType TokenType) (string, error) {
+func (tc *TokenCreator) OTPToken(c *gin.Context, user *auth.AuthUser, tokenType string) (string, error) {
 	claims := AuthUserJwtClaims{
 		Type:             tokenType,
-		OneTimePasscode:  CreateOTP(user),
+		OneTimePasscode:  auth.CreateOTP(user),
 		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.shortTTL),
 	}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
 // Generate short lived tokens for one time passcode use.
 func (tc *TokenCreator) ShortTimeToken(c *gin.Context,
 	publicId string,
-	tokenType TokenType) (string, error) {
+	tokenType string) (string, error) {
 	return tc.BasicToken(c, publicId, tokenType, tc.shortTTL)
 }
 
 func (tc *TokenCreator) BasicToken(c *gin.Context,
 	userId string,
-	tokenType TokenType,
+	tokenType string,
 	ttl time.Duration) (string, error) {
 	claims := AuthUserJwtClaims{
 		Type:             tokenType,
 		RegisteredClaims: makeDefaultClaimsWithTTL(userId, ttl),
 	}
 
-	return tc.BaseToken(claims)
+	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
+func NewRSATokenSigner(secret *rsa.PrivateKey) *RSATokenSigner {
+	return &RSATokenSigner{secret: secret}
+}
+
+func (tc *RSATokenSigner) Sign(claims jwt.Claims) (string, error) {
 
 	// Create token with claims
 	//token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	//token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString(tc.secret)
@@ -420,6 +355,20 @@ func (tc *TokenCreator) BaseToken(claims jwt.Claims) (string, error) {
 	return t, nil
 }
 
-func makeDefaultClaimsWithTTL(sub string, ttl time.Duration) jwt.RegisteredClaims {
-	return jwt.RegisteredClaims{Subject: sub, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
+func NewES256TokenSigner(secret *ecdsa.PrivateKey) *ES256TokenSigner {
+	return &ES256TokenSigner{secret: secret}
+}
+
+func (tc *ES256TokenSigner) Sign(claims jwt.Claims) (string, error) {
+
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+
+	// Generate encoded token and send it as response.
+	t, err := token.SignedString(tc.secret)
+
+	if err != nil {
+		return "", err
+	}
+
+	return t, nil
 }

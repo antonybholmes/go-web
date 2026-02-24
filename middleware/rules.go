@@ -7,13 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RulesMiddleware(claimsParser JWTClaimsFunc, ruleEngine *access.RuleEngine) gin.HandlerFunc {
+func RulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine) gin.HandlerFunc {
 	// create a function that extracts user from context
-	parseFunc := ParseUserJWT(claimsParser)
 
 	return func(c *gin.Context) {
 		// extract userToken from context
-		userToken, err := parseFunc(c)
+		userToken, err := claimsParser.Parse(c)
 
 		if err != nil {
 			c.Error(err)

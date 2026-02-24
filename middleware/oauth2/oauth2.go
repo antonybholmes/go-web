@@ -5,31 +5,31 @@ import (
 
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
-	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/antonybholmes/go-web/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	ErrInvalidAuth0Token    = auth.NewTokenError("invalid auth0 token")
-	ErrInvalidClerkToken    = auth.NewTokenError("invalid clerk token")
-	ErrInvalidSupabaseToken = auth.NewTokenError("invalid supabase token")
+	ErrInvalidAuth0Token    = token.NewTokenError("invalid auth0 token")
+	ErrInvalidClerkToken    = token.NewTokenError("invalid clerk token")
+	ErrInvalidSupabaseToken = token.NewTokenError("invalid supabase token")
 )
 
 func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 
-	claimsParser := middleware.JwtClaimsRSAParser(rsaPublicKey)
+	claimsParser := middleware.NewJwtClaimsRSAParser(rsaPublicKey)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := auth.ParseToken(c)
+		tokenString, err := token.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
 			return
 		}
 
-		claims := auth.Auth0TokenClaims{}
+		claims := token.Auth0TokenClaims{}
 
 		//log.Debug().Msgf("token %s", tokenString)
 
@@ -39,7 +39,7 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
 		// })
 
-		err = claimsParser(tokenString, &claims)
+		err = claimsParser.Parse(tokenString, &claims)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidAuth0Token)
@@ -55,18 +55,18 @@ func JwtAuth0Middleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 }
 
 func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
-	claimsParser := middleware.JwtClaimsRSAParser(rsaPublicKey)
+	claimsParser := middleware.NewJwtClaimsRSAParser(rsaPublicKey)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := auth.ParseToken(c)
+		tokenString, err := token.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidClerkToken)
 			return
 		}
 
-		claims := auth.ClerkTokenClaims{}
+		claims := token.ClerkTokenClaims{}
 
 		// Parse the JWT
 		// _, err = jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
@@ -74,7 +74,7 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
 		// })
 
-		err = claimsParser(tokenString, &claims)
+		err = claimsParser.Parse(tokenString, &claims)
 
 		if err != nil {
 			c.Error(err)
@@ -93,18 +93,18 @@ func JwtClerkMiddleware(rsaPublicKey *rsa.PublicKey) gin.HandlerFunc {
 }
 
 func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
-	claimsParser := middleware.JwtClaimsHMACParser(secret)
+	claimsParser := middleware.NewJwtClaimsHMACParser(secret)
 
 	return func(c *gin.Context) {
 
-		tokenString, err := auth.ParseToken(c)
+		tokenString, err := token.ParseToken(c)
 
 		if err != nil {
 			web.UnauthorizedResp(c, ErrInvalidSupabaseToken)
 			return
 		}
 
-		claims := auth.SupabaseTokenClaims{}
+		claims := token.SupabaseTokenClaims{}
 
 		log.Debug().Msgf("token %s", tokenString)
 
@@ -114,7 +114,7 @@ func JwtSupabaseMiddleware(secret string) gin.HandlerFunc {
 		// 	return consts.JWT_AUTH0_RSA_PUBLIC_KEY, nil
 		// })
 
-		err = claimsParser(tokenString, &claims)
+		err = claimsParser.Parse(tokenString, &claims)
 
 		if err != nil {
 			c.Error(err)

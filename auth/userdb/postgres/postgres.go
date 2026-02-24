@@ -58,7 +58,9 @@ const (
 		ORDER BY api_key`
 
 	UserPublicKeysSql = `SELECT 
-		id, name, key
+		id, 
+		name, 
+		key
 		FROM public_keys 
 		WHERE user_id = @id::uuid
 		ORDER BY name, key`
@@ -650,33 +652,25 @@ func (pgdb *PostgresUserDB) userGroups(tx pgx.Tx, user *auth.AuthUser) ([]*auth.
 		}
 
 		if currentGroup == nil || currentGroup.Name != group {
-			currentGroup = &auth.RBACGroup{
-				RBACEntity: auth.RBACEntity{
-					Id:   groupId,
-					Name: group,
-				},
-				Roles: make([]*auth.RBACRole, 0, 10)}
+			currentGroup = &auth.RBACGroup{}
+			currentGroup.Id = groupId
+			currentGroup.Name = group
+			currentGroup.Roles = make([]*auth.RBACRole, 0, 10)
 			groups = append(groups, currentGroup)
 		}
 
 		if currentRole == nil || currentRole.Name != role {
-			currentRole = &auth.RBACRole{
-				RBACEntity: auth.RBACEntity{
-					Id:   roleId,
-					Name: role,
-				},
-				Permissions: make([]*auth.RBACEntity, 0, 10),
-			}
+			currentRole = &auth.RBACRole{}
+			currentRole.Id = roleId
+			currentRole.Name = role
+			currentRole.Permissions = make([]*auth.RBACEntity, 0, 10)
 
 			currentGroup.Roles = append(currentGroup.Roles, currentRole)
 		}
 
-		currentPermission = &auth.RBACEntity{
-			Id:   permissionId,
-			Name: permission,
-		}
-		//Resource: resource,
-		//Action:   action,
+		currentPermission = &auth.RBACEntity{}
+		currentPermission.Id = permissionId
+		currentPermission.Name = permission
 
 		log.Debug().Msgf("current permission: %v %v", currentRole, currentPermission)
 

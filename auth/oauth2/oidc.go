@@ -11,7 +11,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/antonybholmes/go-sys/log"
-	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -68,14 +68,14 @@ func NewOIDCVerifier(ctx context.Context,
 	cfg, err := fetchOIDCConfig(ctx, oidcConfigURL)
 
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("failed to fetch OIDC config: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("failed to fetch OIDC config: %v", err))
 	}
 
 	// Create Keyfunc with background refresh
 	kf, err := keyfunc.NewDefaultCtx(ctx, []string{cfg.JWKSURI})
 
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("failed to create JWKS keyfunc: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("failed to create JWKS keyfunc: %v", err))
 	}
 
 	return &OIDCVerifier{
@@ -92,56 +92,64 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 
 	log.Debug().Msgf("Verifying token: %s", tokenString)
 
-	token, err := jwt.ParseWithClaims(
+	jwtToken, err := jwt.ParseWithClaims(
 		tokenString,
 		&claims,
 		v.JWKS.Keyfunc,
 	)
 
-	log.Debug().Msgf("Parsed token: %v %v", token, err)
+	log.Debug().Msgf("Parsed token: %v %v", jwtToken, err)
 
-	if !token.Valid {
-		return nil, auth.NewTokenError("invalid token")
+	if !jwtToken.Valid {
+		return nil, token.NewTokenError("invalid token")
 	}
 
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("signature/parse error: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("signature/parse error: %v", err))
 	}
 
 	issuer, err := claims.GetIssuer()
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid issuer claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid issuer claim: %v", err))
 	}
+
 	issuer = strings.TrimRight(issuer, "/")
 
 	audience, err := claims.GetAudience()
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid audience claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid audience claim: %v", err))
 	}
 
 	expiresAt, err := claims.GetExpirationTime()
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid exp claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid exp claim: %v", err))
 	}
 
 	issuedAt, err := claims.GetIssuedAt()
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid iat claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid iat claim: %v", err))
 	}
 
 	notBefore, err := claims.GetNotBefore()
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid nbf claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid nbf claim: %v", err))
 	}
 
 	email, err := getStringClaim(claims, v.EmailClaim)
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid email claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid email claim: %v", err))
 	}
 
 	name, err := getStringClaim(claims, v.NameClaim)
+
 	if err != nil {
-		return nil, auth.NewTokenError(fmt.Sprintf("invalid name claim: %v", err))
+		return nil, token.NewTokenError(fmt.Sprintf("invalid name claim: %v", err))
 	}
 
 	oidcClaims := &OIDCClaims{
@@ -166,7 +174,7 @@ func (v *OIDCVerifier) verifyClaims(oidcClaims *OIDCClaims) (*OIDCClaims, error)
 	log.Debug().Msgf("Verifying token issuer: expected=%s, got=%s", v.Issuer, oidcClaims.Issuer)
 
 	if oidcClaims.Issuer != v.Issuer {
-		return nil, auth.NewTokenError("invalid issuer")
+		return nil, token.NewTokenError("invalid issuer")
 	}
 
 	// audience match also including stripping trailing slashes
@@ -185,25 +193,25 @@ func (v *OIDCVerifier) verifyClaims(oidcClaims *OIDCClaims) (*OIDCClaims, error)
 		}
 
 		if !found {
-			return nil, auth.NewTokenError("invalid audience")
+			return nil, token.NewTokenError("invalid audience")
 		}
 	}
 
 	if oidcClaims.Email == "" {
-		return nil, auth.NewTokenError("missing email claim")
+		return nil, token.NewTokenError("missing email claim")
 	}
 
 	if oidcClaims.Name == "" {
-		return nil, auth.NewTokenError("missing name claim")
+		return nil, token.NewTokenError("missing name claim")
 	}
 
 	// expiry match
 	if oidcClaims.ExpiresAt == nil {
-		return nil, auth.NewTokenError("missing exp claim")
+		return nil, token.NewTokenError("missing exp claim")
 	}
 
 	if time.Now().UTC().After(oidcClaims.ExpiresAt.Time) {
-		return nil, auth.NewTokenError("token expired")
+		return nil, token.NewTokenError("token expired")
 	}
 
 	return oidcClaims, nil
@@ -238,7 +246,7 @@ func fetchOIDCConfig(ctx context.Context, url string) (*OIDCConfig, error) {
 
 	// Make sure the JWKS URI exists
 	if cfg.JWKSURI == "" {
-		return nil, auth.NewTokenError("jwks_uri not found in OIDC configuration")
+		return nil, token.NewTokenError("jwks_uri not found in OIDC configuration")
 	}
 
 	//log.Debug().Msgf("Fetched JWKS URI: %s", cfg.JWKSURI)

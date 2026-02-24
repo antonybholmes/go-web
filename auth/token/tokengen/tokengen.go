@@ -1,22 +1,22 @@
 package tokengen
 
 import (
-	"crypto/rsa"
 	"net/mail"
 	"sync"
 
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	tc   *auth.TokenCreator
+	tc   *token.TokenCreator
 	once sync.Once
 )
 
-func Init(secret *rsa.PrivateKey) {
+func Init(tokenSigner token.TokenSigner) {
 	once.Do(func() {
-		tc = auth.NewTokenCreator(secret)
+		tc = token.NewTokenCreator(tokenSigner)
 	})
 }
 
@@ -52,6 +52,6 @@ func MakePasswordlessToken(c *gin.Context, userId string, url string) (string, e
 	return tc.MakePasswordlessToken(c, userId, url)
 }
 
-func OneTimeToken(c *gin.Context, user *auth.AuthUser, tokenType auth.TokenType) (string, error) {
+func OneTimeToken(c *gin.Context, user *auth.AuthUser, tokenType string) (string, error) {
 	return tc.OTPToken(c, user, tokenType)
 }

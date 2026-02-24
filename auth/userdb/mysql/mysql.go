@@ -513,31 +513,26 @@ func (mydb *MySQLUserDB) UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, err
 		}
 
 		if currentGroup == nil || currentGroup.Name != group {
-			currentGroup = &auth.RBACGroup{
-				RBACEntity: auth.RBACEntity{
-					Name: group,
-					Id:   groupId,
-				},
-				Roles: make([]*auth.RBACRole, 0, 10)}
+			currentGroup = &auth.RBACGroup{}
+			currentGroup.Id = groupId
+			currentGroup.Name = group
+			currentGroup.Roles = make([]*auth.RBACRole, 0, 10)
+
 			groups = append(groups, currentGroup)
 		}
 
 		if currentRole == nil || currentRole.Name != role {
-			currentRole = &auth.RBACRole{
-				RBACEntity: auth.RBACEntity{
-					Name: role,
-					Id:   roleId,
-				},
-				Permissions: make([]*auth.RBACEntity, 0, 10),
-			}
+			currentRole = &auth.RBACRole{}
+			currentRole.Id = roleId
+			currentRole.Name = role
+			currentRole.Permissions = make([]*auth.RBACEntity, 0, 10)
 
 			currentGroup.Roles = append(currentGroup.Roles, currentRole)
 		}
 
-		currentPermission = &auth.RBACEntity{
-			Name: permission,
-			Id:   permissionId,
-		}
+		currentPermission = &auth.RBACEntity{}
+		currentPermission.Id = permissionId
+		currentPermission.Name = permission
 
 		currentRole.Permissions = append(currentRole.Permissions, currentPermission)
 

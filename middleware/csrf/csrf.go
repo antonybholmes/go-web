@@ -11,6 +11,7 @@ import (
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,8 +27,8 @@ const (
 )
 
 var (
-	ErrCSRFTokenMissing = auth.NewTokenError("token missing")
-	ErrCSRFTokenInvalid = auth.NewTokenError("token invalid")
+	ErrCSRFTokenMissing = token.NewTokenError("token missing")
+	ErrCSRFTokenInvalid = token.NewTokenError("token invalid")
 )
 
 // func (e *CSRFError) Error() string {

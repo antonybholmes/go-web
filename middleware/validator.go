@@ -8,6 +8,7 @@ import (
 	"github.com/antonybholmes/go-web"
 
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/antonybholmes/go-web/auth/userdb"
 	userdbcache "github.com/antonybholmes/go-web/auth/userdb/cache"
 
@@ -26,7 +27,7 @@ type Validator struct {
 	UserBodyReq *auth.UserBodyReq
 
 	AuthUser *auth.AuthUser
-	Claims   *auth.AuthUserJwtClaims
+	Claims   *token.AuthUserJwtClaims
 	Err      error
 }
 
@@ -240,7 +241,7 @@ func (validator *Validator) LoadTokenClaims() *Validator {
 		user, ok := validator.c.Get(web.SessionUser)
 
 		if ok {
-			validator.Claims = user.(*auth.AuthUserJwtClaims)
+			validator.Claims = user.(*token.AuthUserJwtClaims)
 		}
 	}
 
@@ -277,8 +278,8 @@ func (validator *Validator) CheckIsValidRefreshToken() *Validator {
 		return validator
 	}
 
-	if validator.Claims.Type != auth.TokenTypeRefresh {
-		validator.Err = auth.NewTokenError("no refresh token")
+	if validator.Claims.Type != token.TokenTypeRefresh {
+		validator.Err = token.NewTokenError("no refresh token")
 	}
 
 	return validator
@@ -292,8 +293,8 @@ func (validator *Validator) CheckIsValidAccessToken() *Validator {
 		return validator
 	}
 
-	if validator.Claims.Type != auth.TokenTypeAccess {
-		validator.Err = auth.NewTokenError("no access token")
+	if validator.Claims.Type != token.TokenTypeAccess {
+		validator.Err = token.NewTokenError("no access token")
 	}
 
 	return validator

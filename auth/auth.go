@@ -1,9 +1,13 @@
 package auth
 
 import (
+	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -194,4 +198,23 @@ func Generate6DigitCode() (string, error) {
 		b[i] = digits[int(b[i])%10]
 	}
 	return string(b), nil
+}
+
+func LoadECPrivateKey(path string) (*ecdsa.PrivateKey, error) {
+	keyData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyData)
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse PEM block")
+	}
+
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
 }

@@ -2,17 +2,24 @@ package auth
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/antonybholmes/go-sys"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 type (
+	Role struct {
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
+	}
+
 	JwtInfo struct {
 		UserId string `json:"userId"`
 		//Name  string `json:"name"`
-		Type TokenType `json:"type"`
+		Type string `json:"type"`
 		//IpAddr  string `json:"ipAddr"`
 		Expires string `json:"expires"`
 	}
@@ -250,4 +257,84 @@ func GetRolesFromUser(user *AuthUser) []*Role {
 	}
 
 	return ret
+}
+
+func FormatRole(roleName, permission string) string {
+	return fmt.Sprintf("%s::%s", roleName, permission)
+}
+
+func FlattenRole(role *Role) []string {
+	ret := make([]string, 0, len(role.Permissions))
+
+	for _, p := range role.Permissions {
+		ret = append(ret, FormatRole(role.Name, p))
+	}
+
+	return ret
+}
+
+// FlattenRoles converts a slice of RolePermissions to a flat slice of strings
+// in the format "role:permission"
+func FlattenRoles(roles []*Role) []string {
+	ret := make([]string, 0, len(roles)*2)
+
+	for _, rp := range roles {
+		ret = append(ret, FlattenRole(rp)...)
+	}
+
+	return ret
+}
+
+// func FormatPermission(permission string) string {
+// 	return fmt.Sprintf("%s:%s", permission.Resource, permission.Action)
+// }
+
+// Get a sorted list of unique permissions from a list of roles
+func RolesToPermissions(roles []*Role) []string {
+	permissionSet := sys.NewStringSet()
+
+	for _, rp := range roles {
+		for _, p := range rp.Permissions {
+			permissionSet.Add(p)
+		}
+	}
+
+	return permissionSet.SortedKeys()
+}
+
+func hasRole(roles []*Role, f func(roles *sys.StringSet) bool) bool {
+	roleSet := sys.NewStringSet()
+
+	for _, rp := range roles {
+		roleSet.ListUpdate(FlattenRole(rp))
+
+	}
+
+	return f(roleSet)
+}
+
+func HasSuperRole(roles []*Role) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleSuper)
+	})
+}
+
+func HasAdminRole(roles []*Role) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
+	})
+}
+
+func HasWebLoginInRole(roles []*Role) bool {
+	return hasRole(roles, func(roles *sys.StringSet) bool {
+		return roles.Has(RoleWebLogin)
+	})
+}
+
+func HasAdminPermission(permissions []string) bool {
+	return slices.Contains(permissions, AdminPermission)
+}
+
+func HasWebLoginPermission(permissions []string) bool {
+	return slices.Contains(permissions, WebLoginPermission)
 }
