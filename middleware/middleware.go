@@ -386,7 +386,7 @@ func JwtHasRDFPermMiddleware() gin.HandlerFunc {
 	return JwtHasPermissionsMiddleware("rdf:view")
 }
 
-// Gets the JWT user from the context. Microservices
+// Gets the JWT user claims from the context. Microservices
 // should expect to find the JWT claims in the user slot.
 func GetJwtUser(c *gin.Context) (*token.AuthUserJwtClaims, error) {
 
