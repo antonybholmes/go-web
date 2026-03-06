@@ -22,6 +22,14 @@ type (
 	// 	Action   string `json:"action"`
 	// }
 
+	TokenRequest struct {
+		ClientID     string `json:"client_id"     form:"client_id"`
+		ClientSecret string `json:"client_secret" form:"client_secret"`
+		Audience     string `json:"audience"      form:"audience"`
+		Type         string `json:"type"          form:"type"`
+		GrantType    string `json:"grant_type"    form:"grant_type"`
+	}
+
 	AuthUserJwtClaims struct {
 		jwt.RegisteredClaims
 		//UserId          string   `json:"id"` // the publicId of the user
@@ -168,8 +176,8 @@ func MakeClaim(claims []string) string {
 	return strings.Join(claims, JwtClaimSep)
 }
 
-func makeDefaultClaimsWithTTL(sub string, ttl time.Duration) jwt.RegisteredClaims {
-	return jwt.RegisteredClaims{Subject: sub, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
+func makeDefaultClaimsWithTTL(sub string, aud string, ttl time.Duration) jwt.RegisteredClaims {
+	return jwt.RegisteredClaims{Subject: sub, Audience: jwt.ClaimStrings{aud}, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl))}
 }
 
 func NewTokenCreator(tokenSigner TokenSigner) *TokenCreator {
@@ -189,9 +197,10 @@ func (tc *TokenCreator) SetOTPTokenTTL(ttl time.Duration) *TokenCreator {
 	return tc
 }
 
-func (tc *TokenCreator) RefreshToken(c *gin.Context, user *auth.AuthUser) (string, error) {
+func (tc *TokenCreator) RefreshToken(c *gin.Context, user *auth.AuthUser, audience string) (string, error) {
 	return tc.BasicToken(c,
 		user.Id,
+		audience,
 		TokenTypeRefresh,
 		auth.TtlHour)
 }
@@ -201,7 +210,10 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *auth.AuthUser) (strin
 // 	token.PermissionsVersion = PermissionsVersion
 // }
 
-func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*auth.Role) (string, error) {
+func (tc *TokenCreator) AccessToken(c *gin.Context,
+	userId string,
+	audience string,
+	roles []*auth.Role) (string, error) {
 
 	// claims := AuthUserJwtClaims{
 	// 	UserId: userId,
@@ -214,12 +226,12 @@ func (tc *TokenCreator) AccessToken(c *gin.Context, userId string, roles []*auth
 
 	// return tc.BaseToken(claims)
 
-	return tc.AccessTokenUsingPermissions(c, userId, auth.RolesToPermissions(roles))
+	return tc.AccessTokenUsingPermissions(c, userId, audience, auth.RolesToPermissions(roles))
 }
 
 // If we are creating a new access token using the permissions of the current
 // token
-func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId string, permissions []string) (string, error) {
+func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId string, audience string, permissions []string) (string, error) {
 
 	claims := AuthUserJwtClaims{
 
@@ -227,12 +239,12 @@ func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId strin
 		Type:               TokenTypeAccess,
 		Permissions:        permissions,
 		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, tc.accessTokenTTL)}
+		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, audience, tc.accessTokenTTL)}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, roles []*auth.Role) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, audience string, roles []*auth.Role) (string, error) {
 
 	claims := AuthUserJwtClaims{
 
@@ -240,12 +252,12 @@ func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, roles []*auth
 		Type:               TokenTypeUpdate,
 		Permissions:        auth.RolesToPermissions(roles),
 		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, auth.Ttl1Min)}
+		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, audience, auth.Ttl1Min)}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, visitUrl string) (string, error) {
+func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *auth.AuthUser, audience string, visitUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	VERIFY_EMAIL_TOKEN)
@@ -254,36 +266,36 @@ func (tc *TokenCreator) MakeVerifyEmailToken(c *gin.Context, authUser *auth.Auth
 		Data:             authUser.Name,
 		Type:             TokenTypeVerifyEmail,
 		RedirectUrl:      visitUrl,
-		RegisteredClaims: makeDefaultClaimsWithTTL(authUser.Id, tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(authUser.Id, audience, tc.shortTTL),
 	}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *auth.AuthUser) (string, error) {
+func (tc *TokenCreator) MakeResetPasswordToken(c *gin.Context, user *auth.AuthUser, audience string) (string, error) {
 	claims := AuthUserJwtClaims{
 		// include first name to personalize reset
 		Data:             user.Name,
 		Type:             TokenTypeResetPassword,
 		OneTimePasscode:  auth.CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, audience, tc.otpTokenTTL)}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *auth.AuthUser, email *mail.Address) (string, error) {
+func (tc *TokenCreator) MakeResetEmailToken(c *gin.Context, user *auth.AuthUser, audience string, email *mail.Address) (string, error) {
 
 	claims := AuthUserJwtClaims{
 		Data:             email.Address,
 		Type:             TokenTypeChangeEmail,
 		OneTimePasscode:  auth.CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.otpTokenTTL)}
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, audience, tc.otpTokenTTL)}
 
 	return tc.tokenSigner.Sign(claims)
 
 }
 
-func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, redirectUrl string) (string, error) {
+func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, audience string, redirectUrl string) (string, error) {
 	// return tc.ShortTimeToken(c,
 	// 	publicId,
 	// 	PASSWORDLESS_TOKEN)
@@ -299,17 +311,17 @@ func (tc *TokenCreator) MakePasswordlessToken(c *gin.Context, userId string, red
 		// account page because then they have to click on the page they want again
 		// which is annoying UI.
 		RedirectUrl:      redirectUrl,
-		RegisteredClaims: makeDefaultClaimsWithTTL(userId, tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(userId, audience, tc.shortTTL),
 	}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) OTPToken(c *gin.Context, user *auth.AuthUser, tokenType string) (string, error) {
+func (tc *TokenCreator) OTPToken(c *gin.Context, user *auth.AuthUser, audience string, tokenType string) (string, error) {
 	claims := AuthUserJwtClaims{
 		Type:             tokenType,
 		OneTimePasscode:  auth.CreateOTP(user),
-		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, tc.shortTTL),
+		RegisteredClaims: makeDefaultClaimsWithTTL(user.Id, audience, tc.shortTTL),
 	}
 
 	return tc.tokenSigner.Sign(claims)
@@ -318,17 +330,19 @@ func (tc *TokenCreator) OTPToken(c *gin.Context, user *auth.AuthUser, tokenType 
 // Generate short lived tokens for one time passcode use.
 func (tc *TokenCreator) ShortTimeToken(c *gin.Context,
 	publicId string,
+	audience string,
 	tokenType string) (string, error) {
-	return tc.BasicToken(c, publicId, tokenType, tc.shortTTL)
+	return tc.BasicToken(c, publicId, audience, tokenType, tc.shortTTL)
 }
 
 func (tc *TokenCreator) BasicToken(c *gin.Context,
 	userId string,
+	audience string,
 	tokenType string,
 	ttl time.Duration) (string, error) {
 	claims := AuthUserJwtClaims{
 		Type:             tokenType,
-		RegisteredClaims: makeDefaultClaimsWithTTL(userId, ttl),
+		RegisteredClaims: makeDefaultClaimsWithTTL(userId, audience, ttl),
 	}
 
 	return tc.tokenSigner.Sign(claims)
