@@ -26,7 +26,9 @@ func RulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine)
 		//log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
 		// Use the route engine to check access based on the path, user token type and the permissions in the token
-		err = ruleEngine.IsAccessAllowed(c.Request.Method, c.FullPath(), userToken.Type, userToken.Permissions)
+		err = ruleEngine.IsAccessAllowed(c.Request.Method,
+			c.FullPath(),
+			userToken)
 
 		if err != nil {
 			log.Debug().Msgf("access denied: %v", err)

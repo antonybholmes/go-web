@@ -10,6 +10,8 @@ import (
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web/auth"
+	"github.com/antonybholmes/go-web/auth/token"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // func matchesWildcardRule(rulePath, actualPath string) bool {
@@ -38,8 +40,9 @@ type (
 
 	// JSON structure for rules
 	JsonRule struct {
-		Methods []JsonMethodRule `json:"methods"`
-		Path    string           `json:"path"`
+		Methods  []JsonMethodRule `json:"methods"`
+		Path     string           `json:"path"`
+		Audience jwt.ClaimStrings `json:"audience"`
 	}
 
 	JsonRules struct {
@@ -67,12 +70,18 @@ func (e *AccessRuleError) Error() string {
 	return fmt.Sprintf("access rule error: %s", e.s)
 }
 
-func makeRuleKey(method, tokenType, path string) string {
-	return strings.ToLower(strings.Join([]string{method, tokenType, path}, "|"))
+func makeRuleKey(method, tokenType string, audience jwt.ClaimStrings, path string) string {
+
+	return makeWildcardRuleKey(method, tokenType, audience) + "|" + path
 }
 
-func makeWildcardRuleKey(method, tokenType string) string {
-	return strings.ToLower(strings.Join([]string{method, tokenType}, "|"))
+func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) string {
+	if len(audience) == 0 {
+		audience = jwt.ClaimStrings{"*"}
+	}
+
+	return strings.ToLower(method + "|" + tokenType + "|" + strings.Join(audience, ","))
+
 }
 
 func NewRuleEngine() *RuleEngine {
@@ -98,13 +107,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 
 		isExact = !strings.HasSuffix(path, "/*")
 
-		if strings.HasSuffix(path, "/*") {
-
-			prefix := strings.TrimSuffix(path, "/*")
-
-			// Adjust the rule path to be the prefix without the wildcard
-			path = prefix
-		}
+		path = strings.TrimSuffix(path, "/*")
 
 		// remove trailing slash if present
 		path = strings.TrimSuffix(path, "/")
@@ -119,17 +122,13 @@ func (re *RuleEngine) LoadRules(filename string) {
 		// which method types does this rule apply to e.g. GET, POST etc
 		for _, m := range r.Methods {
 
-			methodType := strings.ToLower(m.Type)
-
 			// which types of tokens are accepted for this rule
 			for _, t := range m.Tokens {
 
-				tokenType := strings.ToLower(t.Type)
-
 				if isExact {
-					re.rules[makeRuleKey(methodType, tokenType, path)] = sys.NewStringSet().ListUpdate(t.Permissions)
+					re.rules[makeRuleKey(m.Type, t.Type, r.Audience, path)] = sys.NewStringSet().ListUpdate(t.Permissions)
 				} else {
-					key := makeWildcardRuleKey(methodType, tokenType)
+					key := makeWildcardRuleKey(m.Type, t.Type, r.Audience)
 
 					if re.wildcardRules[key] == nil {
 						re.wildcardRules[key] = make(map[string]*sys.Set[string])
@@ -161,10 +160,10 @@ func (re *RuleEngine) LoadRules(filename string) {
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
 }
 
-func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path string) (*sys.Set[string], error) {
+func (re *RuleEngine) getWildCardRoles(method string, tokenType string, audience jwt.ClaimStrings, path string) (*sys.Set[string], error) {
 	log.Debug().Msgf("GetWildCardRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
-	key := makeWildcardRuleKey(method, tokenType)
+	key := makeWildcardRuleKey(method, tokenType, audience)
 
 	// matchTypeRules, ok := re.rules[MATCH_TYPE_WILDCARD]
 
@@ -209,8 +208,11 @@ func (re *RuleEngine) getWildCardRoles(method string, tokenType string, path str
 	return nil, fmt.Errorf("no rules found")
 }
 
-func (re *RuleEngine) getExactRoles(method string, tokenType string, path string) (*sys.Set[string], error) {
-	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
+func (re *RuleEngine) getExactRoles(method string,
+
+	path string, token *token.AuthUserJwtClaims) (*sys.Set[string], error) {
+
+	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, token.Type, path)
 
 	// matchTypeRules, ok := re.rules[MATCH_TYPE_EXACT]
 
@@ -230,7 +232,7 @@ func (re *RuleEngine) getExactRoles(method string, tokenType string, path string
 	// 	return nil, fmt.Errorf("no rules for token type %s for method %s for path %s", tokenType, method, path)
 	// }
 
-	key := makeRuleKey(method, tokenType, path)
+	key := makeRuleKey(method, token.Type, token.Audience, path)
 
 	//log.Debug().Msgf("Looking for exact rule with key=%s", key)
 	//log.Debug().Msgf("Available exact rules: %v", strings.Join(sys.SortedMapKeys(re.rules), ", "))
@@ -245,13 +247,13 @@ func (re *RuleEngine) getExactRoles(method string, tokenType string, path string
 	return rules, nil
 }
 
-func (re *RuleEngine) GetRoutePermissions(method string, tokenType string, path string) (*sys.Set[string], error) {
+func (re *RuleEngine) GetRoutePermissions(method string, path string, token *token.AuthUserJwtClaims) (*sys.Set[string], error) {
 	method = strings.ToLower(method)
-	tokenType = strings.ToLower(tokenType)
+
 	// normalize path by removing trailing slash if present
 	path = strings.TrimSuffix(path, "/")
 
-	rules, err := re.getExactRoles(method, tokenType, path)
+	rules, err := re.getExactRoles(method, path, token)
 
 	if err == nil {
 		return rules, nil
@@ -259,15 +261,15 @@ func (re *RuleEngine) GetRoutePermissions(method string, tokenType string, path 
 
 	// try wildcard rules
 
-	return re.getWildCardRoles(method, tokenType, path)
+	return re.getWildCardRoles(method, token.Type, token.Audience, path)
 
 }
 
-func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, permissions []string) error {
+func (re *RuleEngine) IsAccessAllowed(method, path string, token *token.AuthUserJwtClaims) error {
 
-	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, permissions=%v", method, path, tokenType, permissions)
+	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, permissions=%v", method, path, token.Type, token.Permissions)
 
-	matchingPermissions, err := re.GetRoutePermissions(method, tokenType, path)
+	matchingPermissions, err := re.GetRoutePermissions(method, path, token)
 
 	if err != nil {
 		return err
@@ -275,15 +277,15 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, tokenType string, per
 
 	// route must contain at least one of the user's roles
 
-	if auth.HasAdminPermission(permissions) {
+	if auth.HasAdminPermission(token.Permissions) {
 		// Admin has access to everything
-		log.Debug().Msgf("access allowed for admin permissions %v", permissions)
+		log.Debug().Msgf("access allowed for admin permissions %v", token.Permissions)
 		return nil
 	}
 
 	//roleList := auth.FlattenRoles(roles)
 
-	userPermissions := matchingPermissions.WhichList(permissions)
+	userPermissions := matchingPermissions.WhichList(token.Permissions)
 
 	if len(userPermissions) > 0 {
 		log.Debug().Msgf("Access allowed for permissions %v", userPermissions)
