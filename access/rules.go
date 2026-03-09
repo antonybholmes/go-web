@@ -55,10 +55,15 @@ type (
 		s string
 	}
 
+	Rule struct {
+		Path        string
+		Permissions *sys.Set[string]
+	}
+
 	RuleEngine struct {
 		//rules map[string]map[string]map[string]map[string]*sys.StringSet
-		rules         map[string]*sys.Set[string]
-		wildcardRules map[string]map[string]*sys.Set[string]
+		rules         map[string]Rule
+		wildcardRules map[string][]Rule
 	}
 )
 
@@ -70,15 +75,23 @@ func (e *AccessRuleError) Error() string {
 	return fmt.Sprintf("access rule error: %s", e.s)
 }
 
-func makeRuleKey(method, tokenType string, audience jwt.ClaimStrings, path string) string {
+// A rule key is a combination of method, token type, audience and path for exact matches of
+// rules. We match info from the jwt and url request to find relevant rules for access control.
+// For wildcard rules, the path is not included in the key
+func makeExactPathRuleKey(method, tokenType string, audience jwt.ClaimStrings, path string) string {
+	path = strings.TrimSuffix(path, "/") // remove trailing slash if present
 
 	return makeWildcardRuleKey(method, tokenType, audience) + "|" + path
 }
 
+// Rules are indexed with a simple key of method|tokenType|audience for quick lookup.
 func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) string {
+	// if audience is empty, use wildcard to match any audience
 	if len(audience) == 0 {
 		audience = jwt.ClaimStrings{"*"}
 	}
+
+	sort.Strings(audience) // ensure consistent ordering for key generation
 
 	return strings.ToLower(method + "|" + tokenType + "|" + strings.Join(audience, ","))
 
@@ -86,8 +99,8 @@ func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) st
 
 func NewRuleEngine() *RuleEngine {
 	return &RuleEngine{
-		rules:         make(map[string]*sys.Set[string]),
-		wildcardRules: make(map[string]map[string]*sys.Set[string]),
+		rules:         make(map[string]Rule),
+		wildcardRules: make(map[string][]Rule),
 	}
 }
 
@@ -107,17 +120,8 @@ func (re *RuleEngine) LoadRules(filename string) {
 
 		isExact = !strings.HasSuffix(path, "/*")
 
-		path = strings.TrimSuffix(path, "/*")
-
 		// remove trailing slash if present
-		path = strings.TrimSuffix(path, "/")
-
-		// rule := Rule{
-		// 	Method: strings.ToUpper(r.Method),
-		// 	Path:   path,
-		// 	Token:  r.Token,
-		// 	Roles:  sys.NewStringSet().ListUpdate(r.Roles),
-		// }
+		path = strings.TrimSuffix(strings.TrimSuffix(path, "/*"), "/")
 
 		// which method types does this rule apply to e.g. GET, POST etc
 		for _, m := range r.Methods {
@@ -126,15 +130,17 @@ func (re *RuleEngine) LoadRules(filename string) {
 			for _, t := range m.Tokens {
 
 				if isExact {
-					re.rules[makeRuleKey(m.Type, t.Type, r.Audience, path)] = sys.NewStringSet().ListUpdate(t.Permissions)
+					re.rules[makeExactPathRuleKey(m.Type, t.Type, r.Audience, path)] = Rule{
+						Path:        path,
+						Permissions: sys.NewStringSet().ListUpdate(t.Permissions),
+					}
 				} else {
 					key := makeWildcardRuleKey(m.Type, t.Type, r.Audience)
 
-					if re.wildcardRules[key] == nil {
-						re.wildcardRules[key] = make(map[string]*sys.Set[string])
-					}
-
-					re.wildcardRules[key][path] = sys.NewStringSet().ListUpdate(t.Permissions)
+					re.wildcardRules[key] = append(re.wildcardRules[key], Rule{
+						Path:        path,
+						Permissions: sys.NewStringSet().ListUpdate(t.Permissions),
+					})
 				}
 
 				// if re.rules[matchType] == nil {
@@ -155,6 +161,15 @@ func (re *RuleEngine) LoadRules(filename string) {
 				// re.rules[matchType][methodType][tokenType][path] = sys.NewStringSet().ListUpdate(t.Permissions) //  = append(re.rules[rule.Method][rule.Token][rule.Path], rule)
 			}
 		}
+	}
+
+	// sort wildcard rules by path length descending so that longest match is found first
+	for key := range re.wildcardRules {
+
+		sort.Slice(re.wildcardRules[key], func(i, j int) bool {
+			return len(re.wildcardRules[key][i].Path) > len(re.wildcardRules[key][j].Path)
+		})
+
 	}
 
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
@@ -184,22 +199,22 @@ func (re *RuleEngine) getWildCardRoles(method string, tokenType string, audience
 	}
 
 	// sort paths descending by length so that the longest match is found first
-	rulePaths := make([]string, 0, len(tokenRules))
+	// rulePaths := make([]string, 0, len(tokenRules))
 
-	for rulePath := range tokenRules {
-		rulePaths = append(rulePaths, rulePath)
-	}
+	// for rulePath := range tokenRules {
+	// 	rulePaths = append(rulePaths, rulePath)
+	// }
 
-	sort.Slice(rulePaths, func(i, j int) bool {
-		return len(rulePaths[i]) > len(rulePaths[j])
-	})
+	// sort.Slice(rulePaths, func(i, j int) bool {
+	// 	return len(rulePaths[i]) > len(rulePaths[j])
+	// })
 
 	// find the first matching rule that is longest
-	for _, rulePath := range rulePaths {
+	for _, wc := range tokenRules {
 
 		// see if path starts with rulePath prefix
-		if strings.HasPrefix(path, rulePath) {
-			return tokenRules[rulePath], nil
+		if strings.HasPrefix(path, wc.Path) {
+			return wc.Permissions, nil
 		}
 
 	}
@@ -208,9 +223,11 @@ func (re *RuleEngine) getWildCardRoles(method string, tokenType string, audience
 	return nil, fmt.Errorf("no rules found")
 }
 
-func (re *RuleEngine) getExactRoles(method string,
-
-	path string, token *token.AuthUserJwtClaims) (*sys.Set[string], error) {
+// Get the rules for a given method, path and token. This is the core function that checks for matching rules based on the request and token info.
+// It first checks for exact path matches and if no rules are found, it returns an error.
+func (re *RuleEngine) getPermissionsForRoute(method string,
+	path string,
+	token *token.AuthUserJwtClaims) (*sys.Set[string], error) {
 
 	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, token.Type, path)
 
@@ -232,34 +249,30 @@ func (re *RuleEngine) getExactRoles(method string,
 	// 	return nil, fmt.Errorf("no rules for token type %s for method %s for path %s", tokenType, method, path)
 	// }
 
-	key := makeRuleKey(method, token.Type, token.Audience, path)
+	key := makeExactPathRuleKey(method, token.Type, token.Audience, path)
 
 	//log.Debug().Msgf("Looking for exact rule with key=%s", key)
 	//log.Debug().Msgf("Available exact rules: %v", strings.Join(sys.SortedMapKeys(re.rules), ", "))
 
 	// Exact match rules, ideally all routes should be exact matches
-	rules, ok := re.rules[key]
+	rule, ok := re.rules[key]
 
 	if !ok {
 		return nil, NewAccessRuleError("no rules found")
 	}
 
-	return rules, nil
+	return rule.Permissions, nil
 }
 
 func (re *RuleEngine) GetRoutePermissions(method string, path string, token *token.AuthUserJwtClaims) (*sys.Set[string], error) {
-	method = strings.ToLower(method)
 
-	// normalize path by removing trailing slash if present
-	path = strings.TrimSuffix(path, "/")
-
-	rules, err := re.getExactRoles(method, path, token)
+	rules, err := re.getPermissionsForRoute(method, path, token)
 
 	if err == nil {
 		return rules, nil
 	}
 
-	// try wildcard rules
+	// try wildcard rules if no exact match rules found
 
 	return re.getWildCardRoles(method, token.Type, token.Audience, path)
 
@@ -275,21 +288,19 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, token *token.AuthUser
 		return err
 	}
 
-	// route must contain at least one of the user's roles
-
+	// Admin has access to everything so don't need to check permissions specifically.
 	if auth.HasAdminPermission(token.Permissions) {
-		// Admin has access to everything
+
 		log.Debug().Msgf("access allowed for admin permissions %v", token.Permissions)
 		return nil
 	}
 
-	//roleList := auth.FlattenRoles(roles)
+	// route must contain at least one of the user's roles
+	userPermissions := matchingPermissions.Which(token.Permissions)
 
-	userPermissions := matchingPermissions.WhichList(token.Permissions)
-
-	if len(userPermissions) > 0 {
-		log.Debug().Msgf("Access allowed for permissions %v", userPermissions)
-		return nil
+	// no matching permissions found for user, access denied
+	if len(userPermissions) == 0 {
+		return NewAccessRuleError("no matching roles")
 	}
 
 	// for _, rule := range matchingRules {
@@ -299,6 +310,6 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, token *token.AuthUser
 	// 	}
 	// }
 
-	// No rules matched the user's roles, deny access
-	return NewAccessRuleError("no matching roles")
+	log.Debug().Msgf("Access allowed for permissions %v", userPermissions)
+	return nil
 }

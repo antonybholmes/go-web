@@ -73,6 +73,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/redis/go-redis/v9 v9.15.0
 	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 )
