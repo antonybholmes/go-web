@@ -59,6 +59,7 @@ type (
 	SupabaseUserMetadata struct {
 		DisplayName string `json:"display_name"`
 		FullName    string `json:"full_name"`
+		AvatarUrl   string `json:"avatar_url"`
 	}
 
 	SupabaseTokenClaims struct {

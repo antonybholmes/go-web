@@ -21,8 +21,9 @@ type (
 		jwt.RegisteredClaims
 
 		//Sub   string `json:"sub"`
-		Email string `json:"email,omitempty"`
-		Name  string `json:"name,omitempty"`
+		Email   string `json:"email,omitempty"`
+		Name    string `json:"name,omitempty"`
+		Picture string `json:"picture,omitempty"`
 	}
 
 	OIDCVerifier struct {
@@ -98,7 +99,7 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 		v.JWKS.Keyfunc,
 	)
 
-	log.Debug().Msgf("Parsed token: %v %v", jwtToken, err)
+	//log.Debug().Msgf("Parsed token: %v %v", jwtToken, err)
 
 	if !jwtToken.Valid {
 		return nil, token.NewTokenError("invalid token")
@@ -152,6 +153,12 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 		return nil, token.NewTokenError(fmt.Sprintf("invalid name claim: %v", err))
 	}
 
+	picture, ok := claims["picture"].(string)
+
+	if !ok {
+		picture = ""
+	}
+
 	oidcClaims := &OIDCClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    issuer,
@@ -160,8 +167,9 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 			IssuedAt:  issuedAt,
 			NotBefore: notBefore,
 		},
-		Email: email,
-		Name:  name,
+		Email:   email,
+		Name:    name,
+		Picture: picture,
 	}
 
 	return v.verifyClaims(oidcClaims)

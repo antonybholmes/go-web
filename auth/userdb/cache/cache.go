@@ -44,17 +44,19 @@ func CreateUserFromSignup(user *auth.UserBodyReq) (*auth.AuthUser, error) {
 	return instance.CreateUserFromSignup(user)
 }
 
-func CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
-	return instance.CreateUserFromOAuth2(email, name, authProvider)
+func CreateUserFromOAuth2(email *mail.Address, name string, pictureUrl string, authProvider string) (*auth.AuthUser, error) {
+	return instance.CreateUserFromOAuth2(email, name, pictureUrl, authProvider)
 }
 
 func CreateUser(email *mail.Address,
 	userName string,
 	password string,
 	name string,
+	pictureUrl string,
 	emailIsVerified bool,
-	authProvider string) (*auth.AuthUser, error) {
-	return instance.CreateUser(email, userName, password, name, emailIsVerified, authProvider)
+	authProvider string,
+	adminMode bool) (*auth.AuthUser, error) {
+	return instance.CreateUser(email, userName, password, name, pictureUrl, emailIsVerified, authProvider, adminMode)
 }
 
 func FindUserById(id string) (*auth.AuthUser, error) {
@@ -189,6 +191,10 @@ func SetUserInfo(user *auth.AuthUser, username string, name string, adminMode bo
 
 func SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error {
 	return instance.SetEmailAddress(user, address, adminMode)
+}
+
+func SetPictureUrl(user *auth.AuthUser, pictureUrl string, adminMode bool) error {
+	return instance.SetPictureUrl(user, pictureUrl, adminMode)
 }
 
 func SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error {

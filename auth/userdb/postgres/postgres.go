@@ -29,7 +29,8 @@ const (
 		id,
 		name, 
 		username, 
-		email, 
+		email,
+		picture_url,
 		is_locked, 
 		password, 
 		email_verified_at, 
@@ -165,8 +166,8 @@ const (
 	// 	ORDER BY r.name, res.name, a.name`
 
 	InsertUserSql = `INSERT INTO users 
-		(username, email, password, name, email_verified_at) 
-		VALUES (@username, @email, @password, @name, @email_verified_at) 
+		(username, email, password, name, picture_url, email_verified_at) 
+		VALUES (@username, @email, @password, @name, @picture_url, @email_verified_at) 
 		ON CONFLICT DO NOTHING`
 
 	DeleteUserGroupsSql = "DELETE FROM user_groups WHERE user_id = @id::uuid"
@@ -178,8 +179,9 @@ const (
 	SetPasswordSql      = `UPDATE users SET password = @password WHERE users.id = @id::uuid`
 	SetUsernameSql      = `UPDATE users SET username = @username WHERE users.id = @id::uuid`
 
-	SetInfoSql  = `UPDATE users SET username = @username, name = @name WHERE users.id = @id::uuid`
-	SetEmailSql = `UPDATE users SET email = @email WHERE users.id = @id::uuid`
+	SetInfoSql       = `UPDATE users SET username = @username, name = @name WHERE users.id = @id::uuid`
+	SetEmailSql      = `UPDATE users SET email = @email WHERE users.id = @id::uuid`
+	SetPictureUrlSql = `UPDATE users SET picture_url = @picture_url WHERE users.id = @id::uuid`
 
 	DeleteUserSql = `DELETE FROM users WHERE id = @id::uuid`
 
@@ -299,6 +301,7 @@ func (pgdb *PostgresUserDB) Users(records int, offset int) ([]*auth.AuthUser, er
 			&authUser.Name,
 			&authUser.Username,
 			&authUser.Email,
+			&authUser.PictureUrl,
 			&authUser.IsLocked,
 			&authUser.HashedPassword,
 			&authUser.EmailVerifiedAt,
@@ -429,6 +432,7 @@ func (pgdb *PostgresUserDB) findUser(id string,
 		&authUser.Name,
 		&authUser.Username,
 		&authUser.Email,
+		&authUser.PictureUrl,
 		&authUser.IsLocked,
 		&authUser.HashedPassword,
 		&authUser.EmailVerifiedAt,
@@ -1029,6 +1033,21 @@ func (pgdb *PostgresUserDB) SetEmailAddress(user *auth.AuthUser, address *mail.A
 	return nil
 }
 
+func (pgdb *PostgresUserDB) SetPictureUrl(user *auth.AuthUser, pictureUrl string, adminMode bool) error {
+
+	if !adminMode && user.IsLocked {
+		return auth.NewAccountError("account is locked and cannot be edited")
+	}
+
+	_, err := pgdb.db.Exec(pgdb.ctx, SetPictureUrlSql, pgx.NamedArgs{"picture_url": pictureUrl, "id": user.Id})
+
+	if err != nil {
+		return auth.NewAccountError("could not update picture URL")
+	}
+
+	return nil
+}
+
 func (pgdb *PostgresUserDB) SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error {
 	if !adminMode && user.IsLocked {
 		return auth.NewAccountError("account is locked and cannot be edited")
@@ -1113,13 +1132,14 @@ func (pgdb *PostgresUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.
 	}
 
 	// assume email is not verified
-	return pgdb.CreateOrUpdateUser(email, userName, user.Password, user.Name, false, "edb")
+	return pgdb.CreateOrUpdateUser(email, userName, user.Password, user.Name, user.PictureUrl, false, "edb", false)
 }
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
 func (pgdb *PostgresUserDB) CreateUserFromOAuth2(email *mail.Address,
 	name string,
+	pictureUrl string,
 	authProvider string) (*auth.AuthUser, error) {
 	//authUser, err := pgdb.FindUserByEmail(email)
 
@@ -1127,8 +1147,10 @@ func (pgdb *PostgresUserDB) CreateUserFromOAuth2(email *mail.Address,
 	//	return authUser, nil
 	//}
 
-	// user does not exist so create
-	return pgdb.CreateOrUpdateUser(email, email.Address, "", name, true, authProvider)
+	log.Debug().Msgf("create user from oauth2 %s %s %s", email.Address, name, pictureUrl)
+
+	// user does not exist so create. We trust oauth2 so run in admin mode to bypass locked check and set email as verified
+	return pgdb.CreateOrUpdateUser(email, email.Address, "", name, pictureUrl, true, authProvider, true)
 
 }
 
@@ -1173,8 +1195,10 @@ func (pgdb *PostgresUserDB) CreateOrUpdateUser(email *mail.Address,
 	userName string,
 	password string,
 	name string,
+	pictureUrl string,
 	emailIsVerified bool,
-	authProvider string) (*auth.AuthUser, error) {
+	authProvider string,
+	adminMode bool) (*auth.AuthUser, error) {
 	err := userdb.CheckPassword(password)
 
 	if err != nil {
@@ -1189,29 +1213,38 @@ func (pgdb *PostgresUserDB) CreateOrUpdateUser(email *mail.Address,
 	//log.Debug().Msgf("create user found %v %s", authUser, email)
 
 	if authUser != nil {
+
+		log.Debug().Msgf("user already exists, updating info %s %s", email.Address, pictureUrl)
+
 		return pgdb.updateUser(authUser,
 			email,
 			userName,
 			password,
 			name,
+			pictureUrl,
 			emailIsVerified,
-			authProvider)
+			authProvider,
+			adminMode)
 	}
 
 	return pgdb.CreateUser(email,
 		userName,
 		password,
 		name,
+		pictureUrl,
 		emailIsVerified,
-		authProvider)
+		authProvider,
+		adminMode)
 }
 
 func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 	userName string,
 	password string,
 	name string,
+	pictureUrl string,
 	emailIsVerified bool,
-	authProvider string) (*auth.AuthUser, error) {
+	authProvider string,
+	adminMode bool) (*auth.AuthUser, error) {
 	//log.Debug().Msgf("create user start %s %s", email.Address, userName)
 
 	err := userdb.CheckPassword(password)
@@ -1240,6 +1273,7 @@ func (pgdb *PostgresUserDB) CreateUser(email *mail.Address,
 			"email":             email.Address,
 			"password":          hash,
 			"name":              name,
+			"picture_url":       pictureUrl,
 			"email_verified_at": emailVerifiedAt,
 		},
 	)
@@ -1296,15 +1330,19 @@ func (pgdb *PostgresUserDB) updateUser(authUser *auth.AuthUser,
 	username string,
 	password string,
 	name string,
+	pictureUrl string,
 	emailIsVerified bool,
-	authProvider string) (*auth.AuthUser, error) {
+	authProvider string,
+	adminMode bool) (*auth.AuthUser, error) {
 	err := userdb.CheckPassword(password)
+
+	log.Debug().Msgf("stupd %s", pictureUrl)
 
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug().Msgf("create user found %v %s", authUser, email)
+	log.Debug().Msgf("update user found   %s %s", email, pictureUrl)
 
 	// user already exists so check if verified
 
@@ -1328,20 +1366,27 @@ func (pgdb *PostgresUserDB) updateUser(authUser *auth.AuthUser,
 	// verifying. Since createUser is called by oauth2 signins and
 	// may be updating an existing account, we do not update password
 	// if user account is locked.
-	if !authUser.IsLocked {
-		//_, err := pgdb.SetUsername(authUser, username, false)
 
-		err := pgdb.SetUserInfo(authUser, username, name, false)
+	canUpdate := adminMode || !authUser.IsLocked
 
-		if err != nil {
-			return nil, err
-		}
+	//_, err := pgdb.SetUsername(authUser, username, false)
 
-		_, err = pgdb.SetPassword(authUser, password, false)
+	err = pgdb.SetUserInfo(authUser, username, name, canUpdate)
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = pgdb.SetPassword(authUser, password, canUpdate)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = pgdb.SetPictureUrl(authUser, pictureUrl, adminMode)
+
+	if err != nil {
+		return nil, err
 	}
 
 	// add info about signin

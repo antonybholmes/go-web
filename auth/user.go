@@ -76,6 +76,7 @@ type (
 		Name            string          `json:"name"`
 		Username        string          `json:"username"`
 		Email           string          `json:"email"`
+		PictureUrl      string          `json:"pictureUrl,omitempty"`
 		HashedPassword  string          `json:"-"`
 		Groups          []*RBACGroup    `json:"groups"`
 		AuthProviders   []*AuthProvider `json:"authProviders"`

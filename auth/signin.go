@@ -55,6 +55,7 @@ type (
 		Id              string   `json:"id"`
 		Username        string   `json:"username"`
 		Email           string   `json:"email"`
+		PictureUrl      string   `json:"pictureUrl"`
 		Password        string   `json:"password"`
 		NewPassword     string   `json:"newPassword"`
 		OTP             string   `json:"otp"`

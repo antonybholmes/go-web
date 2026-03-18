@@ -943,7 +943,7 @@ func (mydb *MySQLUserDB) CreateUserFromSignup(user *auth.UserBodyReq) (*auth.Aut
 
 // Gets the user info from the database and auto creates user if
 // user does not exist since we Auth0 has authenticated them
-func (mydb *MySQLUserDB) CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error) {
+func (mydb *MySQLUserDB) CreateUserFromOAuth2(email *mail.Address, name string, pictureUrl string, authProvider string) (*auth.AuthUser, error) {
 	//authUser, err := mydb.FindUserByEmail(email)
 
 	//if err == nil {

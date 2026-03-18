@@ -83,6 +83,8 @@ type (
 		// change a user's email address
 		SetEmailAddress(user *auth.AuthUser, address *mail.Address, adminMode bool) error
 
+		SetPictureUrl(user *auth.AuthUser, pictureUrl string, adminMode bool) error
+
 		// set a user's groups
 		SetUserGroups(user *auth.AuthUser, groups []string, adminMode bool) error
 
@@ -96,7 +98,10 @@ type (
 
 		// assumes email is verified by OAuth2 provider so will auto
 		// create an account if one doesn't exist for the email address
-		CreateUserFromOAuth2(email *mail.Address, name string, authProvider string) (*auth.AuthUser, error)
+		CreateUserFromOAuth2(email *mail.Address,
+			name string,
+			pictureUrl string,
+			authProvider string) (*auth.AuthUser, error)
 
 		// create a complete new user, this is more for
 		// traditional logins, generally CreateUserFromOAuth2 is preferred
@@ -104,15 +109,19 @@ type (
 			userName string,
 			password string,
 			name string,
+			pictureUrl string,
 			emailIsVerified bool,
-			authProvider string) (*auth.AuthUser, error)
+			authProvider string,
+			adminMode bool) (*auth.AuthUser, error)
 
 		CreateUser(email *mail.Address,
 			userName string,
 			password string,
 			name string,
+			pictureUrl string,
 			emailIsVerified bool,
-			authProvider string) (*auth.AuthUser, error)
+			authProvider string,
+			adminMode bool) (*auth.AuthUser, error)
 	}
 )
 
