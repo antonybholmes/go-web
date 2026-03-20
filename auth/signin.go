@@ -47,7 +47,7 @@ type (
 	// depending on the authentication methods enabled.
 	// Authentication of the API endpoint is also considered
 	// as part of this process so even if you supply these fields,
-	// the method may not perform any updates. Typically admin
+	// the method may ignore/not update them. Typically admin
 	// privileges are required to user info though users can
 	// update some of their own info such as name.
 	UserBodyReq struct {
@@ -61,7 +61,7 @@ type (
 		OTP             string   `json:"otp"`
 		Name            string   `json:"name"`
 		ApiKey          string   `json:"apiKey"`
-		Groups          []string `json:"groups"` // groups to which user belongs
+		Groups          []string `json:"groups"`
 		EmailIsVerified bool     `json:"emailIsVerified"`
 		StaySignedIn    bool     `json:"staySignedIn"`
 	}
@@ -71,19 +71,6 @@ type (
 		User
 		Password string `json:"password"`
 	}
-
-// type LoginUser struct {
-// 	Email    string
-// 	Password []byte
-// }
-
-// func NewLoginUser(email string, password string) *LoginUser {
-// 	return &LoginUser{Email: email, Password: []byte(password)}
-// }
-
-//	func LoginUserFromReq(req *LoginReq) *LoginUser {
-//		return NewLoginUser(req.Email, req.Password)
-//	}
 )
 
 func (user *SignupReq) String() string {
