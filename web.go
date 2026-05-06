@@ -35,6 +35,10 @@ const (
 
 	//CsrfMaxAgeMins   time.Duration = time.Minute * 10
 	HeaderXCsrfToken = "X-CSRF-Token"
+
+	// Default separator for concatenating multiple values in a single string, such as in cookies or keys.
+	// Using a constant ensures consistency across the codebase and makes it easy to change if needed.
+	Sep = "|"
 )
 
 var (

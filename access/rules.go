@@ -9,6 +9,7 @@ import (
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-sys/log"
+	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/golang-jwt/jwt/v5"
@@ -81,7 +82,7 @@ func (e *AccessRuleError) Error() string {
 func makeExactPathRuleKey(method, tokenType string, audience jwt.ClaimStrings, path string) string {
 	path = strings.TrimSuffix(path, "/") // remove trailing slash if present
 
-	return makeWildcardRuleKey(method, tokenType, audience) + "|" + path
+	return makeWildcardRuleKey(method, tokenType, audience) + web.Sep + path
 }
 
 // Rules are indexed with a simple key of method|tokenType|audience for quick lookup.
@@ -93,8 +94,7 @@ func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) st
 
 	sort.Strings(audience) // ensure consistent ordering for key generation
 
-	return strings.ToLower(method + "|" + tokenType + "|" + strings.Join(audience, ","))
-
+	return strings.ToLower(method + web.Sep + tokenType + web.Sep + strings.Join(audience, ","))
 }
 
 func NewRuleEngine() *RuleEngine {

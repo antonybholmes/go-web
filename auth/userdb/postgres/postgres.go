@@ -783,7 +783,7 @@ func (pgdb *PostgresUserDB) FindRoleByName(name string) (*auth.RBACRole, error) 
 		&role.Description)
 
 	if err != nil {
-		return nil, auth.NewAccountError(fmt.Sprintf("%s role not found", name))
+		return nil, auth.NewAccountError(name + " role not found")
 	}
 
 	return &role, nil

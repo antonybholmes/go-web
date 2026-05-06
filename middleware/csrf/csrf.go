@@ -99,7 +99,7 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.Split(cookieToken, "|")
+		parts := strings.Split(cookieToken, web.Sep)
 
 		if len(parts) < 2 {
 			web.ForbiddenResp(c, ErrCSRFTokenInvalid)
@@ -127,6 +127,8 @@ func CSRFValidateMiddleware() gin.HandlerFunc {
 	}
 }
 
+// GenerateCSRFToken creates a new random CSRF token for use in cookies and headers.
+// It returns a URL-safe base64 encoded string.
 func GenerateCSRFToken() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
@@ -135,7 +137,7 @@ func GenerateCSRFToken() (string, error) {
 		return "", err
 	}
 
-	// make cookie safe
+	// make safe for URL and cookie, and remove padding
 	return base64.RawURLEncoding.EncodeToString(b), nil //StdEncoding
 }
 
@@ -152,7 +154,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 	//log.Debug().Msgf("Existing CSRF cookie: %s, err: %v", cookie, err)
 
 	if err == nil {
-		parts := strings.Split(cookie, "|")
+		parts := strings.Split(cookie, web.Sep)
 
 		if len(parts) > 1 {
 			csrfToken = parts[0]
@@ -186,7 +188,7 @@ func MakeNewCSRFTokenResp(c *gin.Context) (string, error) {
 			// include timestamp in cookie so we can check age. Since cookie
 			// has expire time, even if user tries to modify timestamp part of the cookie,
 			// the cookie will eventually expire.
-			Value:    fmt.Sprintf("%s|%s", csrfToken, now.Format(time.RFC3339)),
+			Value:    csrfToken + web.Sep + now.Format(time.RFC3339),
 			Path:     "/",
 			MaxAge:   int(CsrfTokenValidDuration.Seconds()),
 			Secure:   true,

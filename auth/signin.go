@@ -1,6 +1,6 @@
 package auth
 
-import "fmt"
+import "github.com/antonybholmes/go-web"
 
 // type PasswordlessLogin struct {
 // 	Username string `json:"username" `
@@ -74,5 +74,6 @@ type (
 )
 
 func (user *SignupReq) String() string {
-	return fmt.Sprintf("%s:%s:%s", user.FirstName, user.Email, user.Password)
+	//return fmt.Sprintf("%s:%s:%s", user.FirstName, user.Email, user.Password)
+	return user.FirstName + web.Sep + user.Email + web.Sep + user.Password
 }
