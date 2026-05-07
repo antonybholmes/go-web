@@ -35,7 +35,6 @@ type (
 		ttl             time.Duration
 		rateLimit       RateLimit       // max attempts allowed
 		globalRateLimit GlobalRateLimit // max attempts allowed across all email addresses
-
 	}
 )
 
