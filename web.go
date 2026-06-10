@@ -178,6 +178,25 @@ func ParseNumParam(c *gin.Context, name string, defaultN int) int {
 	return n
 }
 
+func ParseBoolParam(c *gin.Context, name string, defaultState bool) bool {
+
+	v := c.Query(name)
+
+	if v == "" {
+		return defaultState
+	}
+
+	v = strings.ToLower(strings.TrimSpace(v))
+
+	ret, err := strconv.ParseBool(v)
+
+	if err != nil {
+		return defaultState
+	}
+
+	return ret
+}
+
 func ParseOutput(c *gin.Context) string {
 
 	v := c.Query("output")
