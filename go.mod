@@ -2,12 +2,12 @@ module github.com/antonybholmes/go-web
 
 go 1.26
 
-replace github.com/antonybholmes/go-mailer => ../go-mailer
+// replace github.com/antonybholmes/go-mailer => ../go-mailer
 
-replace github.com/antonybholmes/go-sys => ../go-sys
+// replace github.com/antonybholmes/go-sys => ../go-sys
 
 require (
-	github.com/antonybholmes/go-sys v0.0.0-20250616145834-7aeb8359e265
+	github.com/antonybholmes/go-sys v0.0.0-20260616152946-01b9b0d3a79b
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/xyproto/randomstring v1.2.0
