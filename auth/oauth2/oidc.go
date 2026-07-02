@@ -66,6 +66,10 @@ func NewOIDCVerifier(ctx context.Context,
 
 	log.Debug().Msgf("Fetching OIDC config from: %s", oidcConfigURL)
 
+	// fetch the OIDC config to get the JWKS URI, since some providers like
+	// Auth0 have it at a different location and we don't want to hardcode it. T
+	// his also allows for dynamic rotation of the JWKS URI if it changes.
+	// This is used to verify the token signature and get the public keys for verification, so it's a crucial step.
 	cfg, err := fetchOIDCConfig(ctx, oidcConfigURL)
 
 	if err != nil {
@@ -98,8 +102,6 @@ func (v *OIDCVerifier) Verify(tokenString string) (*OIDCClaims, error) {
 		&claims,
 		v.JWKS.Keyfunc,
 	)
-
-	//log.Debug().Msgf("Parsed token: %v %v", jwtToken, err)
 
 	if !jwtToken.Valid {
 		return nil, token.NewTokenError("invalid token")
