@@ -231,7 +231,6 @@ const (
 )
 
 func NewPostgresUserDB() *PostgresUserDB {
-	//db := sys.Must(sql.Open("sqlite3", file))
 	ctx := context.Background()
 
 	log.Debug().Msgf("conn %s", os.Getenv("DATABASE_URL"))

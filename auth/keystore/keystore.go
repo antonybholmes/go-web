@@ -57,7 +57,7 @@ func (c *PublicKeyCache) GetUserPublicKeysCached(userID string, forceReload bool
 	}
 
 	// fallback to DB
-	user, err := userdb.FindUserById(userID)
+	user, err := userdb.Instance().FindUserById(userID)
 
 	if err != nil {
 		return nil, err

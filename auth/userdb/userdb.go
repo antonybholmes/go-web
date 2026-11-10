@@ -31,28 +31,10 @@ type (
 
 		FindUserByUsername(username string) (*auth.AuthUser, error)
 
+		// Find user by their uuid (public ID)
 		FindUserById(id string) (*auth.AuthUser, error)
 
-		//FindUserByPublicId(publicId string) (*auth.AuthUser, error)
-
 		FindUserByApiKey(key string) (*auth.AuthUser, error)
-
-		//AddGroupsToUser(authUser *auth.AuthUser) error
-
-		//UserRoleList(user *auth.AuthUser) ([]string, error)
-
-		//AddApiKeysToUser(authUser *auth.AuthUser) error
-
-		//AddPublicKeysToUser(authUser *auth.AuthUser, keys []ed25519.PublicKey) error
-
-		//userApiKeys(user *auth.AuthUser) ([]string, error)
-
-		// get the public keys for a user
-		//UserPublicKeys(user *auth.AuthUser) ([]ed25519.PublicKey, error)
-
-		//UserGroups(user *auth.AuthUser) ([]*auth.RBACGroup, error)
-
-		//PermissionList(user *auth.AuthUser) ([]string, error)
 
 		Roles() ([]*auth.RBACRole, error)
 		Groups() ([]*auth.RBACGroup, error)
@@ -60,9 +42,6 @@ type (
 		FindRoleByName(name string) (*auth.RBACRole, error)
 		FindGroupById(id string) (*auth.RBACGroup, error)
 		FindGroupByName(name string) (*auth.RBACGroup, error)
-
-		// Get a list of permissions for a user
-		//Permissions(user *auth.AuthUser) ([]*auth.Permission, error)
 
 		// Mark a user's email as verified
 		SetEmailIsVerified(user *auth.AuthUser) (*time.Time, error)

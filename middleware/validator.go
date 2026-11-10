@@ -131,7 +131,7 @@ func (validator *Validator) LoadAuthUserFromId() *Validator {
 		return validator
 	}
 
-	authUser, err := userdbcache.FindUserById(validator.UserBodyReq.Id)
+	authUser, err := userdbcache.Instance().FindUserById(validator.UserBodyReq.Id)
 
 	if err != nil {
 		validator.Err = auth.ErrUserDoesNotExist
@@ -150,7 +150,7 @@ func (validator *Validator) LoadAuthUserFromEmail() *Validator {
 		return validator
 	}
 
-	authUser, err := userdbcache.FindUserByEmail(validator.Address)
+	authUser, err := userdbcache.Instance().FindUserByEmail(validator.Address)
 
 	if err != nil {
 		validator.Err = auth.ErrUserDoesNotExist
@@ -169,7 +169,7 @@ func (validator *Validator) LoadAuthUserFromUsername() *Validator {
 		return validator
 	}
 
-	authUser, err := userdbcache.FindUserByUsername(validator.UserBodyReq.Username)
+	authUser, err := userdbcache.Instance().FindUserByUsername(validator.UserBodyReq.Username)
 
 	//log.Debug().Msgf("beep2 %s", authUser.Username)
 
@@ -260,7 +260,7 @@ func (validator *Validator) LoadAuthUserFromToken() *Validator {
 		return validator
 	}
 
-	authUser, err := userdbcache.FindUserById(validator.Claims.Subject)
+	authUser, err := userdbcache.Instance().FindUserById(validator.Claims.Subject)
 
 	if err != nil {
 		validator.Err = auth.ErrUserDoesNotExist
