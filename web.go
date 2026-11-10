@@ -42,8 +42,10 @@ const (
 )
 
 var (
-	ErrInvalidEmail = fmt.Errorf("invalid email address")
-	ErrInvalidBody  = fmt.Errorf("invalid body")
+	ErrInvalidEmail     = fmt.Errorf("invalid email address")
+	ErrInvalidBody      = fmt.Errorf("invalid body")
+	ErrInvalidUsername  = fmt.Errorf("invalid username")
+	ErrPasswordMismatch = fmt.Errorf("passwords do not match")
 )
 
 // BindQueryAndJSON binds both query parameters and JSON body to the given object.
@@ -57,14 +59,6 @@ func BindQueryAndJSON(c *gin.Context, obj any) error {
 	}
 	return nil
 }
-
-// type JwtInfo struct {
-// 	Uuid string `json:"uuid"`
-// 	//Name  string `json:"name"`
-// 	Type auth.TokenType `json:"type"`
-// 	//IpAddr  string `json:"ipAddr"`
-// 	Expires string `json:"expires"`
-// }
 
 func (e HTTPError) Error() string {
 	return e.Message
@@ -100,11 +94,11 @@ func UserNotAllowedToSignInErrorResp(c *gin.Context) {
 }
 
 func InvalidUsernameReq(c *gin.Context) {
-	UnauthorizedResp(c, fmt.Errorf("invalid username"))
+	UnauthorizedResp(c, ErrInvalidUsername)
 }
 
 func PasswordsDoNotMatchReq(c *gin.Context) {
-	UnauthorizedResp(c, fmt.Errorf("passwords do not match"))
+	UnauthorizedResp(c, ErrPasswordMismatch)
 }
 
 func ForbiddenResp(c *gin.Context, err error) {
@@ -136,24 +130,6 @@ func ErrorResp(c *gin.Context, status int, err error) {
 	})
 	c.Abort()
 }
-
-// parsedLocation takes an echo context and attempts to extract parameters
-// from the query string and return the location to check, the assembly
-// (e.g. grch38) to search, the level of detail (1=gene,2=transcript,3=exon).
-// If parameters are not provided defaults are used, but if parameters are
-// considered invalid, it will throw an error.
-
-// func parseAssembly(c *gin.Context) string {
-// 	assembly := DEFAULT_ASSEMBLY
-
-// 	v := c.Query("assembly")
-
-// 	if v != "" {
-// 		assembly = v
-// 	}
-
-// 	return assembly
-// }
 
 // parses an "n" query param as an unsigned int returning
 // a default if the param is not present
@@ -198,14 +174,13 @@ func ParseBoolParam(c *gin.Context, name string, defaultState bool) bool {
 }
 
 func ParseOutput(c *gin.Context) string {
+	v := strings.ToLower(strings.TrimSpace(c.Query("output")))
 
-	v := c.Query("output")
-
-	if strings.Contains(strings.ToLower(v), "text") {
+	if v == "text" {
 		return "text"
-	} else {
-		return "json"
 	}
+
+	return "json" // default
 }
 
 type StatusResp struct {
@@ -218,7 +193,7 @@ type StatusMessageResp struct {
 }
 
 type DataResp struct {
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 	StatusMessageResp
 }
 
@@ -251,14 +226,6 @@ type SignInResp struct {
 	AccessToken  string `json:"accessToken"`
 }
 
-// func JsonResp[V any](c *gin.Context, status int, data V) {
-// 	c.JSON(status, data)
-// }
-
-// func MakeBadResp(c *gin.Context, err error) error {
-// 	return JsonRep(c, http.StatusBadRequest, StatusResp{StatusResp: StatusResp{Status: http.StatusBadRequest}, Message: err.Error()})
-// }
-
 func MakeDataResp[V any](c *gin.Context, message string, data V) {
 	c.JSON(
 		http.StatusOK,
@@ -270,10 +237,6 @@ func MakeDataResp[V any](c *gin.Context, message string, data V) {
 			Data: data,
 		})
 }
-
-// func MakeValidResp(c *gin.Context, message error, valid bool) error {
-// 	return MakeDataResp(c, message, &ValidResp{Valid: valid})
-// }
 
 func MakeOkResp(c *gin.Context, message string) {
 	MakeSuccessResp(c, message, true)
