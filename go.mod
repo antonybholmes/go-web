@@ -16,7 +16,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/redis/go-redis/v9 v9.15.0
 	github.com/xyproto/randomstring v1.2.0
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.59.0
 )
 
 require (
