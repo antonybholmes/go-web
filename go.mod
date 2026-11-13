@@ -15,6 +15,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/redis/go-redis/v9 v9.15.0
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/xyproto/randomstring v1.2.0
 	golang.org/x/crypto v0.59.0
 )
@@ -59,6 +60,7 @@ require (
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/excelize/v2 v2.11.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect

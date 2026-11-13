@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type (
@@ -184,16 +185,16 @@ func ParseOutput(c *gin.Context) string {
 }
 
 type StatusResp struct {
-	Status int `json:"status"`
+	Status int `json:"status" msgpack:"status"`
 }
 
 type StatusMessageResp struct {
-	Message string `json:"message"`
-	Status  int    `json:"status"`
+	Message string `json:"message" msgpack:"message"`
+	Status  int    `json:"status" msgpack:"status"`
 }
 
 type DataResp struct {
-	Data any `json:"data"`
+	Data any `json:"data" msgpack:"data"`
 	StatusMessageResp
 }
 
@@ -230,12 +231,27 @@ func MakeDataResp[V any](c *gin.Context, message string, data V) {
 	c.JSON(
 		http.StatusOK,
 		DataResp{
-			StatusMessageResp: StatusMessageResp{
-				Status:  http.StatusOK,
-				Message: message,
-			},
-			Data: data,
+			Status:  http.StatusOK,
+			Message: message,
+			Data:    data,
 		})
+}
+
+func MakeMsgpackResp[V any](c *gin.Context, message string, data V) {
+	resp := DataResp{
+		Status:  http.StatusOK,
+		Message: message,
+		Data:    data,
+	}
+
+	encoded, err := msgpack.Marshal(resp)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to encode response",
+		})
+		return
+	}
+	c.Data(http.StatusOK, "application/msgpack", encoded)
 }
 
 func MakeOkResp(c *gin.Context, message string) {
