@@ -110,8 +110,10 @@ func NewRuleEngine() *RuleEngine {
 func (re *RuleEngine) LoadRules(filename string) {
 	data := sys.Must(os.ReadFile(filename))
 
+	// Load the rules from the JSON data into the RuleEngine
 	var rules JsonRules
 	sys.VoidMust(json.Unmarshal(data, &rules))
+
 	var isExact bool
 
 	for _, r := range rules.Rules {
@@ -132,14 +134,14 @@ func (re *RuleEngine) LoadRules(filename string) {
 				if isExact {
 					re.rules[makeExactPathRuleKey(m.Type, t.Type, r.Audience, path)] = Rule{
 						Path:        path,
-						Permissions: sys.NewSet[string](t.Permissions...),
+						Permissions: sys.NewSet(t.Permissions...),
 					}
 				} else {
 					key := makeWildcardRuleKey(m.Type, t.Type, r.Audience)
 
 					re.wildcardRules[key] = append(re.wildcardRules[key], Rule{
 						Path:        path,
-						Permissions: sys.NewSet[string](t.Permissions...),
+						Permissions: sys.NewSet(t.Permissions...),
 					})
 				}
 
@@ -231,24 +233,6 @@ func (re *RuleEngine) getPermissionsForRoute(method string,
 
 	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, token.Type, path)
 
-	// matchTypeRules, ok := re.rules[MATCH_TYPE_EXACT]
-
-	// if !ok {
-	// 	return nil, fmt.Errorf("no rules for match type %s for path %s", MATCH_TYPE_EXACT, path)
-	// }
-
-	// methodRules, ok := matchTypeRules[method]
-
-	// if !ok {
-	// 	return nil, fmt.Errorf("no rules for method %s for path %s", method, path)
-	// }
-
-	// tokenRules, ok := methodRules[tokenType]
-
-	// if !ok {
-	// 	return nil, fmt.Errorf("no rules for token type %s for method %s for path %s", tokenType, method, path)
-	// }
-
 	key := makeExactPathRuleKey(method, token.Type, token.Audience, path)
 
 	//log.Debug().Msgf("Looking for exact rule with key=%s", key)
@@ -282,17 +266,19 @@ func (re *RuleEngine) IsAccessAllowed(method, path string, token *token.AuthUser
 
 	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, permissions=%v", method, path, token.Type, token.Permissions)
 
-	matchingPermissions, err := re.GetRoutePermissions(method, path, token)
-
-	if err != nil {
-		return err
-	}
-
 	// Admin has access to everything so don't need to check permissions specifically.
 	if auth.HasAdminPermission(token.Permissions) {
 
 		log.Debug().Msgf("access allowed for admin permissions %v", token.Permissions)
 		return nil
+	}
+
+	// Oh dear, not an admin, need to check route permissions
+
+	matchingPermissions, err := re.GetRoutePermissions(method, path, token)
+
+	if err != nil {
+		return err
 	}
 
 	// route must contain at least one of the user's roles

@@ -33,6 +33,7 @@ type (
 	AuthUserJwtClaims struct {
 		jwt.RegisteredClaims
 		//UserId          string   `json:"id"` // the publicId of the user
+		Email           string   `json:"email,omitempty"`
 		Data            string   `json:"data,omitempty"`
 		OneTimePasscode string   `json:"otp,omitempty"`
 		Scope           []string `json:"scope,omitempty"`
@@ -212,9 +213,8 @@ func (tc *TokenCreator) RefreshToken(c *gin.Context, user *auth.AuthUser, audien
 // }
 
 func (tc *TokenCreator) AccessToken(c *gin.Context,
-	userId string,
-	audience jwt.ClaimStrings,
-	roles []*auth.Role) (string, error) {
+	user *auth.AuthUser,
+	audience jwt.ClaimStrings) (string, error) {
 
 	// claims := AuthUserJwtClaims{
 	// 	UserId: userId,
@@ -227,33 +227,42 @@ func (tc *TokenCreator) AccessToken(c *gin.Context,
 
 	// return tc.BaseToken(claims)
 
-	return tc.AccessTokenUsingPermissions(c, userId, audience, auth.RolesToPermissions(roles))
+	roles := auth.GetRolesFromUser(user)
+	permissions := auth.RolesToPermissions(roles)
+
+	return tc.AccessTokenUsingPermissions(c, user.Id, user.Email, audience, permissions)
 }
 
 // If we are creating a new access token using the permissions of the current
 // token
-func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context, userId string, audience jwt.ClaimStrings, permissions []string) (string, error) {
+func (tc *TokenCreator) AccessTokenUsingPermissions(c *gin.Context,
+	userId string,
+	email string,
+	audience jwt.ClaimStrings,
+	permissions []string) (string, error) {
 
 	claims := AuthUserJwtClaims{
-
+		Email: email,
 		//IpAddr:           ipAddr,
-		Type:               TokenTypeAccess,
-		Permissions:        permissions,
-		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, audience, tc.accessTokenTTL)}
+		Type:        TokenTypeAccess,
+		Permissions: permissions,
+		//PermissionsVersion: PermissionsVersion,
+		RegisteredClaims: makeDefaultClaimsWithTTL(userId, audience, tc.accessTokenTTL)}
 
 	return tc.tokenSigner.Sign(claims)
 }
 
-func (tc *TokenCreator) UpdateToken(c *gin.Context, userId string, audience jwt.ClaimStrings, roles []*auth.Role) (string, error) {
+func (tc *TokenCreator) UpdateToken(c *gin.Context, authUser *auth.AuthUser, audience jwt.ClaimStrings) (string, error) {
+	roles := auth.GetRolesFromUser(authUser)
+	permissions := auth.RolesToPermissions(roles)
 
 	claims := AuthUserJwtClaims{
 
 		//IpAddr:           ipAddr,
-		Type:               TokenTypeUpdate,
-		Permissions:        auth.RolesToPermissions(roles),
-		PermissionsVersion: PermissionsVersion,
-		RegisteredClaims:   makeDefaultClaimsWithTTL(userId, audience, auth.Ttl1Min)}
+		Type:        TokenTypeUpdate,
+		Permissions: permissions,
+		//PermissionsVersion: PermissionsVersion,
+		RegisteredClaims: makeDefaultClaimsWithTTL(authUser.Id, audience, auth.Ttl1Min)}
 
 	return tc.tokenSigner.Sign(claims)
 }

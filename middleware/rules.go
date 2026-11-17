@@ -1,13 +1,18 @@
 package middleware
 
 import (
+	"fmt"
+
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/access"
+	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/gin-gonic/gin"
 )
 
-func RulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine) gin.HandlerFunc {
+// AccessTokenRulesMiddleware checks if the user has access based on the access token
+// and the rules defined in the rule engine.
+func AccessTokenRulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine) gin.HandlerFunc {
 	// create a function that extracts user from context
 
 	return func(c *gin.Context) {
@@ -16,6 +21,13 @@ func RulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine)
 
 		if err != nil {
 			c.Error(err)
+			c.Abort()
+			return
+		}
+
+		// check it is an access token
+		if userToken.Type != token.TokenTypeAccess {
+			web.ForbiddenResp(c, fmt.Errorf("invalid token type"))
 			c.Abort()
 			return
 		}

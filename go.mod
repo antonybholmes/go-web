@@ -1,6 +1,6 @@
 module github.com/antonybholmes/go-web
 
-go 1.27
+go 1.27.1
 
 replace github.com/antonybholmes/go-mailer => ../go-mailer
 
