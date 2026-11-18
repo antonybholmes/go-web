@@ -9,6 +9,8 @@ replace github.com/antonybholmes/go-sys => ../go-sys
 require (
 	github.com/MicahParks/keyfunc/v3 v3.7.0
 	github.com/antonybholmes/go-sys v0.0.0-20260616152946-01b9b0d3a79b
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0
 	github.com/gin-contrib/sessions v1.0.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-sql-driver/mysql v1.9.3
@@ -23,6 +25,16 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/MicahParks/jwkset v0.11.0 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.48.0 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.27 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.12 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.12 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.12 // indirect
+	github.com/aws/smithy-go v1.28.9 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.5 // indirect
 	github.com/bytedance/sonic/loader v0.5.3 // indirect
