@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/antonybholmes/go-web"
@@ -56,49 +57,61 @@ func LoggingMiddleware() gin.HandlerFunc {
 
 func ErrorHandlerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Create a defer function that will be called after the handler finishes
 		defer func() {
-			if err := recover(); err != nil {
-				// Handle panic errors with 500 status code
-				c.JSON(http.StatusInternalServerError, NewHttpError(http.StatusInternalServerError,
-					fmt.Sprintf("panic caused by %v", err),
-				))
+			if recovered := recover(); recovered != nil {
+				log.Error().Msgf("request panic: %v\n%s", recovered, debug.Stack())
+				c.Abort()
+
+				if !c.Writer.Written() {
+					c.JSON(http.StatusInternalServerError,
+						NewHttpError(http.StatusInternalServerError, "internal server error"))
+				}
 			}
 		}()
 
 		// Continue processing the request
 		c.Next()
 
-		// Check if there are any errors
-		if len(c.Errors) > 0 {
-			// Get the last error (or you can choose how to handle multiple errors)
-			lastErr := c.Errors.Last()
-
-			switch err := lastErr.Err.(type) {
-			case web.HTTPError:
-				//c.JSON(err.Code, gin.H{"error": err.Message})
-				c.JSON(err.Code, NewHttpError(err.Code, err.Message))
-			default:
-				// Set a custom status code based on the error
-				// If no custom status code is set, use the error's default status or fallback to 400
-				status := http.StatusBadRequest
-
-				//log.Debug().Msgf("error %v %d", err, err.Meta)
-
-				if lastErr.Meta != nil {
-					// ok indicates cast worked
-					customStatus, ok := lastErr.Meta.(int)
-
-					if ok {
-						status = customStatus
-					}
-				}
-
-				// Send the error response with custom status code
-				c.JSON(status, NewHttpError(status, lastErr.Error()))
-			}
-			c.Abort()
+		if len(c.Errors) == 0 {
+			return
 		}
+
+		// Check if there are any errors
+
+		// Get the last error (or you can choose how to handle multiple errors)
+		err := c.Errors.Last().Err
+
+		// If the response has already been written,
+		// we cannot modify it, so we log the error and abort further processing.
+		if c.Writer.Written() {
+			log.Error().Msgf("request error after response started: %v", err)
+			c.Abort()
+			return
+		}
+
+		status := http.StatusInternalServerError
+		message := "internal server error"
+
+		var httpErr web.HTTPError
+		var httpErrPtr *web.HTTPError
+		switch {
+		case errors.As(err, &httpErr):
+			status, message = httpErr.Code, httpErr.Message
+		case errors.As(err, &httpErrPtr) && httpErrPtr != nil:
+			status, message = httpErrPtr.Code, httpErrPtr.Message
+		default:
+			log.Error().Msgf("unhandled request error: %v", err)
+		}
+
+		if status < 400 || status > 599 {
+			log.Error().Msgf("invalid HTTP error status %d: %v", status, err)
+			status = http.StatusInternalServerError
+			message = "internal server error"
+		}
+
+		c.Abort()
+		c.JSON(status, NewHttpError(status, message))
+
 	}
 }
 
