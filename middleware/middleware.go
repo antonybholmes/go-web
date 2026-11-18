@@ -93,7 +93,10 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		message := "internal server error"
 
 		var httpErr web.HTTPError
+
+		// for handling both value and pointer types of HttpError
 		var httpErrPtr *web.HTTPError
+
 		switch {
 		case errors.As(err, &httpErr):
 			status, message = httpErr.Code, httpErr.Message
