@@ -237,6 +237,16 @@ func MakeDataResp[V any](c *gin.Context, message string, data V) {
 		})
 }
 
+func MakeAcceptedResp[V any](c *gin.Context, message string, data V) {
+	c.JSON(
+		http.StatusAccepted,
+		DataResp{
+			Status:  http.StatusAccepted,
+			Message: message,
+			Data:    data,
+		})
+}
+
 func MakeMsgpackResp[V any](c *gin.Context, message string, data V) {
 	resp := DataResp{
 		Status:  http.StatusOK,
