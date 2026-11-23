@@ -12,23 +12,21 @@ import (
 
 // AccessTokenRulesMiddleware checks if the user has access based on the access token
 // and the rules defined in the rule engine.
-func AccessTokenRulesMiddleware(claimsParser *UserJWTParser, ruleEngine *access.RuleEngine) gin.HandlerFunc {
+func AccessTokenRulesMiddleware(userClaimsParser *UserJWTParser, ruleEngine *access.RuleEngine) gin.HandlerFunc {
 	// create a function that extracts user from context
 
 	return func(c *gin.Context) {
 		// extract userToken from context
-		userToken, err := claimsParser.Parse(c)
+		userToken, err := userClaimsParser.Parse(c)
 
 		if err != nil {
-			c.Error(err)
-			c.Abort()
+			web.UnauthorizedResp(c, err)
 			return
 		}
 
 		// check it is an access token
 		if userToken.Type != token.TokenTypeAccess {
 			web.ForbiddenResp(c, fmt.Errorf("invalid token type"))
-			c.Abort()
 			return
 		}
 

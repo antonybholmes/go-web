@@ -124,6 +124,7 @@ func NewUserJWTParser(claimsParser JwtClaimsParser) *UserJWTParser {
 	return &UserJWTParser{claimsParser: claimsParser}
 }
 
+// Get the user claims from the bearer token in the request header.
 func (p *UserJWTParser) Parse(c *gin.Context) (*token.AuthUserJwtClaims, error) {
 	tokenString, err := token.ParseToken(c)
 
@@ -142,9 +143,25 @@ func (p *UserJWTParser) Parse(c *gin.Context) (*token.AuthUserJwtClaims, error) 
 	return &claims, nil
 }
 
-// Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
-// If jwt is present it is added to the context as "user", thus subsequent handlers can
-// access it.
+// Handler for running directly as middleware
+func (p *UserJWTParser) Handler(c *gin.Context) {
+	claims, err := p.Parse(c)
+
+	if err != nil {
+		web.UserDoesNotExistResp(c)
+		return
+	}
+
+	// use pointer to token
+	c.Set("user", claims)
+
+	// Continue processing the request
+	c.Next()
+}
+
+// // Reads the token and parses the authorization JWT. If no jwt is present, aborts access.
+// // If jwt is present it is added to the context as "user", thus subsequent handlers can
+// // access it.
 func UserJWTMiddleware(claimsParser *UserJWTParser) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
@@ -180,39 +197,63 @@ func checkJWTUserExistsMiddleware(c *gin.Context, f func(c *gin.Context, claims 
 	f(c, user)
 }
 
-func JWTIsSpecificTypeMiddleware(tokenType string) gin.HandlerFunc {
+func JWTIsSpecificTokenTypeMiddleware(tokenType token.TokenType,
+	userClaimsParser *UserJWTParser) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Debug().Msgf("Handler: %s", c.FullPath())
+		claims, err := userClaimsParser.Parse(c)
 
-		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *token.AuthUserJwtClaims) {
+		if err != nil {
+			web.UserDoesNotExistResp(c)
+			return
+		}
 
-			if claims.Type != tokenType {
-				web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
+		if claims.Type != tokenType {
+			web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
+			return
+		}
 
-				return
-			}
+		// use pointer to token
+		c.Set("user", claims)
 
-			c.Next()
-		})
+		// Continue processing the request
+		c.Next()
 	}
+
 }
 
-func JwtIsRefreshTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(token.TokenTypeRefresh)
-}
+// func JWTIsSpecificTypeMiddleware(tokenType string) gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		log.Debug().Msgf("Handler: %s", c.FullPath())
 
-// make sure the supplied token is an access token
-func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(token.TokenTypeAccess)
-}
+// 		checkJWTUserExistsMiddleware(c, func(c *gin.Context, claims *token.AuthUserJwtClaims) {
 
-func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(token.TokenTypeUpdate)
-}
+// 			if claims.Type != tokenType {
+// 				web.ForbiddenResp(c, fmt.Errorf("wrong token type: %s, should be %s", claims.Type, tokenType))
 
-func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
-	return JWTIsSpecificTypeMiddleware(token.TokenTypeVerifyEmail)
-}
+// 				return
+// 			}
+
+// 			c.Next()
+// 		})
+// 	}
+// }
+
+// func JwtIsRefreshTokenMiddleware() gin.HandlerFunc {
+// 	return JWTIsSpecificTypeMiddleware(token.TokenTypeRefresh)
+// }
+
+// // make sure the supplied token is an access token
+// func JwtIsAccessTokenMiddleware() gin.HandlerFunc {
+// 	return JWTIsSpecificTypeMiddleware(token.TokenTypeAccess)
+// }
+
+// func JwtIsUpdateTokenMiddleware() gin.HandlerFunc {
+// 	return JWTIsSpecificTypeMiddleware(token.TokenTypeUpdate)
+// }
+
+// func JwtIsVerifyEmailTokenMiddleware() gin.HandlerFunc {
+// 	return JWTIsSpecificTypeMiddleware(token.TokenTypeVerifyEmail)
+// }
 
 func JwtIsAdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -293,45 +334,6 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
-// func ValidateJwtMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		authorizationHeader := c.Request().Header.Get("authorization")
-
-// 		if len(authorizationHeader) == 0 {
-// 			return routes.AuthErrorReq("missing Authentication header")
-
-// 		}
-
-// 		log.Debug().Msgf("parsing authentication header")
-
-// 		authPair := strings.SplitN(authorizationHeader, " ", 2)
-
-// 		if len(authPair) != 2 {
-// 			return routes.AuthErrorReq("wrong Authentication header definiton")
-// 		}
-
-// 		headerAuthScheme := authPair[0]
-// 		headerAuthToken := authPair[1]
-
-// 		if headerAuthScheme != "Bearer" {
-// 			return routes.AuthErrorReq("wrong Authentication header definiton")
-// 		}
-
-// 		log.Debug().Msgf("validating JWT token")
-
-// 		token, err := validateJwtToken(headerAuthToken)
-
-// 		if err != nil {
-// 			return routes.AuthErrorReq(err)
-// 		}
-
-// 		log.Debug().Msgf("JWT token is valid")
-// 		c.Set("user", token)
-// 		return next(c)
-
-// 	}
-// }
 
 // Create a permissions middleware to verify jwt roles on a token
 // func JwtHasRoleMiddleware(roles ...string) gin.HandlerFunc {
@@ -415,18 +417,6 @@ func GetJwtUser(c *gin.Context) (*token.AuthUserJwtClaims, error) {
 
 	return user, nil
 }
-
-// Get the JWT user and call the supplied route function with it jwt is valid
-// func JwtUserRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims)) {
-// 	user, err := GetJwtUser(c)
-
-// 	if err != nil {
-// 		c.Error(err)
-// 		return
-// 	}
-
-// 	r(c, auth.HasAdminPermission(user.Permissions), user)
-// }
 
 // Enforces that there is a JWT user with permissions and calls the supplied route function with it
 func JwtUserWithPermissionsRoute(c *gin.Context, r func(c *gin.Context, isAdmin bool, user *token.AuthUserJwtClaims)) {

@@ -24,6 +24,19 @@ type (
 		Message string `json:"error"`
 		Code    int    `json:"-"`
 	}
+
+	AboutResp struct {
+		Name      string `json:"name"`
+		Copyright string `json:"copyright"`
+		Version   string `json:"version"`
+		Updated   string `json:"updated"`
+		Build     int    `json:"build"`
+	}
+
+	InfoResp struct {
+		IpAddr string `json:"ipAddr"`
+		Arch   string `json:"arch"`
+	}
 )
 
 const (

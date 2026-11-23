@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
@@ -900,13 +901,9 @@ func (mydb *MySQLUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode bool
 		return fmt.Errorf("account is locked and cannot be edited")
 	}
 
-	uuid, err := sys.Uuidv7()
+	uuid := uuid.NewV7()
 
-	if err != nil {
-		return err
-	}
-
-	_, err = mydb.db.Exec(InsertApiKeySql, user.Id, uuid)
+	_, err := mydb.db.Exec(InsertApiKeySql, user.Id, uuid)
 
 	if err != nil {
 		return err
@@ -996,11 +993,7 @@ func (mydb *MySQLUserDB) CreateOrUpdateUser(email *mail.Address, userName string
 	// try to create user if user does not exist
 
 	// Create a publicId for the user id
-	publicId, err := sys.Uuidv7() // sys.NanoId()
-
-	if err != nil {
-		return nil, errors.New("could not create uuid for user")
-	}
+	publicId := uuid.NewV7() // sys.NanoId()
 
 	hash := ""
 
@@ -1035,7 +1028,7 @@ func (mydb *MySQLUserDB) CreateOrUpdateUser(email *mail.Address, userName string
 	}
 
 	// Call function again to get the user details
-	authUser, err = mydb.FindUserByPublicId(publicId)
+	authUser, err = mydb.FindUserByPublicId(publicId.String())
 
 	if err != nil {
 		return nil, err

@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	//TokenType = string
+	TokenType = string
 
 	// Permission struct {
 	// 	Resource string `json:"resource"`
@@ -95,17 +95,17 @@ type (
 )
 
 const (
-	TokenTypeVerifyEmail   = "verify_email"
-	TokenTypePasswordless  = "passwordless"
-	TokenTypeResetPassword = "reset_password"
-	TokenTypeChangeEmail   = "change_email"
-	TokenTypeRefresh       = "refresh"
-	TokenTypeAccess        = "access"
-	TokenTypeUpdate        = "update"
-	TokenTypeOTP           = "otp"
+	TokenTypeVerifyEmail   TokenType = "verify_email"
+	TokenTypePasswordless  TokenType = "passwordless"
+	TokenTypeResetPassword TokenType = "reset_password"
+	TokenTypeChangeEmail   TokenType = "change_email"
+	TokenTypeRefresh       TokenType = "refresh"
+	TokenTypeAccess        TokenType = "access"
+	TokenTypeUpdate        TokenType = "update"
+	TokenTypeOTP           TokenType = "otp"
 	// returns session info such as user and is not used for
 	// any type of auth
-	TokenTypeSession = "session"
+	TokenTypeSession TokenType = "session"
 
 	JwtClaimSep = " "
 	EmailClaim  = "https://edb.rdf-lab.org/email"
