@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -62,10 +63,42 @@ func (h *FormParser) GetFormFile(c *gin.Context, field string) (*FormFile, error
 
 	return &FormFile{
 		File:        file,
-		Filename:    fileHeader.Filename,
+		Filename:    filepath.Base(fileHeader.Filename),
 		ContentType: contentType,
 		Size:        fileHeader.Size,
 	}, nil
+}
+
+// GetFormFiles returns the requested multipart files in the order of the field names.
+func (h *FormParser) GetFormFiles(c *gin.Context, fields ...string) ([]*FormFile, error) {
+	formFiles := make([]*FormFile, 0, len(fields))
+
+	for _, field := range fields {
+		formFile, err := h.GetFormFile(c, field)
+		if err != nil {
+			return nil, err
+		}
+
+		formFiles = append(formFiles, formFile)
+	}
+
+	return formFiles, nil
+}
+
+// GetFormFileMap returns the requested multipart files keyed by field name.
+func (h *FormParser) GetFormFileMap(c *gin.Context, fields ...string) (map[string]*FormFile, error) {
+	fileMap := make(map[string]*FormFile, len(fields))
+
+	for _, field := range fields {
+		formFile, err := h.GetFormFile(c, field)
+		if err != nil {
+			return nil, err
+		}
+
+		fileMap[field] = formFile
+	}
+
+	return fileMap, nil
 }
 
 func ValidMetadata(value string, maxBytes int) bool {
