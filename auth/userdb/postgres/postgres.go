@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/antonybholmes/go-sys"
 	"github.com/antonybholmes/go-web/auth"
@@ -1095,13 +1096,9 @@ func (pgdb *PostgresUserDB) CreateApiKeyForUser(user *auth.AuthUser, adminMode b
 		return auth.NewAccountError("account is locked and cannot be edited")
 	}
 
-	uuid, err := sys.Uuidv7()
+	uuid := uuid.NewV7()
 
-	if err != nil {
-		return err
-	}
-
-	_, err = pgdb.db.Exec(pgdb.ctx, InsertApiKeySql, pgx.NamedArgs{"user_id": user.Id, "api_key": uuid})
+	_, err := pgdb.db.Exec(pgdb.ctx, InsertApiKeySql, pgx.NamedArgs{"user_id": user.Id, "api_key": uuid})
 
 	if err != nil {
 		return err
