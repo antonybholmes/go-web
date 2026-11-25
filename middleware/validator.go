@@ -22,18 +22,15 @@ import (
 //
 
 type Validator struct {
-	c           *gin.Context
 	UserDB      userdb.UserDB
+	Err         error
+	c           *gin.Context
 	Address     *mail.Address
 	UserBodyReq *auth.UserBodyReq
-
-	AuthUser *auth.AuthUser
-	Claims   *token.AuthUserJwtClaims
-
-	Page     int
-	PageSize int
-
-	Err error
+	AuthUser    *auth.AuthUser
+	Claims      *token.AuthUserJwtClaims
+	Page        int
+	PageSize    int
 }
 
 func NewValidator(c *gin.Context, userDB userdb.UserDB) *Validator {

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-sys"
-	userdb "github.com/antonybholmes/go-web/auth/userdb/cache"
+	"github.com/antonybholmes/go-web/auth/userdb"
 )
 
 type (
@@ -16,17 +16,27 @@ type (
 	}
 
 	PublicKeyCache struct {
-		mu    sync.RWMutex
-		items map[string]PublicKeyCacheItem // userID -> keys
-		ttl   time.Duration
+		mu     sync.RWMutex
+		items  map[string]PublicKeyCacheItem // userID -> keys
+		ttl    time.Duration
+		userdb userdb.UserDB
 	}
 )
 
 const DefaultTTL = 10 * time.Minute
 
-var instance = &PublicKeyCache{
-	items: make(map[string]PublicKeyCacheItem),
-	ttl:   DefaultTTL,
+// var instance = &PublicKeyCache{
+// 	items: make(map[string]PublicKeyCacheItem),
+// 	ttl:   DefaultTTL,
+// }
+
+func NewKeyStore(userdb userdb.UserDB) *PublicKeyCache {
+	return &PublicKeyCache{
+		mu:     sync.RWMutex{},
+		items:  make(map[string]PublicKeyCacheItem),
+		ttl:    DefaultTTL,
+		userdb: userdb,
+	}
 }
 
 func (c *PublicKeyCache) SetTTL(d time.Duration) {
@@ -57,7 +67,7 @@ func (c *PublicKeyCache) GetUserPublicKeysCached(userID string, forceReload bool
 	}
 
 	// fallback to DB
-	user, err := userdb.Instance().FindUserById(userID)
+	user, err := c.userdb.FindUserById(userID)
 
 	if err != nil {
 		return nil, err
@@ -128,28 +138,4 @@ func (c *PublicKeyCache) StartCleanupTicker(interval time.Duration, stopCh <-cha
 			}
 		}
 	}()
-}
-
-func Instance() *PublicKeyCache {
-	return instance
-}
-
-func SetCacheTTL(d time.Duration) {
-	instance.SetTTL(d)
-}
-
-func GetUserPublicKeysCached(userID string, forceReload bool) ([]ed25519.PublicKey, error) {
-	return instance.GetUserPublicKeysCached(userID, forceReload)
-}
-
-// func GetUserKeys(userID string) ([]ed25519.PublicKey, bool) {
-// 	return instance.GetUserKeys(userID)
-// }
-
-func SetUserKeys(userID string, keys []ed25519.PublicKey) {
-	instance.SetUserKeys(userID, keys)
-}
-
-func StartCleanupTicker(interval time.Duration, stopCh <-chan struct{}) {
-	instance.StartCleanupTicker(interval, stopCh)
 }

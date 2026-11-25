@@ -9,9 +9,17 @@ import (
 	"time"
 
 	"github.com/antonybholmes/go-web"
+
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/keystore"
 	"github.com/gin-gonic/gin"
+)
+
+type (
+	SignatureMiddleware struct {
+		keyStore *keystore.PublicKeyCache
+		maxSkew  time.Duration
+	}
 )
 
 const (
@@ -23,6 +31,13 @@ const (
 
 	MsgSep = "\n"
 )
+
+func NewSignatureMiddleware(keyStore *keystore.PublicKeyCache, maxSkew time.Duration) *SignatureMiddleware {
+	return &SignatureMiddleware{
+		keyStore: keyStore,
+		maxSkew:  maxSkew,
+	}
+}
 
 // VerifyEd25519SignatureMiddleware verifies requests signed with Ed25519 signatures.
 // This is used to authenticate API requests from clients that hold the corresponding private keys.
@@ -41,7 +56,7 @@ const (
 // is allowed to proceed; otherwise, a 401 Unauthorized response is returned.
 // MaxSkew allows for clock differences between client and server and should be set
 // to a reasonable value (e.g., 5 minutes).
-func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
+func (m *SignatureMiddleware) Ed25519SignatureMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetHeader(HeaderUserID)
 		if userID == "" {
@@ -55,7 +70,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 			return
 		}
 
-		ts, err := checkTimestamp(c, maxSkew)
+		ts, err := checkTimestamp(c, m.maxSkew)
 
 		if err != nil {
 			web.UnauthorizedResp(c, err)
@@ -76,7 +91,7 @@ func Ed25519SignatureMiddleware(maxSkew time.Duration) gin.HandlerFunc {
 		}
 
 		// Get all valid keys for user
-		keys, err := keystore.GetUserPublicKeysCached(userID, false)
+		keys, err := m.keyStore.GetUserPublicKeysCached(userID, false)
 		if err != nil {
 			web.UnauthorizedResp(c, auth.NewAccountError("user not found"))
 			return

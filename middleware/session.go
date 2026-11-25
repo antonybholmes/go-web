@@ -13,10 +13,10 @@ import (
 
 type SessionInfo struct {
 	AuthUser  *auth.AuthUser `json:"user"`
-	IsValid   bool           `json:"valid"`
 	CreatedAt string         `json:"createdAt"`
 	ExpiresAt string         `json:"expiresAt"`
 	CsrfToken string         `json:"csrfToken"`
+	IsValid   bool           `json:"valid"`
 }
 
 var (

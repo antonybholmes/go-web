@@ -57,8 +57,8 @@ type (
 	}
 
 	Rule struct {
-		Path        string
 		Permissions sys.Set[string]
+		Path        string
 	}
 
 	RuleEngine struct {

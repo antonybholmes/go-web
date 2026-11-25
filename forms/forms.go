@@ -18,11 +18,10 @@ type (
 
 	FormFile struct {
 		Content     multipart.File
+		Close       func() error
 		Filename    string
 		ContentType string
 		Size        int64
-		// Cleanup
-		Close func() error
 	}
 )
 

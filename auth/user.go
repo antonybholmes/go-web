@@ -54,15 +54,15 @@ type (
 	}
 
 	AuthProvider struct {
+		UpdatedAt *time.Time `json:"updatedAt"`
 		Id        string     `json:"id"`
 		Name      string     `json:"name"`
-		UpdatedAt *time.Time `json:"updatedAt"`
 	}
 
 	UserAuthProvider struct {
-		Id           string        `json:"id"`
 		UserId       *AuthUser     `json:"user"`
 		AuthProvider *AuthProvider `json:"authProvider"`
+		Id           string        `json:"id"`
 	}
 
 	PublicKey struct {
@@ -72,19 +72,19 @@ type (
 	}
 
 	AuthUser struct {
-		Id              string          `json:"id"`
+		CreatedAt       *time.Time      `json:"createdAt"`
+		EmailVerifiedAt *time.Time      `json:"-"`
+		UpdatedAt       *time.Time      `json:"updatedAt"`
 		Name            string          `json:"name"`
 		Username        string          `json:"username"`
 		Email           string          `json:"email"`
 		PictureUrl      string          `json:"pictureUrl,omitempty"`
 		HashedPassword  string          `json:"-"`
+		Id              string          `json:"id"`
 		Groups          []*RBACGroup    `json:"groups"`
-		AuthProviders   []*AuthProvider `json:"authProviders"`
-		ApiKeys         []string        `json:"apiKeys"`
 		PublicKeys      []*PublicKey    `json:"publicKeys"`
-		CreatedAt       *time.Time      `json:"createdAt"`
-		UpdatedAt       *time.Time      `json:"updatedAt"`
-		EmailVerifiedAt *time.Time      `json:"-"`
+		ApiKeys         []string        `json:"apiKeys"`
+		AuthProviders   []*AuthProvider `json:"authProviders"`
 		IsLocked        bool            `json:"isLocked"`
 	}
 )
