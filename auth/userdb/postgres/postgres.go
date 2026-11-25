@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
-	"os"
 	"strings"
 	"time"
 	"uuid"
@@ -231,19 +230,21 @@ const (
 		`
 )
 
-func NewPostgresUserDB() *PostgresUserDB {
-	ctx := context.Background()
+func NewPostgresUserDB(ctx context.Context, url string) (*PostgresUserDB, error) {
 
-	log.Debug().Msgf("conn %s", os.Getenv("DATABASE_URL"))
+	log.Debug().Msgf("conn %s", url)
 
-	db := sys.Must(pgxpool.New(ctx, os.Getenv("DATABASE_URL")))
+	db, err := pgxpool.New(ctx, url)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Debug().Msgf("Connected!")
 
 	return &PostgresUserDB{
 		db:  db,
 		ctx: ctx,
-	}
+	}, nil
 }
 
 func (pgdb *PostgresUserDB) Db() *pgxpool.Pool {

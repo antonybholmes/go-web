@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"net/mail"
+	"strconv"
 
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
@@ -10,7 +11,6 @@ import (
 	"github.com/antonybholmes/go-web/auth"
 	"github.com/antonybholmes/go-web/auth/token"
 	"github.com/antonybholmes/go-web/auth/userdb"
-	userdbcache "github.com/antonybholmes/go-web/auth/userdb/cache"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -23,229 +23,237 @@ import (
 
 type Validator struct {
 	c           *gin.Context
+	UserDB      userdb.UserDB
 	Address     *mail.Address
 	UserBodyReq *auth.UserBodyReq
 
 	AuthUser *auth.AuthUser
 	Claims   *token.AuthUserJwtClaims
-	Err      error
+
+	Page     int
+	PageSize int
+
+	Err error
 }
 
-func NewValidator(c *gin.Context) *Validator {
+func NewValidator(c *gin.Context, userDB userdb.UserDB) *Validator {
 	return &Validator{
 		c:           c,
+		UserDB:      userDB,
 		Address:     nil,
 		UserBodyReq: nil,
 		AuthUser:    nil,
 		Claims:      nil,
+		Page:        1,
+		PageSize:    10,
 		Err:         nil}
 
 }
 
 // Returns the validator if no errors have been encountered so far
 // otherwise returns an error
-func (validator *Validator) Ok() (*Validator, error) {
-	if validator.Err != nil {
-		return nil, validator.Err
+func (v *Validator) Ok() (*Validator, error) {
+	if v.Err != nil {
+		return nil, v.Err
 	} else {
-		return validator, nil
+		return v, nil
 	}
 }
 
 // If the validator does not encounter errors, it will run the success function
 // allowing you to extract data from the validator, otherwise it returns an error
 // without running the function
-func (validator *Validator) Success(success func(validator *Validator)) {
+func (v *Validator) Success(success func(validator *Validator)) {
 
-	if validator.Err != nil {
-		validator.c.Error(validator.Err)
+	if v.Err != nil {
+		v.c.Error(v.Err)
 		return
 	}
 
-	success(validator)
+	success(v)
 }
 
-func (validator *Validator) ParseSignInRequestBody() *Validator {
-	if validator.Err != nil {
-		return validator
+func (v *Validator) ParseSignInRequestBody() *Validator {
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.UserBodyReq == nil {
+	if v.UserBodyReq == nil {
 		var req auth.UserBodyReq
 
-		err := validator.c.ShouldBindJSON(&req)
+		err := v.c.ShouldBindJSON(&req)
 
 		if err != nil {
-			validator.Err = err
+			v.Err = err
 		} else {
-			validator.UserBodyReq = &req
+			v.UserBodyReq = &req
 		}
 	}
 
-	return validator
+	return v
 }
 
-func (validator *Validator) CheckUsernameIsWellFormed() *Validator {
-	validator.ParseSignInRequestBody()
+func (v *Validator) CheckUsernameIsWellFormed() *Validator {
+	v.ParseSignInRequestBody()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
 	//log.Debug().Msgf("check username well formed %s", validator.SignInBodyReq.Username)
 
-	err := userdb.CheckUsername(validator.UserBodyReq.Username)
+	err := userdb.CheckUsername(v.UserBodyReq.Username)
 
 	if err != nil {
 		log.Debug().Msgf("check user name err %s", err)
-		validator.Err = err
+		v.Err = err
 	}
 
-	return validator
+	return v
 }
 
-func (validator *Validator) CheckEmailIsWellFormed() *Validator {
+func (v *Validator) CheckEmailIsWellFormed() *Validator {
 
-	validator.ParseSignInRequestBody()
+	v.ParseSignInRequestBody()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
 	//address, err := CheckEmailIsWellFormed(validator.Req.Email)
 
-	address, err := mail.ParseAddress(validator.UserBodyReq.Email)
+	address, err := mail.ParseAddress(v.UserBodyReq.Email)
 
 	if err != nil {
-		validator.Err = err
+		v.Err = err
 	} else {
-		validator.Address = address
+		v.Address = address
 	}
 
-	return validator
+	return v
 }
 
-func (validator *Validator) LoadAuthUserFromId() *Validator {
+func (v *Validator) LoadAuthUserFromId() *Validator {
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	authUser, err := userdbcache.Instance().FindUserById(validator.UserBodyReq.Id)
+	authUser, err := v.UserDB.FindUserById(v.UserBodyReq.Id)
 
 	if err != nil {
-		validator.Err = auth.ErrUserDoesNotExist
+		v.Err = auth.ErrUserDoesNotExist
 	} else {
-		validator.AuthUser = authUser
+		v.AuthUser = authUser
 	}
 
-	return validator
-
-}
-
-func (validator *Validator) LoadAuthUserFromEmail() *Validator {
-	validator.CheckEmailIsWellFormed()
-
-	if validator.Err != nil {
-		return validator
-	}
-
-	authUser, err := userdbcache.Instance().FindUserByEmail(validator.Address)
-
-	if err != nil {
-		validator.Err = auth.ErrUserDoesNotExist
-	} else {
-		validator.AuthUser = authUser
-	}
-
-	return validator
+	return v
 
 }
 
-func (validator *Validator) LoadAuthUserFromUsername() *Validator {
-	validator.ParseSignInRequestBody()
+func (v *Validator) LoadAuthUserFromEmail() *Validator {
+	v.CheckEmailIsWellFormed()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	authUser, err := userdbcache.Instance().FindUserByUsername(validator.UserBodyReq.Username)
+	authUser, err := v.UserDB.FindUserByEmail(v.Address)
+
+	if err != nil {
+		v.Err = auth.ErrUserDoesNotExist
+	} else {
+		v.AuthUser = authUser
+	}
+
+	return v
+
+}
+
+func (v *Validator) LoadAuthUserFromUsername() *Validator {
+	v.ParseSignInRequestBody()
+
+	if v.Err != nil {
+		return v
+	}
+
+	authUser, err := v.UserDB.FindUserByUsername(v.UserBodyReq.Username)
 
 	//log.Debug().Msgf("beep2 %s", authUser.Username)
 
 	if err != nil {
-		validator.Err = auth.ErrUserDoesNotExist
+		v.Err = auth.ErrUserDoesNotExist
 	} else {
-		validator.AuthUser = authUser
+		v.AuthUser = authUser
 	}
 
-	return validator
+	return v
 
 }
 
-func (validator *Validator) LoadAuthUserFromSession() *Validator {
-	validator.ParseSignInRequestBody()
+func (v *Validator) LoadAuthUserFromSession() *Validator {
+	v.ParseSignInRequestBody()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	session := sessions.Default(validator.c)
+	session := sessions.Default(v.c)
 
-	sessionData, err := ReadSessionInfo(validator.c, session)
+	sessionData, err := ReadSessionInfo(v.c, session)
 
 	if err != nil {
-		validator.Err = errors.New("user not in session")
-		validator.CheckIsValidRefreshToken().CheckUsernameIsWellFormed()
+		v.Err = errors.New("user not in session")
+		v.CheckIsValidRefreshToken().CheckUsernameIsWellFormed()
 	}
 
-	validator.AuthUser = sessionData.AuthUser
+	v.AuthUser = sessionData.AuthUser
 
-	return validator
+	return v
 }
 
-func (validator *Validator) CheckAuthUserIsLoaded() *Validator {
-	if validator.Err != nil {
-		return validator
+func (v *Validator) CheckAuthUserIsLoaded() *Validator {
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.AuthUser == nil {
-		validator.Err = auth.NewAccountError("no auth user")
+	if v.AuthUser == nil {
+		v.Err = auth.NewAccountError("no auth user")
 	}
 
-	return validator
+	return v
 }
 
-func (validator *Validator) CheckUserHasVerifiedEmailAddress() *Validator {
-	validator.CheckAuthUserIsLoaded()
+func (v *Validator) CheckUserHasVerifiedEmailAddress() *Validator {
+	v.CheckAuthUserIsLoaded()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.AuthUser.EmailVerifiedAt == nil {
-		validator.Err = auth.NewAccountError("email address not verified")
+	if v.AuthUser.EmailVerifiedAt == nil {
+		v.Err = auth.NewAccountError("email address not verified")
 	}
 
-	return validator
+	return v
 }
 
 // If using jwt middleware, token is put into user variable
 // and we can extract data from the jwt
-func (validator *Validator) LoadTokenClaims() *Validator {
-	if validator.Err != nil {
-		return validator
+func (v *Validator) LoadTokenClaims() *Validator {
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.Claims == nil {
-		user, ok := validator.c.Get(web.SessionUser)
+	if v.Claims == nil {
+		user, ok := v.c.Get(web.SessionUser)
 
 		if ok {
-			validator.Claims = user.(*token.AuthUserJwtClaims)
+			v.Claims = user.(*token.AuthUserJwtClaims)
 		}
 	}
 
-	return validator
+	return v
 }
 
 // Extracts public id from token, checks user exists and calls success function.
@@ -253,51 +261,78 @@ func (validator *Validator) LoadTokenClaims() *Validator {
 // If claims are supplied, this step is skipped. This is so this function can
 // be nested in other call backs that may have already extracted the claims
 // without having to repeat this part.
-func (validator *Validator) LoadAuthUserFromToken() *Validator {
-	validator.LoadTokenClaims()
+func (v *Validator) LoadAuthUserFromToken() *Validator {
+	v.LoadTokenClaims()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	authUser, err := userdbcache.Instance().FindUserById(validator.Claims.Subject)
+	authUser, err := v.UserDB.FindUserById(v.Claims.Subject)
 
 	if err != nil {
-		validator.Err = auth.ErrUserDoesNotExist
+		v.Err = auth.ErrUserDoesNotExist
 	} else {
-		validator.AuthUser = authUser
+		v.AuthUser = authUser
 	}
 
-	return validator
+	return v
 }
 
-func (validator *Validator) CheckIsValidRefreshToken() *Validator {
-	validator.LoadTokenClaims()
+func (v *Validator) CheckIsValidRefreshToken() *Validator {
+	v.LoadTokenClaims()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.Claims.Type != token.TokenTypeRefresh {
-		validator.Err = token.NewTokenError("no refresh token")
+	if v.Claims.Type != token.TokenTypeRefresh {
+		v.Err = token.NewTokenError("no refresh token")
 	}
 
-	return validator
+	return v
 
 }
 
-func (validator *Validator) CheckIsValidAccessToken() *Validator {
-	validator.LoadTokenClaims()
+func (v *Validator) CheckIsValidAccessToken() *Validator {
+	v.LoadTokenClaims()
 
-	if validator.Err != nil {
-		return validator
+	if v.Err != nil {
+		return v
 	}
 
-	if validator.Claims.Type != token.TokenTypeAccess {
-		validator.Err = token.NewTokenError("no access token")
+	if v.Claims.Type != token.TokenTypeAccess {
+		v.Err = token.NewTokenError("no access token")
 	}
 
-	return validator
+	return v
+}
+
+func (v *Validator) ParsePaging() *Validator {
+	if v.Err != nil {
+		return v
+	}
+
+	page := v.c.DefaultQuery("page", "1")
+	pageNum, err := strconv.Atoi(page)
+
+	if err != nil {
+		v.Err = err
+		return v
+	}
+
+	pageSize := v.c.DefaultQuery("pageSize", "10")
+	pageSizeNum, err := strconv.Atoi(pageSize)
+
+	if err != nil {
+		v.Err = err
+		return v
+	}
+
+	v.Page = pageNum
+	v.PageSize = pageSizeNum
+
+	return v
 }
 
 // func ParseSignInRequestBody(c *gin.Context) (*UserBodyReq, error) {
