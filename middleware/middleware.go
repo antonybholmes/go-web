@@ -329,6 +329,7 @@ func SessionIsValidMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Set user to the session data in the context
 		c.Set("user", sessData.AuthUser)
 
 		c.Next()

@@ -308,6 +308,7 @@ func (v *Validator) CheckIsValidAccessToken() *Validator {
 	return v
 }
 
+// ParsePaging parses the page and pageSize query parameters, defaulting to 1 and 10.
 func (v *Validator) ParsePaging() *Validator {
 	if v.Err != nil {
 		return v

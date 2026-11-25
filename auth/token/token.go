@@ -1,7 +1,7 @@
 package token
 
 import (
-	"crypto/ecdsa"
+	"crypto"
 	"crypto/rsa"
 	"fmt"
 	"net/mail"
@@ -86,11 +86,11 @@ type (
 	}
 
 	RSATokenSigner struct {
-		secret *rsa.PrivateKey
+		secret crypto.Signer
 	}
 
 	ES256TokenSigner struct {
-		secret *ecdsa.PrivateKey
+		secret crypto.Signer
 	}
 )
 
@@ -379,7 +379,7 @@ func (tc *RSATokenSigner) Sign(claims jwt.Claims) (string, error) {
 	return t, nil
 }
 
-func NewES256TokenSigner(secret *ecdsa.PrivateKey) *ES256TokenSigner {
+func NewES256TokenSigner(secret crypto.Signer) *ES256TokenSigner {
 	return &ES256TokenSigner{secret: secret}
 }
 

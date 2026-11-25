@@ -1,8 +1,7 @@
 package middleware
 
 import (
-	"crypto/ecdsa"
-	"crypto/rsa"
+	"crypto"
 	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,11 +13,11 @@ type (
 	}
 
 	JwtClaimsRSAParser struct {
-		PublicKey *rsa.PublicKey
+		PublicKey crypto.PublicKey
 	}
 
 	JwtClaimsES256Parser struct {
-		PublicKey *ecdsa.PublicKey
+		PublicKey crypto.PublicKey
 	}
 
 	JwtClaimsHMACParser struct {
@@ -26,7 +25,7 @@ type (
 	}
 )
 
-func NewJwtClaimsRSAParser(publicKey *rsa.PublicKey) *JwtClaimsRSAParser {
+func NewJwtClaimsRSAParser(publicKey crypto.PublicKey) *JwtClaimsRSAParser {
 	return &JwtClaimsRSAParser{PublicKey: publicKey}
 }
 
@@ -42,7 +41,7 @@ func (p *JwtClaimsRSAParser) Parse(token string, claims jwt.Claims) error {
 
 // Given a public key and a token, it will parse the token and return the claims
 // stored within it
-func NewJwtClaimsES256Parser(publicKey *ecdsa.PublicKey) *JwtClaimsES256Parser {
+func NewJwtClaimsES256Parser(publicKey crypto.PublicKey) *JwtClaimsES256Parser {
 	return &JwtClaimsES256Parser{PublicKey: publicKey}
 }
 
