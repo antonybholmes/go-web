@@ -45,7 +45,7 @@ func NewValidator(c *gin.Context, userDB userdb.UserDB) *Validator {
 		AuthUser:    nil,
 		Claims:      nil,
 		Page:        1,
-		PageSize:    10,
+		PageSize:    100,
 		Err:         nil}
 
 }
@@ -322,7 +322,7 @@ func (v *Validator) ParsePaging() *Validator {
 		return v
 	}
 
-	pageSize := v.c.DefaultQuery("pageSize", "10")
+	pageSize := v.c.DefaultQuery("pageSize", "100")
 	pageSizeNum, err := strconv.Atoi(pageSize)
 
 	if err != nil {
