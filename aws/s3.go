@@ -20,7 +20,7 @@ func NewS3WebStore(s3Store *awssys.S3Store) *S3WebStore {
 
 // DownloadZip streams the specified S3 objects as a ZIP archive to the client.
 func (s *S3WebStore) DownloadZip(c *gin.Context, keys []string, filename string) {
-	c.Header("Content-Type", "application/zip")
+	c.Header(web.HeaderContentType, web.MimeTypeZip)
 	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 
 	ctx := c.Request.Context()

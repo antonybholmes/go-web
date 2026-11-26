@@ -53,6 +53,10 @@ const (
 	// Default separator for concatenating multiple values in a single string, such as in cookies or keys.
 	// Using a constant ensures consistency across the codebase and makes it easy to change if needed.
 	Sep = "|"
+
+	MimeTypeZip = "application/zip"
+
+	HeaderContentType = "Content-Type"
 )
 
 var (
