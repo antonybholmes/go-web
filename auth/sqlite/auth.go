@@ -31,7 +31,7 @@ func MakePermissionsInClause(permissions []string, isAdmin bool, namedArgs *[]an
 
 // Replaces <<PERMISSIONS>> in query with the appropriate IN clause
 // and appends named args for use in sql query so it can be done in a safe way
-func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedArgs *[]any) string {
+func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedArgs *[]any) (string, error) {
 	//inClause := MakePermissionsInClause(permissions, isAdmin, namedArgs)
 
 	// (:is_admin = 1 OR p.name IN (<<PERMISSIONS>>))
@@ -45,20 +45,25 @@ func MakePermissionsSql(query string, isAdmin bool, permissions []string, namedA
 
 		// we must have a clause to check since this is combined with AND/OR
 		// so just return a true clause
-		return strings.Replace(query, "<<PERMISSIONS>>", ":is_admin = 1", 1)
+		return strings.Replace(query, "<<PERMISSIONS>>", ":is_admin = 1", 1), nil
 	}
 
 	inPlaceholders := make([]string, len(permissions))
 
 	for i, perm := range permissions {
+		perm, err := web.FormatParam(perm)
+		if err != nil {
+			return "", fmt.Errorf("invalid permission: %s", perm)
+		}
+
 		ph := fmt.Sprintf("perm%d", i+1)
 		inPlaceholders[i] = ":" + ph
-		*namedArgs = append(*namedArgs, sql.Named(ph, web.FormatParam(perm)))
+		*namedArgs = append(*namedArgs, sql.Named(ph, perm))
 	}
 
 	// case sensitive match as permissions are precise
 	clause := "p.name IN (" + strings.Join(inPlaceholders, ", ") + ")"
 
-	return strings.Replace(query, "<<PERMISSIONS>>", clause, 1)
+	return strings.Replace(query, "<<PERMISSIONS>>", clause, 1), nil
 
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -65,6 +66,9 @@ var (
 	ErrInvalidBody      = fmt.Errorf("invalid body")
 	ErrInvalidUsername  = fmt.Errorf("invalid username")
 	ErrPasswordMismatch = fmt.Errorf("passwords do not match")
+
+	// For validating alphanumeric params
+	IsAlphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 )
 
 // BindQueryAndJSON binds both query parameters and JSON body to the given object.
@@ -292,6 +296,31 @@ func MakeSuccessResp(c *gin.Context, message string, success bool) {
 
 // Param names that are to be normalized to lowercase and trimmed of whitespace to ensure consistency.
 // e.g. "GRCh38" and "grch38" will both be treated as "grch38", and " grch38 " will also be treated as "grch38".
-func FormatParam(param string) string {
-	return strings.ToLower(strings.TrimSpace(param))
+func FormatParam(param string) (string, error) {
+	param = strings.ToLower(strings.TrimSpace(param))
+
+	if !IsAlphanumericRegex.MatchString(param) {
+		return "", fmt.Errorf("invalid parameter: %s", param)
+	}
+
+	return param, nil
+}
+
+// Returns values of comma-separated parameters after formatting each one.
+func FormatParams(param string) ([]string, error) {
+	if param == "" {
+		return []string{}, nil
+	}
+
+	params := strings.Split(param, ",")
+
+	formatted := make([]string, len(params))
+	for i, param := range params {
+		fp, err := FormatParam(param)
+		if err != nil {
+			return nil, err
+		}
+		formatted[i] = fp
+	}
+	return formatted, nil
 }
