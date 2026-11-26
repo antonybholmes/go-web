@@ -56,7 +56,8 @@ const (
 
 	MimeTypeZip = "application/zip"
 
-	HeaderContentType = "Content-Type"
+	HeaderContentType        = "Content-Type"
+	HeaderContentDisposition = "Content-Disposition"
 )
 
 var (
