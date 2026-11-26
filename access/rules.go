@@ -29,27 +29,34 @@ import (
 // )
 
 type (
-	JsonTokenRule struct {
+	MethodType string
+
+	PermissionToken struct {
 		Type        string   `json:"type"`
 		Permissions []string `json:"permissions"`
 	}
 
-	JsonMethodRule struct {
-		Type   string          `json:"type"`
-		Tokens []JsonTokenRule `json:"tokens"`
+	AccessMethod struct {
+		Type   MethodType        `json:"type"`
+		Tokens []PermissionToken `json:"tokens"`
 	}
 
-	// JSON structure for rules
-	JsonRule struct {
-		Methods  []JsonMethodRule `json:"methods"`
-		Path     string           `json:"path"`
-		Audience jwt.ClaimStrings `json:"audience"`
+	// Defines an access control rule for a specific path, methods, and token types.
+	AccessRule struct {
+		Version     string           `json:"version,omitempty"`
+		Description string           `json:"description,omitempty"`
+		Updated     string           `json:"updated,omitempty"`
+		Methods     []AccessMethod   `json:"methods"`
+		Path        string           `json:"path"`
+		Audience    jwt.ClaimStrings `json:"audience"`
 	}
 
-	JsonRules struct {
-		Version string     `json:"version"`
-		Updated string     `json:"updated"`
-		Rules   []JsonRule `json:"rules"`
+	// The collection of all rules for the web application
+	RuleSet struct {
+		Version     string       `json:"version,omitempty"`
+		Description string       `json:"description,omitempty"`
+		Updated     string       `json:"updated,omitempty"`
+		Rules       []AccessRule `json:"rules"`
 	}
 
 	AccessRuleError struct {
@@ -68,6 +75,13 @@ type (
 	}
 )
 
+const (
+	MethodGet    MethodType = "GET"
+	MethodPost   MethodType = "POST"
+	MethodPut    MethodType = "PUT"
+	MethodDelete MethodType = "DELETE"
+)
+
 func NewAccessRuleError(s string) *AccessRuleError {
 	return &AccessRuleError{s: s}
 }
@@ -79,14 +93,14 @@ func (e *AccessRuleError) Error() string {
 // A rule key is a combination of method, token type, audience and path for exact matches of
 // rules. We match info from the jwt and url request to find relevant rules for access control.
 // For wildcard rules, the path is not included in the key
-func makeExactPathRuleKey(method, tokenType string, audience jwt.ClaimStrings, path string) string {
+func makeExactPathRuleKey(method MethodType, tokenType string, audience jwt.ClaimStrings, path string) string {
 	path = strings.TrimSuffix(path, "/") // remove trailing slash if present
 
 	return makeWildcardRuleKey(method, tokenType, audience) + web.Sep + path
 }
 
 // Rules are indexed with a simple key of method|tokenType|audience for quick lookup.
-func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) string {
+func makeWildcardRuleKey(method MethodType, tokenType string, audience jwt.ClaimStrings) string {
 	// if audience is empty, use wildcard to match any audience
 	if len(audience) == 0 {
 		audience = jwt.ClaimStrings{"*"}
@@ -94,7 +108,7 @@ func makeWildcardRuleKey(method, tokenType string, audience jwt.ClaimStrings) st
 
 	sort.Strings(audience) // ensure consistent ordering for key generation
 
-	return strings.ToLower(method + web.Sep + tokenType + web.Sep + strings.Join(audience, ","))
+	return strings.ToLower(string(method) + web.Sep + tokenType + web.Sep + strings.Join(audience, ","))
 }
 
 func NewRuleEngine() *RuleEngine {
@@ -111,7 +125,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 	data := sys.Must(os.ReadFile(filename))
 
 	// Load the rules from the JSON data into the RuleEngine
-	var rules JsonRules
+	var rules RuleSet
 	sys.VoidMust(json.Unmarshal(data, &rules))
 
 	var isExact bool
@@ -177,7 +191,7 @@ func (re *RuleEngine) LoadRules(filename string) {
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
 }
 
-func (re *RuleEngine) getWildCardRoles(method string, tokenType string, audience jwt.ClaimStrings, path string) (sys.Set[string], error) {
+func (re *RuleEngine) getWildCardRoles(method MethodType, tokenType string, audience jwt.ClaimStrings, path string) (sys.Set[string], error) {
 	log.Debug().Msgf("GetWildCardRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
 	key := makeWildcardRuleKey(method, tokenType, audience)
@@ -227,7 +241,7 @@ func (re *RuleEngine) getWildCardRoles(method string, tokenType string, audience
 
 // Get the rules for a given method, path and token. This is the core function that checks for matching rules based on the request and token info.
 // It first checks for exact path matches and if no rules are found, it returns an error.
-func (re *RuleEngine) getPermissionsForRoute(method string,
+func (re *RuleEngine) getPermissionsForRoute(method MethodType,
 	path string,
 	token *token.AuthUserJwtClaims) (sys.Set[string], error) {
 
@@ -248,7 +262,7 @@ func (re *RuleEngine) getPermissionsForRoute(method string,
 	return rule.Permissions, nil
 }
 
-func (re *RuleEngine) GetRoutePermissions(method string, path string, token *token.AuthUserJwtClaims) (sys.Set[string], error) {
+func (re *RuleEngine) GetRoutePermissions(method MethodType, path string, token *token.AuthUserJwtClaims) (sys.Set[string], error) {
 
 	rules, err := re.getPermissionsForRoute(method, path, token)
 
@@ -262,7 +276,7 @@ func (re *RuleEngine) GetRoutePermissions(method string, path string, token *tok
 
 }
 
-func (re *RuleEngine) IsAccessAllowed(method, path string, token *token.AuthUserJwtClaims) error {
+func (re *RuleEngine) IsAccessAllowed(method MethodType, path string, token *token.AuthUserJwtClaims) error {
 
 	log.Debug().Msgf("IsAccessAllowed: method=%s, path=%s, tokenType=%s, permissions=%v", method, path, token.Type, token.Permissions)
 

@@ -36,7 +36,7 @@ func AccessTokenRulesMiddleware(userClaimsParser *UserJWTParser, ruleEngine *acc
 		//log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
 		// Use the route engine to check access based on the path, user token type and the permissions in the token
-		err = ruleEngine.IsAccessAllowed(c.Request.Method,
+		err = ruleEngine.IsAccessAllowed(access.MethodType(c.Request.Method),
 			c.FullPath(),
 			userToken)
 
