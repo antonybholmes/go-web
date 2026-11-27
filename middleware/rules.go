@@ -30,9 +30,6 @@ func AccessTokenRulesMiddleware(userClaimsParser *UserJWTParser, ruleEngine *acc
 			return
 		}
 
-		// use pointer to token
-		c.Set("user", userToken)
-
 		//log.Debug().Msgf("Checking access for method=%s, path=%s, tokenType=%s, roles=%v", c.Request.Method, c.FullPath(), userToken.Type, userToken.Roles)
 
 		// Use the route engine to check access based on the path, user token type and the permissions in the token
@@ -45,6 +42,9 @@ func AccessTokenRulesMiddleware(userClaimsParser *UserJWTParser, ruleEngine *acc
 			web.ForbiddenResp(c, err)
 			return
 		}
+
+		// use pointer to token
+		c.Set("user", userToken)
 
 		c.Next()
 

@@ -342,7 +342,7 @@ func SplitFormatParam(v string) ([]string, error) {
 }
 
 // Returns values of comma-separated parameters after formatting each one.
-func SplitQuery(c *gin.Context, key string) ([]string, error) {
+func SplitFormatQuery(c *gin.Context, key string) ([]string, error) {
 	return SplitFormatParam(c.Query(key))
 }
 
