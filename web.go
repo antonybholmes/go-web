@@ -67,8 +67,8 @@ var (
 	ErrInvalidUsername  = fmt.Errorf("invalid username")
 	ErrPasswordMismatch = fmt.Errorf("passwords do not match")
 
-	// For validating alphanumeric params
-	IsAlphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	// For validating alphanumeric params, allow dash for uuids
+	IsAlphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
 )
 
 // BindQueryAndJSON binds both query parameters and JSON body to the given object.
@@ -307,7 +307,7 @@ func FormatParam(param string) (string, error) {
 }
 
 // Returns values of comma-separated parameters after formatting each one.
-func FormatParams(param string) ([]string, error) {
+func SplitParam(param string) ([]string, error) {
 	if param == "" {
 		return []string{}, nil
 	}
@@ -323,4 +323,58 @@ func FormatParams(param string) ([]string, error) {
 		formatted[i] = fp
 	}
 	return formatted, nil
+}
+
+func IntParam(param string) (int, error) {
+	param = strings.TrimSpace(param)
+
+	if param == "" {
+		return 0, fmt.Errorf("parameter is empty")
+	}
+
+	num, err := strconv.Atoi(param)
+
+	if err != nil {
+		return 0, fmt.Errorf("invalid number: %s", param)
+	}
+
+	return num, nil
+}
+
+func FloatParam(param string) (float64, error) {
+	param = strings.TrimSpace(param)
+
+	if param == "" {
+		return 0, fmt.Errorf("parameter is empty")
+	}
+
+	num, err := strconv.ParseFloat(param, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid number: %s", param)
+	}
+
+	return num, nil
+}
+
+func BoolParam(param string) bool {
+	param = strings.ToLower(strings.TrimSpace(param))
+
+	return param == "t" || param == "true" || param == "1"
+}
+
+func SplitIntParam(param string) ([]int, error) {
+	if param == "" {
+		return []int{}, nil
+	}
+
+	parts := strings.Split(param, ",")
+	ints := make([]int, len(parts))
+	for i, part := range parts {
+		num, err := IntParam(part)
+		if err != nil {
+			return nil, err
+		}
+		ints[i] = num
+	}
+	return ints, nil
 }
