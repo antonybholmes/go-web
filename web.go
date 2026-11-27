@@ -38,6 +38,9 @@ type (
 		IpAddr string `json:"ipAddr"`
 		Arch   string `json:"arch"`
 	}
+
+	// LowerString automatically normalizes bound values to lowercase.
+	LowerString string
 )
 
 const (
@@ -70,6 +73,15 @@ var (
 	// For validating alphanumeric params, allow dash for uuids
 	IsAlphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
 )
+
+func (l *LowerString) UnmarshalText(text []byte) error {
+	*l = LowerString(strings.ToLower(strings.TrimSpace(string(text))))
+	return nil
+}
+
+func (l LowerString) String() string {
+	return string(l)
+}
 
 // BindQueryAndJSON binds both query parameters and JSON body to the given object.
 func BindQueryAndJSON(c *gin.Context, obj any) error {
@@ -294,29 +306,33 @@ func MakeSuccessResp(c *gin.Context, message string, success bool) {
 	MakeDataResp(c, message, &SuccessResp{Success: success})
 }
 
-// Param names that are to be normalized to lowercase and trimmed of whitespace to ensure consistency.
-// e.g. "GRCh38" and "grch38" will both be treated as "grch38", and " grch38 " will also be treated as "grch38".
-func FormatParam(param string) (string, error) {
-	param = strings.ToLower(strings.TrimSpace(param))
+func FormatParam(v string) (string, error) {
+	v = strings.ToLower(strings.TrimSpace(v))
 
-	if !IsAlphanumericRegex.MatchString(param) {
-		return "", fmt.Errorf("invalid parameter: %s", param)
+	if !IsAlphanumericRegex.MatchString(v) {
+		return "", fmt.Errorf("invalid parameter: %s", v)
 	}
 
-	return param, nil
+	return v, nil
 }
 
-// Returns values of comma-separated parameters after formatting each one.
-func SplitParam(param string) ([]string, error) {
-	if param == "" {
+// Param names that are to be normalized to lowercase and trimmed of whitespace to ensure consistency.
+// e.g. "GRCh38" and "grch38" will both be treated as "grch38", and " grch38 " will also be treated as "grch38".
+func FormatQuery(c *gin.Context, key string) (string, error) {
+	return FormatParam(c.Query(key))
+}
+
+func SplitFormatParam(v string) ([]string, error) {
+	v = strings.TrimSpace(v)
+
+	if v == "" {
 		return []string{}, nil
 	}
 
-	params := strings.Split(param, ",")
-
-	formatted := make([]string, len(params))
-	for i, param := range params {
-		fp, err := FormatParam(param)
+	parts := strings.Split(v, ",")
+	formatted := make([]string, len(parts))
+	for i, part := range parts {
+		fp, err := FormatParam(part)
 		if err != nil {
 			return nil, err
 		}
@@ -325,24 +341,33 @@ func SplitParam(param string) ([]string, error) {
 	return formatted, nil
 }
 
-func IntParam(param string) (int, error) {
-	param = strings.TrimSpace(param)
+// Returns values of comma-separated parameters after formatting each one.
+func SplitQuery(c *gin.Context, key string) ([]string, error) {
+	return SplitFormatParam(c.Query(key))
+}
 
-	if param == "" {
+func IntParam(v string) (int, error) {
+	v = strings.TrimSpace(v)
+
+	if v == "" {
 		return 0, fmt.Errorf("parameter is empty")
 	}
 
-	num, err := strconv.Atoi(param)
+	num, err := strconv.Atoi(v)
 
 	if err != nil {
-		return 0, fmt.Errorf("invalid number: %s", param)
+		return 0, fmt.Errorf("invalid number: %s", v)
 	}
 
 	return num, nil
 }
 
-func FloatParam(param string) (float64, error) {
-	param = strings.TrimSpace(param)
+func IntQuery(c *gin.Context, key string) (int, error) {
+	return IntParam(c.Query(key))
+}
+
+func FloatQuery(c *gin.Context, key string) (float64, error) {
+	param := strings.TrimSpace(c.Query(key))
 
 	if param == "" {
 		return 0, fmt.Errorf("parameter is empty")
@@ -356,13 +381,15 @@ func FloatParam(param string) (float64, error) {
 	return num, nil
 }
 
-func BoolParam(param string) bool {
-	param = strings.ToLower(strings.TrimSpace(param))
+func BoolQuery(c *gin.Context, key string) bool {
+	param := strings.ToLower(strings.TrimSpace(c.Query(key)))
 
 	return param == "t" || param == "true" || param == "1"
 }
 
-func SplitIntParam(param string) ([]int, error) {
+func SplitIntQuery(c *gin.Context, key string) ([]int, error) {
+	param := strings.TrimSpace(c.Query(key))
+
 	if param == "" {
 		return []int{}, nil
 	}
