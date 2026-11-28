@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/collections"
 	"github.com/antonybholmes/go-sys/log"
 	"github.com/antonybholmes/go-web"
 	"github.com/antonybholmes/go-web/auth"
@@ -64,7 +65,7 @@ type (
 	}
 
 	Rule struct {
-		Permissions sys.Set[string]
+		Permissions collections.Set[string]
 		Path        string
 	}
 
@@ -148,14 +149,14 @@ func (re *RuleEngine) LoadRules(filename string) {
 				if isExact {
 					re.rules[makeExactPathRuleKey(m.Type, t.Type, r.Audience, path)] = Rule{
 						Path:        path,
-						Permissions: sys.NewSet(t.Permissions...),
+						Permissions: collections.NewSet(t.Permissions...),
 					}
 				} else {
 					key := makeWildcardRuleKey(m.Type, t.Type, r.Audience)
 
 					re.wildcardRules[key] = append(re.wildcardRules[key], Rule{
 						Path:        path,
-						Permissions: sys.NewSet(t.Permissions...),
+						Permissions: collections.NewSet(t.Permissions...),
 					})
 				}
 
@@ -191,7 +192,10 @@ func (re *RuleEngine) LoadRules(filename string) {
 	log.Info().Msgf("Loaded %d access rules from %s", len(rules.Rules), filename)
 }
 
-func (re *RuleEngine) getWildCardRoles(method MethodType, tokenType string, audience jwt.ClaimStrings, path string) (sys.Set[string], error) {
+func (re *RuleEngine) getWildCardRoles(method MethodType,
+	tokenType string,
+	audience jwt.ClaimStrings,
+	path string) (collections.Set[string], error) {
 	log.Debug().Msgf("GetWildCardRoles: method=%s, tokenType=%s, path=%s", method, tokenType, path)
 
 	key := makeWildcardRuleKey(method, tokenType, audience)
@@ -243,7 +247,7 @@ func (re *RuleEngine) getWildCardRoles(method MethodType, tokenType string, audi
 // It first checks for exact path matches and if no rules are found, it returns an error.
 func (re *RuleEngine) getPermissionsForRoute(method MethodType,
 	path string,
-	token *token.AuthUserJwtClaims) (sys.Set[string], error) {
+	token *token.AuthUserJwtClaims) (collections.Set[string], error) {
 
 	log.Debug().Msgf("GetExactRoles: method=%s, tokenType=%s, path=%s", method, token.Type, path)
 
@@ -262,7 +266,9 @@ func (re *RuleEngine) getPermissionsForRoute(method MethodType,
 	return rule.Permissions, nil
 }
 
-func (re *RuleEngine) GetRoutePermissions(method MethodType, path string, token *token.AuthUserJwtClaims) (sys.Set[string], error) {
+func (re *RuleEngine) GetRoutePermissions(method MethodType,
+	path string,
+	token *token.AuthUserJwtClaims) (collections.Set[string], error) {
 
 	rules, err := re.getPermissionsForRoute(method, path, token)
 

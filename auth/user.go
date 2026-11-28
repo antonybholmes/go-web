@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/antonybholmes/go-sys"
+	"github.com/antonybholmes/go-sys/collections"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -160,8 +160,8 @@ func CheckPasswordsMatch(hashedPassword string, plainPwd string) error {
 // 	return f(roles)
 // }
 
-func userHasRole(groups []*RBACGroup, f func(roles sys.Set[string]) bool) bool {
-	permissions := sys.NewSet[string]()
+func userHasRole(groups []*RBACGroup, f func(roles collections.Set[string]) bool) bool {
+	permissions := collections.NewSet[string]()
 
 	for _, g := range groups {
 		for _, r := range g.Roles {
@@ -176,19 +176,19 @@ func userHasRole(groups []*RBACGroup, f func(roles sys.Set[string]) bool) bool {
 }
 
 func UserHasSuperRole(user *AuthUser) bool {
-	return userHasRole(user.Groups, func(roles sys.Set[string]) bool {
+	return userHasRole(user.Groups, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleSuper)
 	})
 }
 
 func UserHasAdminRole(user *AuthUser) bool {
-	return userHasRole(user.Groups, func(roles sys.Set[string]) bool {
+	return userHasRole(user.Groups, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
 	})
 }
 
 func UserHasWebLoginInRole(user *AuthUser) bool {
-	return userHasRole(user.Groups, func(roles sys.Set[string]) bool {
+	return userHasRole(user.Groups, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleWebLogin)
 	})
 }
@@ -233,7 +233,7 @@ func UserHasWebLoginInRole(user *AuthUser) bool {
 func GetRolesFromUser(user *AuthUser) []*Role {
 	ret := make([]*Role, 0, len(user.Groups))
 
-	used := sys.NewSet[string]()
+	used := collections.NewSet[string]()
 
 	for _, g := range user.Groups {
 		for _, r := range g.Roles {
@@ -292,7 +292,7 @@ func FlattenRoles(roles []*Role) []string {
 
 // Get a sorted list of unique permissions from a list of roles
 func RolesToPermissions(roles []*Role) []string {
-	permissionSet := sys.NewSet[string]()
+	permissionSet := collections.NewSet[string]()
 
 	for _, rp := range roles {
 		for _, p := range rp.Permissions {
@@ -300,11 +300,11 @@ func RolesToPermissions(roles []*Role) []string {
 		}
 	}
 
-	return sys.SortedKeys(permissionSet)
+	return collections.SortedKeys(permissionSet)
 }
 
-func hasRole(roles []*Role, f func(roles sys.Set[string]) bool) bool {
-	roleSet := sys.NewSet[string]()
+func hasRole(roles []*Role, f func(roles collections.Set[string]) bool) bool {
+	roleSet := collections.NewSet[string]()
 
 	for _, rp := range roles {
 		roleSet.ListUpdate(FlattenRole(rp))
@@ -315,19 +315,19 @@ func hasRole(roles []*Role, f func(roles sys.Set[string]) bool) bool {
 }
 
 func HasSuperRole(roles []*Role) bool {
-	return hasRole(roles, func(roles sys.Set[string]) bool {
+	return hasRole(roles, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleSuper)
 	})
 }
 
 func HasAdminRole(roles []*Role) bool {
-	return hasRole(roles, func(roles sys.Set[string]) bool {
+	return hasRole(roles, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleAdmin) || roles.Has(RoleSuper)
 	})
 }
 
 func HasWebLoginInRole(roles []*Role) bool {
-	return hasRole(roles, func(roles sys.Set[string]) bool {
+	return hasRole(roles, func(roles collections.Set[string]) bool {
 		return roles.Has(RoleWebLogin)
 	})
 }
